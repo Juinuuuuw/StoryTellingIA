@@ -1,0 +1,178 @@
+{
+  "katherine_johnson": [
+    {
+      "id": "kj_001",
+      "steps": ["west_computing"],
+      "tags": ["segregacao", "banheiro", "racismo", "discriminacao", "cotidiano"],
+      "fato": "O banheiro designado para as computadoras negras da NASA Langley ficava a quase 800 metros de distancia, em outro predio completamente diferente. Katherine precisava cruzar o campus inteiro sob sol escaldante ou chuva torrencial apenas para usar o toalete. A placa dizia: 'Colored Restroom'. Ela nao reclamava — simplesmente calculava mais rapido para compensar o tempo perdido."
+    },
+    {
+      "id": "kj_002",
+      "steps": ["west_computing"],
+      "tags": ["segregacao", "cafe", "racismo", "cotidiano", "silencio"],
+      "fato": "Na sala de cafe onde as funcionarias brancas da NASA faziam seu intervalo, havia uma cafeteira separada com um adesivo desgastado: 'Colored'. O mesmo cafe, a mesma marca, a mesma maquina — mas uma barreira invisivel que tornava aquele gole completamente diferente. Katherine bebia o seu cafe em pe, entre calculos, sem fazer alarde."
+    },
+    {
+      "id": "kj_003",
+      "steps": ["west_computing"],
+      "tags": ["orientacao", "excelencia", "Dorothy Vaughan", "pressao"],
+      "fato": "Quando Katherine chegou ao West Area Computing em 1953, Dorothy Vaughan a orientou: 'Voce e brilhante. Mas aqui, brilhante nao basta. Voce precisa ser perfeita, porque nao podemos dar a eles nenhuma razao para nos mandarem embora.' Essas palavras moldaram cada linha que Katherine calculou por decadas."
+    },
+    {
+      "id": "kj_004",
+      "steps": ["west_computing", "mercury_shepard"],
+      "tags": ["reuniao", "determinacao", "barreira", "pioneirismo"],
+      "fato": "Katherine pediu para participar das reunioes de briefing tecnico dos engenheiros — reunioes onde mulheres, e especialmente mulheres negras, simplesmente nao entravam. O supervisor verificou os regulamentos e nao encontrou nenhuma regra proibindo. Entao Katherine comecou a entrar toda semana. Ninguem mais tentou impedi-la."
+    },
+    {
+      "id": "kj_005",
+      "steps": ["mercury_shepard"],
+      "tags": ["Freedom 7", "Alan Shepard", "calculo", "trajetoria", "responsabilidade"],
+      "fato": "Para a missao Freedom 7, Katherine Johnson usou apenas um lapis, uma regua de calculo e formularios manuscritos. Ela calculou a parabola exata do foguete: do lancamento em Cape Canaveral ate o splashdown no Atlantico. Um erro de decimo de milesimo de grau teria feito Alan Shepard pousar no oceano errado — ou nao sobreviver. Ela verificou cada numero tres vezes."
+    },
+    {
+      "id": "kj_006",
+      "steps": ["john_glenn_request"],
+      "tags": ["Glenn", "IBM", "verificacao", "confianca", "computador"],
+      "fato": "Antes de orbitar a Terra em 1962, John Glenn parou os engenheiros e disse: 'Tragam a moca. Se ela diz que os numeros estao certos, entao estou pronto para voar.' A 'moca' era Katherine Johnson. Glenn nao confiava nos novos computadores IBM — confiava nela. Katherine passou mais de 24 horas verificando cada linha de calculo do IBM, dado por dado. Quando terminou, disse: 'Podem ir.'"
+    },
+    {
+      "id": "kj_007",
+      "steps": ["john_glenn_request"],
+      "tags": ["IBM", "maquina", "humana", "precisao", "desconfianca"],
+      "fato": "O IBM 7090 era novo, caro e moderno. Mas John Glenn sabia que maquinas nao pediam desculpas quando erravam. Katherine Johnson errava raramente — e quando havia duvida, ela recomecava do zero. Os engenheiros esperaram 24 horas pela verificacao dela. O foguete ficou na rampa. A NASA ficou em silencio. Valeu cada segundo."
+    },
+    {
+      "id": "kj_008",
+      "steps": ["missao_apollo"],
+      "tags": ["Apollo 11", "Lua", "trajetoria", "backup", "Armstrong"],
+      "fato": "Para a Apollo 11, Katherine calculou a trajetoria de insercao lunar — o caminho exato que o modulo Eagle precisaria seguir para pousar na Lua. Ela tambem criou mapas de backup: tabelas manuais que os astronautas poderiam usar se os computadores falhassem no espaco. Armstrong usou os computadores. Mas os backups de Katherine estavam a bordo, dobrados e guardados."
+    },
+    {
+      "id": "kj_009",
+      "steps": ["apollo_13_resgate"],
+      "tags": ["Apollo 13", "explosao", "urgencia", "retorno", "vidas"],
+      "fato": "Quando a Apollo 13 explodiu a 330 mil km da Terra em abril de 1970, os engenheiros tinham horas para calcular uma rota de retorno que aproveitasse a gravidade lunar como estilingue. Katherine Johnson, com sua equipe, trabalhou sem dormir. Os procedimentos de backup que ela havia desenvolvido anos antes tornaram-se o roteiro de sobrevivencia dos tres astronautas."
+    },
+    {
+      "id": "kj_010",
+      "steps": ["legado_katherine"],
+      "tags": ["legado", "reconhecimento", "Medalha Presidencial", "matematica", "fim"],
+      "fato": "Katherine Johnson trabalhou na NASA por 33 anos. Em 2015, Barack Obama lhe entregou a Medalha Presidencial da Liberdade. Ela tinha 97 anos e foi ao palco sozinha, sem bengala. Em 2016, o predio do Langley Research Center recebeu seu nome. Ate o fim da vida, quando perguntada sobre seu segredo, ela dizia: 'Conte com a matematica. Ela nunca mente.'"
+    }
+  ],
+
+  "alan_turing": [
+    {
+      "id": "at_001",
+      "steps": ["cambridge_1936"],
+      "tags": ["excentrico", "Cambridge", "personalidade", "habitos", "diferente"],
+      "fato": "Alan Turing era diferente de maneiras que o mundo de 1936 nao sabia nomear. Ele corria maratonas com um cronometro amarrado ao pulso para calcular seu proprio ritmo. Comia a mesma tigela de aveia toda manha. Prendia sua caneca de cha a mesa com um cadeado para que ninguem a roubasse. Seus colegas o achavam excentrico. Mas sua mente era uma maquina que o seculo XX ainda nao merecia."
+    },
+    {
+      "id": "at_002",
+      "steps": ["cambridge_1936"],
+      "tags": ["Entscheidungsproblem", "Hilbert", "algoritmo", "computabilidade", "prova"],
+      "fato": "O Entscheidungsproblem havia sido proposto por David Hilbert. Ele queria saber se existia um algoritmo capaz de dizer, para qualquer afirmacao matematica, se ela era verdadeira ou falsa. Turing, com 24 anos, respondeu com uma prova elegante: nao. Ha problemas que nenhuma maquina pode resolver. E ao provar isso, ele definiu o que e uma maquina — antes mesmo de existir uma."
+    },
+    {
+      "id": "at_003",
+      "steps": ["fita_infinita"],
+      "tags": ["fita", "cabeca de leitura", "algoritmo", "modelo", "DNA da computacao"],
+      "fato": "A Maquina de Turing era um experimento mental: uma fita de papel sem fim, dividida em quadros. Uma cabeca le cada quadro, escreve ou apaga um simbolo, e se move para a esquerda ou direita. Uma tabela simples de instrucoes diz o que fazer. Com isso, Turing provou que qualquer problema computavel pode ser resolvido. E o DNA de todo computador que ja existiu."
+    },
+    {
+      "id": "at_004",
+      "steps": ["maquina_universal"],
+      "tags": ["software", "stored-program", "universal", "revolucao", "codigo como dados"],
+      "fato": "A sacada mais radical de Turing foi perceber que uma unica maquina poderia simular qualquer outra. Em vez de construir maquinas diferentes para tarefas diferentes, voce cria UMA maquina e muda as instrucoes. Esse conceito — software — e o que permite que o mesmo smartphone reproduza musica, calcule rotas e faca ligacoes. Turing imaginou isso em 1936, com papel e caneta."
+    },
+    {
+      "id": "at_005",
+      "steps": ["enigma_bletchley"],
+      "tags": ["Enigma", "Bombe", "Bletchley Park", "WWII", "criptografia", "nazistas"],
+      "fato": "A maquina Enigma dos nazistas gerava 158 quintilhoes de configuracoes possiveis. Os operadores a reconfiguravam toda meia-noite. Turing construiu a Bombe — uma maquina eletromecanica que testava centenas de configuracoes por segundo, procurando padroes nos proprios erros dos telegrafistas alemaes."
+    },
+    {
+      "id": "at_006",
+      "steps": ["enigma_bletchley"],
+      "tags": ["Bombe", "noite", "dedicacao", "silencio", "descoberta"],
+      "fato": "Havia noites em que Alan Turing dormia encostado na Bombe. A maquina trabalhava dia e noite, cheia de rotores e reles clicando ritmicamente. Turing ajustava configuracoes as 2 da manha, sozinho no porao umido de Bletchley Park. Quando a Bombe encontrou a primeira configuracao correta e os operadores decodificaram a mensagem alema — houve silencio total. Um silencio que valia milhoes de vidas."
+    },
+    {
+      "id": "at_007",
+      "steps": ["enigma_bletchley", "legado_turing"],
+      "tags": ["segredo", "silencio obrigado", "historia apagada", "injustica", "WWII"],
+      "fato": "O trabalho de Turing em Bletchley Park foi classificado como segredo por 30 anos apos a guerra. Estima-se que ele tenha salvo entre 14 e 21 milhoes de vidas ao encurtar a Segunda Guerra Mundial em ate dois anos. Mas ao voltar para casa, ele nao podia contar a ninguem — nem a propria familia — o que havia feito. Ele voltou carregando o peso de uma das maiores vitorias da historia sem poder pronuncia-la."
+    },
+    {
+      "id": "at_008",
+      "steps": ["problema_parada"],
+      "tags": ["Halting Problem", "limite", "indecidivel", "prova", "paradoxo"],
+      "fato": "O Problema da Parada e uma das provas mais elegantes e devastadoras da matematica: nao existe nenhum algoritmo geral que possa determinar, para qualquer programa, se ele vai eventualmente parar ou rodar para sempre. Turing provou isso com um paradoxo logico: se tal algoritmo existisse, voce poderia construir um programa que faz exatamente o contrario do que ele preve. O sistema colapsa em contradicao. Ha problemas que computadores nunca resolverao."
+    },
+    {
+      "id": "at_009",
+      "steps": ["legado_turing"],
+      "tags": ["julgamento", "crime", "injustica", "castracao quimica", "morte"],
+      "fato": "Em 1952, Alan Turing foi processado por 'indecencia grave' — o crime de amar outro homem na Inglaterra. Ele aceitou a 'castracao quimica' com hormonios sinteticos como alternativa a prisao. Em 1954, foi encontrado morto com uma maca meio-mordida ao lado. O laudo foi suicidio. Ele tinha 41 anos. Em 2013, a rainha Elizabeth II emitiu um perdao real posthumo."
+    },
+    {
+      "id": "at_010",
+      "steps": ["legado_turing"],
+      "tags": ["maca", "Apple", "simbolo", "legado", "ironia historica"],
+      "fato": "A maca ao lado do corpo de Alan Turing nunca foi testada para veneno. Mas a imagem ficou gravada na historia: um genio que deu a humanidade o conceito do computador moderno, encontrado morto com uma maca mordida. Steve Jobs disse que gostaria que o logo da Apple fosse uma homenagem a ele — mas que nao foi. O simbolo permanece, independente da intencao."
+    }
+  ],
+
+  "steve_jobs": [
+    {
+      "id": "sj_001",
+      "steps": ["projeto_purple"],
+      "tags": ["Project Purple", "segredo", "iPhone", "NDA", "sigilo"],
+      "fato": "O Projeto Purple foi o codinome secreto do iPhone. Em 2005, Jobs convocou os melhores engenheiros da Apple em grupos pequenos e separados, e lhes disse: 'Vamos reinventar o telefone.' O projeto era tao secreto que as salas tinham cameras de seguranca e cada participante assinava um NDA especifico. Funcionarios saiam do trabalho exaustos sem poder dizer aos conjuges o motivo."
+    },
+    {
+      "id": "sj_002",
+      "steps": ["projeto_purple", "desafio_multitouch"],
+      "tags": ["aquario", "prototipo", "design", "perfeccionismo", "bolhas"],
+      "fato": "Durante uma reuniao interna, Jobs pegou um prototipo do iPhone e o jogou dentro de um aquario de vidro. Bolhas subiram a superficie. Jobs apontou para elas e disse: 'Tem ar dentro. Tem espaco. Se tem espaco, pode ser menor. Refacam.' Os engenheiros olharam uns para os outros. Jobs saiu da sala. Em um mes, o iPhone havia encolhido 20%."
+    },
+    {
+      "id": "sj_003",
+      "steps": ["desafio_multitouch"],
+      "tags": ["multi-touch", "caneta", "dedos", "Nokia", "Motorola", "inovacao"],
+      "fato": "Todos os smartphones antes do iPhone tinham teclado fisico ou caneta. Jobs detestava isso. 'Quem quer uma caneta? Ninguem quer carregar uma caneta. Nascemos com dez dedos perfeitos.' A Motorola e a Nokia riram quando ouviram que a Apple queria usar apenas os dedos. Jony Ive e a equipe passaram dois anos desenvolvendo o vidro especial que respondia ao toque com precisao cirurgica."
+    },
+    {
+      "id": "sj_004",
+      "steps": ["tres_em_um"],
+      "tags": ["iPod", "telefone", "internet", "tres produtos", "keynote reveal"],
+      "fato": "Jobs ensaiou durante semanas a revelacao do iPhone. Ele diria: 'Hoje vamos apresentar tres produtos revolucionarios.' Pausa. 'Um iPod com tela widescreen.' Aplauso. 'Um telefone revolucionario.' Aplauso. 'E um dispositivo de internet revolucionario.' Aplauso. Pausa longa. 'Esses nao sao tres dispositivos separados. E um unico dispositivo.' A plateia levou dez segundos para processar. Depois explodiu em aplausos."
+    },
+    {
+      "id": "sj_005",
+      "steps": ["preparacao_keynote"],
+      "tags": ["golden path", "demo", "falha", "roteiro", "memoria"],
+      "fato": "Tres dias antes do Macworld 2007, o iPhone mal funcionava. A memoria transbordava apos 20 minutos de uso. Jobs tinha um roteiro preciso — o 'golden path': uma sequencia exata de 12 acoes que o aparelho aguentava sem travar. Se desviasse um passo, a tela ficaria preta ao vivo, na frente de toda a imprensa mundial."
+    },
+    {
+      "id": "sj_006",
+      "steps": ["preparacao_keynote"],
+      "tags": ["Wi-Fi", "antena", "jornalistas", "infraestrutura", "preparacao"],
+      "fato": "A equipe de engenharia montou antenas direcionais especiais no palco do Macworld para garantir que o sinal Wi-Fi chegasse apenas ao iPhone de Jobs. Eles sabiam que centenas de jornalistas estariam com laptops e celulares conectados. Um Wi-Fi sobrecarregado seria o fim da demonstracao. Jobs sabia de cada detalhe tecnico — e exigiu que cada risco fosse eliminado antes do dia D."
+    },
+    {
+      "id": "sj_007",
+      "steps": ["ensaio_geral"],
+      "tags": ["tela preta", "ensaio", "falha", "calma", "pressao"],
+      "fato": "No ensaio geral, o iPhone de Jobs travou duas vezes. Tela preta. Os engenheiros correram para os bastidores suando frio. Jobs ficou parado no palco, olhando para a tela com calma calculada. Depois virou para a equipe e disse, muito quieto: 'Nao e uma opcao falhar amanha.' Naquela noite, ninguem no QG da Apple dormiu."
+    },
+    {
+      "id": "sj_008",
+      "steps": ["lancamento_iphone"],
+      "tags": ["Macworld 2007", "revolucao", "mundo", "historia", "mudanca"],
+      "fato": "Em 9 de janeiro de 2007, Jobs entrou no palco do Moscone Center com um sorriso de quem guardava o maior segredo do mundo. Ele comecou: 'A cada vez em quando, um produto revolucionario aparece e muda tudo.' A plateia estava em silencio. Quando ele revelou o iPhone completo, a sala explodiu em aplausos. Fora do evento, as acoes da Apple subiram 8% em uma hora."
+    }
+  ]
+}

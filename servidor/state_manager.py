@@ -51,6 +51,15 @@ BLUEPRINTS = {
                 "must_happen": "Turing asks: 'Será que podemos saber se ela vai parar?', choices about waiting forever or logical proof"
             },
             {
+                "id": "enigma_bletchley",
+                "npc_principal": "Alan Turing",
+                "goal": "Introduce the Enigma codebreaking during WWII at Bletchley Park.",
+                "historical_facts": "During WWII, Turing worked at Bletchley Park, building the Bombe machine to decipher the German Enigma codes, saving millions of lives and proving the practical power of early computing machines.",
+                "emotion": "urgent",
+                "cannot_happen": "internet, modern decryption",
+                "must_happen": "Turing looks at the rotors: 'Cada segundo conta para quebrar o código!', choices about adjusting the rotors or analyzing the intercepted messages"
+            },
+            {
                 "id": "legado_turing",
                 "npc_principal": "Alan Turing",
                 "goal": "Conclude with the legacy of Turing's 1936 paper as the foundation of Computer Science.",
@@ -146,6 +155,15 @@ BLUEPRINTS = {
                 "must_happen": "Jobs checks the demo: 'Isso tem que ser perfeito!', choices about the order of features"
             },
             {
+                "id": "ensaio_geral",
+                "npc_principal": "Steve Jobs",
+                "goal": "The dress rehearsal right before stepping on stage.",
+                "historical_facts": "In the final rehearsal, the engineering team was sweating bullets because the iPhone's memory would easily overflow. Jobs had to trust the 'golden path' to not break the illusion of a finished product.",
+                "emotion": "anxious",
+                "cannot_happen": "revealing the bugs to the public",
+                "must_happen": "Jobs prepares to go on stage: 'Estamos prestes a fazer história.', choices about the backup phone or trusting the main one"
+            },
+            {
                 "id": "lancamento_iphone",
                 "npc_principal": "Steve Jobs",
                 "goal": "The successful launch and the start of the smartphone era.",
@@ -194,6 +212,15 @@ BLUEPRINTS = {
                 "emotion": "awe",
                 "cannot_happen": "failing the calculation",
                 "must_happen": "Katherine looks at the moon: 'Estamos indo para lá', choices about the lunar orbit or the return path"
+            },
+            {
+                "id": "apollo_13_resgate",
+                "npc_principal": "Katherine Johnson",
+                "goal": "Working on the Apollo 13 emergency return trajectory.",
+                "historical_facts": "When the Apollo 13 mission was aborted in 1970 due to an explosion, Katherine Johnson's backup procedures and charts were used to calculate a safe return path for the crew, bringing them home alive.",
+                "emotion": "urgent",
+                "cannot_happen": "astronauts getting lost in space",
+                "must_happen": "Katherine races against time: 'Precisamos trazê-los de volta agora!', choices about the star alignment charts or the lunar module engine burn"
             },
             {
                 "id": "legado_katherine",
@@ -245,11 +272,29 @@ class StateManager:
         state = self.load_state(session_id)
         if not state:
             return None
-            
-        state["history"].append({"choice": choice_text, "step": state["blueprint"]["steps"][state["current_step_idx"]]["id"]})
+        narrative = state.get("last_narrative", "")
+        idx = state["current_step_idx"]
+        step = state["blueprint"]["steps"][idx]
+
+        # Calcula o ato atual para salvar no histórico
+        total = len(state["blueprint"]["steps"])
+        if idx >= total * 0.66:
+            ato_atual = 3
+        elif idx >= total * 0.33:
+            ato_atual = 2
+        else:
+            ato_atual = 1
+
+        state["history"].append({
+            "choice": choice_text,
+            "step": step["id"],
+            "ato": ato_atual,
+            "emotion": step.get("emotion", ""),
+            "narrative": narrative
+        })
         state["current_step_idx"] += 1
         state["metadata"]["last_update"] = datetime.now().isoformat()
-        
+
         self.sessions[session_id] = state
         self.save_state(session_id)
         return state
@@ -258,17 +303,28 @@ class StateManager:
         state = self.load_state(session_id)
         if not state:
             return None
-            
+
         idx = state["current_step_idx"]
-        if idx >= len(state["blueprint"]["steps"]):
+        total = len(state["blueprint"]["steps"])
+        if idx >= total:
             return None
-            
+
         step = state["blueprint"]["steps"][idx]
+
+        # Calcula o ato narrativo dinamicamente pela posição relativa do step
+        if idx >= total * 0.66:
+            ato = 3
+        elif idx >= total * 0.33:
+            ato = 2
+        else:
+            ato = 1
+
         return {
             "student_name": state["student"]["name"],
             "student_genero": state["student"].get("genero", "Masculino"),
             "theme": state["student"]["theme"],
             "current_step": step["id"],
+            "skill": state["student"].get("focus_skill", ""),
             "npc_principal": step.get("npc_principal", ""),
             "npc_visual": step.get("npc_visual", state["blueprint"].get("npc_global_visual", "")),
             "scenery_guideline": state["blueprint"].get("scenery_guideline", ""),
@@ -277,7 +333,10 @@ class StateManager:
             "emotion": step["emotion"],
             "cannot_happen": step["cannot_happen"],
             "must_happen": step["must_happen"],
-            "is_final": idx == len(state["blueprint"]["steps"]) - 1
+            "is_final": idx == total - 1,
+            "ato": ato,
+            "step_index": idx,
+            "total_steps": total
         }
 
     def save_state(self, session_id):

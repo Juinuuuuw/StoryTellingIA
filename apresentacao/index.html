@@ -2,968 +2,465 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NAO - História da Computação</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>História Interativa - NAO</title>
+    <!-- Use elegant fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
         :root {
-            --ink: #1a1008;
-            --paper: #f7f0e3;
-            --paper-dark: #ede3cc;
-            --panel-border: #1a1008;
-            --accent-red: #c0392b;
-            --accent-yellow: #f1c40f;
-            --accent-blue: #2471a3;
-            --spine: #2c1a08;
+            --glass-bg: rgba(15, 15, 20, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-glow: 0 0 10px rgba(255,255,255,0.3);
+            --accent: #d4af37; /* Cinematic Gold */
         }
-
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body, html {
             width: 100%; height: 100%;
-            background: #0d0d0d;
+            background: #000;
             overflow: hidden;
-            font-family: 'Noto Serif', Georgia, serif;
-            cursor: default;
+            font-family: 'Montserrat', sans-serif;
+            color: #fff;
         }
 
-        /* ─── PARTÍCULAS DE FUNDO ─── */
-        #bg-canvas {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 0;
-            opacity: 0.15;
-        }
-
-        /* ─── TELA DE INTRO: BOTÃO ─── */
-        #intro-screen {
+        /* ─── FULLSCREEN BACKGROUND & KEN BURNS ─── */
+        #scene-container {
             position: fixed;
             inset: 0;
-            z-index: 999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0d0d0d;
+            z-index: 1;
+            background: #050505;
         }
-
-        .intro-cover {
-            width: min(420px, 85vw);
-            background: var(--paper);
-            border: 4px solid var(--ink);
-            border-radius: 4px;
-            box-shadow:
-                6px 6px 0 var(--ink),
-                12px 12px 0 rgba(0,0,0,0.3);
-            overflow: hidden;
-            position: relative;
-        }
-
-        .intro-cover::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 18px;
-            background: linear-gradient(to right, #1a0e04, #3d2409, #1a0e04);
-            box-shadow: inset -4px 0 8px rgba(0,0,0,0.4);
-            z-index: 2;
-        }
-
-        .intro-cover-inner {
-            padding: 48px 36px 40px 52px;
-            text-align: center;
-            position: relative;
-        }
-
-        .intro-cover .manga-dots {
-            position: absolute;
-            inset: 0;
-            background-image: radial-gradient(circle, var(--ink) 1px, transparent 1px);
-            background-size: 18px 18px;
-            opacity: 0.05;
-            pointer-events: none;
-        }
-
-        .intro-vol {
-            font-family: 'Bangers', cursive;
-            font-size: 1rem;
-            letter-spacing: 4px;
-            color: var(--accent-red);
-            text-transform: uppercase;
-        }
-
-        .intro-title {
-            font-family: 'Bangers', cursive;
-            font-size: 5rem;
-            line-height: 0.9;
-            color: var(--ink);
-            letter-spacing: 2px;
-            text-shadow: 3px 3px 0 rgba(0,0,0,0.15);
-            margin: 8px 0;
-        }
-
-        .intro-subtitle {
-            font-family: 'M PLUS Rounded 1c', sans-serif;
-            font-size: 0.8rem;
-            font-weight: 700;
-            letter-spacing: 3px;
-            color: var(--accent-blue);
-            text-transform: uppercase;
-        }
-
-        .intro-divider {
-            height: 3px;
-            background: linear-gradient(to right, transparent, var(--ink), transparent);
-            margin: 20px auto;
-            width: 70%;
-        }
-
-        .intro-robot-icon {
-            font-size: 4rem;
-            line-height: 1;
-            margin: 16px 0;
-            filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.2));
-        }
-
-        .intro-btn {
-            background: var(--ink);
-            color: var(--paper);
-            border: none;
-            padding: 14px 36px;
-            font-family: 'Bangers', cursive;
-            font-size: 1.6rem;
-            letter-spacing: 3px;
-            cursor: pointer;
-            position: relative;
-            border-radius: 2px;
-            box-shadow: 4px 4px 0 var(--accent-red);
-            transition: transform 0.1s, box-shadow 0.1s;
-            margin-top: 8px;
-        }
-
-        .intro-btn:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0 var(--accent-red);
-        }
-        .intro-btn:active {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0 var(--accent-red);
-        }
-
-        /* ─── ANIMAÇÃO DE ABERTURA DO LIVRO ─── */
-        #book-open-anim {
-            position: fixed;
-            inset: 0;
-            z-index: 998;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: #0d0d0d;
-            perspective: 1200px;
-        }
-
-        .book-anim-wrap {
-            width: 500px;
-            height: 360px;
-            position: relative;
-            transform-style: preserve-3d;
-        }
-
-        .book-half {
-            position: absolute;
-            top: 0;
-            width: 50%;
-            height: 100%;
-            background: var(--paper);
-            border: 3px solid var(--ink);
-            transform-origin: right center;
-            transform-style: preserve-3d;
-            transition: transform 0.9s cubic-bezier(0.645, 0.045, 0.355, 1.000);
-        }
-
-        .book-half.left {
-            left: 0;
-            transform-origin: right center;
-            border-right: none;
-        }
-        .book-half.right {
-            left: 50%;
-            transform-origin: left center;
-            border-left: 2px solid rgba(0,0,0,0.2);
-        }
-
-        .book-half.left.open { transform: rotateY(-160deg); }
-        .book-half.right.open { transform: rotateY(160deg); }
-
-        .book-half-spine {
-            position: absolute;
-            top: 0; bottom: 0;
-            width: 12px;
-            background: linear-gradient(to right, #1a0e04, #3d2409, #1a0e04);
-        }
-        .book-half.left .book-half-spine { right: 0; }
-        .book-half.right .book-half-spine { left: 0; }
-
-        /* ─── LAYOUT PRINCIPAL (MANGÁ) ─── */
-        #manga-stage {
-            position: fixed;
-            inset: 0;
-            z-index: 10;
-            display: none;
-            padding: 16px;
-            gap: 0;
-        }
-
-        /* GRADE DE PAINÉIS NO ESTILO MANGÁ */
-        .manga-grid {
-            width: 100%;
-            height: 100%;
-            display: grid;
-            grid-template-columns: 1.4fr 1fr;
-            grid-template-rows: auto 1fr;
-            gap: 0;
-            background: var(--ink);
-            border: 3px solid var(--ink);
-            box-shadow:
-                0 0 0 2px #0d0d0d,
-                0 0 0 6px var(--ink),
-                0 20px 60px rgba(0,0,0,0.8);
-            border-radius: 2px;
-            overflow: hidden;
-            max-height: 100%;
-        }
-
-        /* Painel 1: Imagem principal (grande, esquerda) */
-        .panel-image {
-            grid-column: 1;
-            grid-row: 1 / 3;
-            position: relative;
-            overflow: hidden;
-            background: #111;
-            border-right: 4px solid var(--ink);
-        }
-
-        /* Painel 2: Título / Header (direita topo) */
-        .panel-header {
-            grid-column: 2;
-            grid-row: 1;
-            background: var(--ink);
-            padding: 16px 20px 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-bottom: 3px solid #3a2a14;
-            min-height: 70px;
-        }
-
-        /* Painel 3: Texto da história (direita meio) */
-        .panel-story {
-            grid-column: 2;
-            grid-row: 2;
-            background: var(--paper);
-            padding: 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* ─── IMAGEM DA CENA ─── */
+        
         #scene-image {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: block;
-        }
-
-        /* Overlay de halftone na imagem */
-        .panel-image::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                radial-gradient(circle, rgba(0,0,0,0.6) 1px, transparent 1px);
-            background-size: 4px 4px;
-            pointer-events: none;
-            opacity: 0.25;
-            mix-blend-mode: multiply;
-        }
-
-        /* Efeito de velocidade (speed lines) cantos */
-        .speed-lines {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            z-index: 5;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        /* ─── LOADER NO PAINEL DE IMAGEM ─── */
-        #loader {
-            position: absolute;
-            inset: 0;
-            background: rgba(10, 8, 4, 0.85);
             display: none;
-            flex-direction: column;
+            opacity: 0.85; /* slight dim for text readability */
+        }
+
+        /* Vignette Overlay for cinematic feel */
+        .vignette {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.85) 110%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* ─── STORY PANEL (GLASSMORPHISM) ─── */
+        #story-panel {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1000px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 30px 40px;
+            z-index: 10;
+            display: none; /* hidden until story starts */
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        
+        .panel-header {
+            display: flex;
             align-items: center;
-            justify-content: center;
-            z-index: 20;
-            color: var(--paper);
+            justify-content: space-between;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
         }
-
-        .loader-panel-border {
-            border: 3px solid var(--paper);
-            padding: 24px 32px;
-            text-align: center;
-            position: relative;
-        }
-
-        .loader-panel-border::before,
-        .loader-panel-border::after {
-            content: '';
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            border: 3px solid var(--accent-yellow);
-        }
-        .loader-panel-border::before { top: -3px; left: -3px; border-right: none; border-bottom: none; }
-        .loader-panel-border::after { bottom: -3px; right: -3px; border-left: none; border-top: none; }
-
-        .spinner-manga {
-            width: 48px; height: 48px;
-            border: 4px solid var(--paper-dark);
-            border-top-color: var(--accent-yellow);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 16px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        #loader-msg {
-            font-family: 'Bangers', cursive;
-            font-size: 1.4rem;
-            letter-spacing: 2px;
-            color: var(--accent-yellow);
-        }
-
-        /* ─── HEADER DO PAINEL ─── */
+        
         .nao-badge {
-            background: var(--accent-red);
-            color: white;
-            font-family: 'Bangers', cursive;
-            font-size: 1.4rem;
-            letter-spacing: 2px;
+            background: var(--accent);
+            color: #000;
             padding: 4px 12px;
-            border-radius: 2px;
-            flex-shrink: 0;
-        }
-
-        .panel-title-text {
-            font-family: 'Bangers', cursive;
-            color: var(--paper);
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            opacity: 0.8;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
         }
 
         .status-dot {
-            width: 8px; height: 8px;
+            width: 10px; height: 10px;
             border-radius: 50%;
             background: #2ecc71;
-            margin-left: auto;
-            flex-shrink: 0;
-            box-shadow: 0 0 6px #2ecc71;
-            animation: pulse-dot 2s infinite;
+            box-shadow: 0 0 10px #2ecc71;
+            animation: pulse 2s infinite;
         }
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        /* ─── TEXTO DA HISTÓRIA ─── */
-        .story-scroll {
-            height: 100%;
-            overflow-y: auto;
-            padding: 22px 24px;
-            scrollbar-width: thin;
-            scrollbar-color: var(--ink) var(--paper);
-        }
-
-        /* Decoração de painel mangá no topo */
-        .story-panel-deco {
-            font-family: 'Bangers', cursive;
-            font-size: 0.7rem;
-            letter-spacing: 4px;
-            color: rgba(26,16,8,0.3);
-            text-transform: uppercase;
-            margin-bottom: 12px;
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 10px #2ecc71; }
+            50% { opacity: 0.4; box-shadow: 0 0 2px #2ecc71; }
         }
 
         #story-text {
-            font-family: 'Noto Serif', Georgia, serif;
-            font-size: 1.3rem;
-            line-height: 1.7;
-            color: var(--ink);
-            font-weight: 400;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            line-height: 1.5;
+            color: #f4f4f4;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
         }
 
-        /* Balão de fala estilo HQ para trechos de diálogo */
-        .speech-deco {
-            display: inline-block;
-            background: var(--ink);
-            color: var(--paper);
-            font-family: 'Bangers', cursive;
-            font-size: 0.8rem;
-            letter-spacing: 2px;
-            padding: 3px 10px;
+        /* ─── LOADER ─── */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+        }
+        
+        .spinner {
+            width: 50px; height: 50px;
+            border: 3px solid rgba(212, 175, 55, 0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ─── MODAL DECISÃO ─── */
+        #interaction-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
             border-radius: 20px;
-            margin-bottom: 10px;
-            vertical-align: middle;
+            padding: 50px;
+            max-width: 900px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
         }
 
-        /* ─── PAINEL DE ESCOLHAS ─── */
-        .choices-label {
-            font-family: 'Bangers', cursive;
-            font-size: 1.2rem;
-            letter-spacing: 2px;
-            color: var(--ink);
-            opacity: 0.5;
-            flex-shrink: 0;
-            writing-mode: vertical-rl;
-            transform: rotate(180deg);
-            padding: 4px 0;
-        }
-
-        #choices-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            width: 100%;
+        #modal-question {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            color: #fff;
+            margin-bottom: 40px;
+            text-shadow: var(--text-glow);
         }
 
         .choice-btn {
-            background: var(--ink);
-            color: var(--paper);
-            border: 2px solid var(--ink);
-            padding: 10px;
-            font-family: 'M PLUS Rounded 1c', sans-serif;
-            font-size: 1.3rem;
-            font-weight: 700;
-            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 1.4rem;
             cursor: pointer;
-            position: relative;
-            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
-            transition: transform 0.15s, box-shadow 0.15s;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            aspect-ratio: 4/3;
-            margin: 0;
-            line-height: 1.2;
+            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 300;
         }
 
         .choice-btn:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0 rgba(0,0,0,0.3);
-            background: #2a2a2a;
+            background: rgba(255,255,255,0.15);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
         }
 
-        /* Número do balão */
-        .choice-btn::before {
-            content: attr(data-num);
-            position: absolute;
-            top: -10px;
-            left: -8px;
-            background: var(--accent-red);
-            color: white;
-            font-family: 'Bangers', cursive;
-            font-size: 0.9rem;
-            width: 22px; height: 22px;
-            border-radius: 50%;
+        /* ─── TELA INTRO ─── */
+        #intro-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: #000;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid var(--paper);
         }
-
-        /* ─── EFEITOS DE TRANSIÇÃO MANGÁ ─── */
-        .panel-flash {
-            position: fixed;
-            inset: 0;
-            background: white;
-            z-index: 900;
-            pointer-events: none;
-            opacity: 0;
+        .intro-btn {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 3px;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
         }
-
-        /* ─── ONOMATOPEIA ALEATÓRIA ─── */
-        .sfx-text {
-            position: absolute;
-            font-family: 'Bangers', cursive;
-            font-size: 4rem;
-            color: var(--accent-yellow);
-            -webkit-text-stroke: 3px var(--ink);
-            text-shadow: 4px 4px 0 rgba(0,0,0,0.3);
-            pointer-events: none;
-            z-index: 15;
-            opacity: 0;
-            transform-origin: center;
-        }
-
-        /* ─── PAINEL DIAGONAL DECORATIVO ─── */
-        .panel-image-inner {
-            position: absolute;
-            inset: 0;
-            overflow: hidden;
-        }
-
-        /* ─── RESPONSIVO ─── */
-        @media (max-width: 768px) {
-            #manga-stage { padding: 8px; }
-            .manga-grid {
-                grid-template-columns: 1fr;
-                grid-template-rows: 45vh auto auto;
-            }
-            .panel-image { grid-column: 1; grid-row: 1; border-right: none; border-bottom: 4px solid var(--ink); }
-            .panel-header { grid-column: 1; grid-row: 2; }
-            .panel-story { grid-column: 1; grid-row: 3; }
-            .panel-choices { grid-column: 1; grid-row: 4; }
-            #story-text { font-size: 1.1rem; }
-        }
-
-        /* ─── TEXTURA PAPEL ─── */
-        .paper-texture {
-            position: absolute;
-            inset: 0;
-            background-image:
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-            pointer-events: none;
-            opacity: 0.4;
-            z-index: 1;
+        .intro-btn:hover {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 20px var(--accent);
         }
     </style>
 </head>
 <body>
 
-<!-- Flash branco para transições -->
-<div class="panel-flash" id="panel-flash"></div>
-
-<!-- Tela de intro -->
-<div id="intro-screen">
-    <div class="intro-cover">
-        <div class="manga-dots"></div>
-        <div class="intro-cover-inner">
-            <div class="intro-vol">Vol. 1</div>
-            <div class="intro-title">NAO</div>
-            <div class="intro-subtitle">História da Computação</div>
-            <div class="intro-divider"></div>
-            <div class="intro-robot-icon">🤖</div>
-            <div style="height: 12px;"></div>
-            <button class="intro-btn" id="btn-start">▶ INICIAR</button>
-            <div style="margin-top: 16px; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 0.7rem; color: rgba(26,16,8,0.4); letter-spacing: 1px;">
-                AGUARDANDO SERVIDOR...
-            </div>
-        </div>
+    <!-- Intro -->
+    <div id="intro-screen">
+        <button class="intro-btn" onclick="startPresentation()">INICIAR EXPERIÊNCIA</button>
     </div>
-</div>
 
-<!-- Animação de abertura do livro -->
-<div id="book-open-anim">
-    <div class="book-anim-wrap" id="book-anim-wrap">
-        <div class="book-half left" id="book-left">
-            <div class="book-half-spine"></div>
-        </div>
-        <div class="book-half right" id="book-right">
-            <div class="book-half-spine"></div>
-        </div>
+    <!-- Loader -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <div style="font-family: 'Montserrat'; font-size: 1.2rem; letter-spacing: 4px;">PINTANDO CENA...</div>
     </div>
-</div>
 
-<!-- Stage principal no estilo mangá -->
-<div id="manga-stage">
-    <div class="manga-grid">
+    <!-- Scene Images -->
+    <div id="scene-container">
+        <img id="scene-image" src="" alt="Cena">
+    </div>
+    
+    <!-- Cinematic Vignette Overlay -->
+    <div class="vignette"></div>
 
-        <!-- Painel Imagem (esquerda) -->
-        <div class="panel-image">
-            <div class="panel-image-inner">
-                <img id="scene-image" src="" alt="Cena">
-                <svg class="speed-lines" id="speed-lines" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid slice"></svg>
-            </div>
-            <!-- Loader -->
-            <div id="loader">
-                <div class="loader-panel-border">
-                    <div class="spinner-manga"></div>
-                    <div id="loader-msg">PINTANDO CENA...</div>
-                </div>
-            </div>
-            <!-- Onomatopeia -->
-            <div class="sfx-text" id="sfx-text"></div>
-        </div>
-
-        <!-- Header (direita topo) -->
+    <!-- Story Panel -->
+    <div id="story-panel">
         <div class="panel-header">
             <div class="nao-badge">NAO</div>
-            <div class="panel-title-text">HISTÓRIA DA COMPUTAÇÃO</div>
             <div class="status-dot" id="status-dot"></div>
         </div>
+        <div id="story-text">Aguardando início da história...</div>
+    </div>
 
-        <!-- Texto da história (direita) -->
-        <div class="panel-story">
-            <div class="paper-texture"></div>
-            <div class="story-scroll">
-                <div class="story-panel-deco">◆ historia ◆</div>
-                <span class="speech-deco">NAO diz:</span>
-                <div id="story-text" style="margin-top: 10px;">Aguardando início da história...</div>
-            </div>
+    <!-- Decision Modal -->
+    <div id="interaction-modal">
+        <div class="modal-box">
+            <h2 id="modal-question"></h2>
+            <div id="modal-options" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;"></div>
         </div>
-
     </div>
-</div>
 
-<!-- Modal de Interação (Criação de Personagem, etc) -->
-<div id="interaction-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; justify-content:center; align-items:center;">
-    <div style="background:var(--paper); padding:50px; border-radius:12px; max-width:900px; width:90%; text-align:center; box-shadow: 8px 8px 0 rgba(0,0,0,1); border: 4px solid var(--ink);">
-        <h2 id="modal-question" style="font-family:'Bangers'; font-size:3.5rem; color:var(--ink); margin-bottom:40px; line-height:1.2;"></h2>
-        <div id="modal-options" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; width: 100%; max-width: 600px; margin: 0 auto;"></div>
-    </div>
-</div>
+    <script>
+        const SERVER_IP = window.location.hostname || "192.168.16.69";
+        const API_URL = `http://${SERVER_IP}:5000`;
+        const ROBOT_URL = "http://localhost:8080";
 
-<script>
-    const SERVER_IP = "192.168.16.76";
-    const API_URL = `http://${SERVER_IP}:5000`;
-    const ROBOT_URL = "http://localhost:8080";
+        let lastSessionId = null;
+        let lastHistoryText = null;
+        let currentSequenceId = 0;
+        let isModalLocallyOpen = false;
+        let typeWriterTimeout = null;
 
-    let lastSessionId = null;
-    let lastHistoryText = null;
-    let imageTimer = null;
-    let currentModalData = null;
+        function typeWriterEffect(text, element) {
+            if (typeWriterTimeout) clearTimeout(typeWriterTimeout);
+            element.innerHTML = '';
+            let i = 0;
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    typeWriterTimeout = setTimeout(type, 30);
+                }
+            }
+            type();
+        }
 
-    let isModalLocallyOpen = false;
+        function startPresentation() {
+            document.getElementById('intro-screen').style.display = 'none';
+            document.getElementById('story-panel').style.display = 'block';
+            pollStatus();
+        }
 
-    // ─── LÓGICA DO MODAL ───
-    function showModal(data) {
-        if (currentModalData && currentModalData.pergunta === data.pergunta) return;
-        currentModalData = data;
-        isModalLocallyOpen = true; // Marca que o modal foi aberto pela apresentação
-        
-        const modalEl = document.getElementById('interaction-modal');
-        const modalBox = modalEl.querySelector('div');
-        
-        modalEl.style.display = 'flex';
-        document.getElementById('modal-question').innerText = data.pergunta;
-        
-        // Animação de entrada
-        gsap.fromTo(modalBox, { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.7)" });
-        
-        const optsContainer = document.getElementById('modal-options');
-        optsContainer.innerHTML = '';
-        optsContainer.style.pointerEvents = 'auto'; // CORREÇÃO: reabilita os cliques para a nova pergunta
-        
-        if (data.opcoes && data.opcoes.length > 0) {
-            data.opcoes.forEach((opt, idx) => {
-                const btn = document.createElement('div');
-                btn.className = 'choice-btn';
-                btn.innerText = opt;
-                btn.style.fontSize = '1.8rem';
-                btn.style.display = 'flex';
-                btn.style.alignItems = 'center';
-                btn.style.justifyContent = 'center';
-                btn.style.aspectRatio = '4/3';
-                btn.style.padding = '10px';
-                btn.style.margin = '0'; // Previne conflitos de margem no grid
-                
-                btn.onclick = async () => {
-                    optsContainer.style.pointerEvents = 'none';
-                    btn.style.background = 'var(--accent-red)';
-                    btn.style.color = '#fff';
-                    
-                    try {
-                        await fetch(`${API_URL}/enviar_escolha`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                escolha_idx: idx, 
-                                escolha_texto: opt 
-                            })
-                        });
-                        hideModal(); // Fecha o modal imediatamente após o clique bem sucedido
-                    } catch(e) {
-                        console.error("Erro ao enviar escolha do modal:", e);
+        async function loadImageWithRetry(url, retries = 30) {
+            return new Promise((resolve) => {
+                let attempts = 0;
+                let currentUrl = url;
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => {
+                    attempts++;
+                    if (attempts >= retries) {
+                        // If we failed to load a .gif, it might have fallen back to .png on the server
+                        if (currentUrl.endsWith('.gif')) {
+                            console.warn("GIF loading failed, attempting PNG fallback for: " + currentUrl);
+                            currentUrl = currentUrl.replace('.gif', '.png');
+                            attempts = 0; // reset attempts for the PNG fallback
+                            setTimeout(() => { img.src = currentUrl; }, 1000);
+                        } else {
+                            resolve(false);
+                        }
+                    } else {
+                        setTimeout(() => { img.src = currentUrl; }, 1000);
                     }
                 };
-                optsContainer.appendChild(btn);
+                img.src = currentUrl;
             });
         }
-    }
 
-    function hideModal() {
-        document.getElementById('interaction-modal').style.display = 'none';
-        currentModalData = null;
-        isModalLocallyOpen = false;
-        const optsContainer = document.getElementById('modal-options');
-        if(optsContainer) optsContainer.style.pointerEvents = 'auto';
-    }
+        async function startImageSequence(images, data) {
+            currentSequenceId++;
+            const seqId = currentSequenceId;
 
-    // ─── ANIMAÇÃO DE ABERTURA ───
-    function openBook(callback) {
-        const anim = document.getElementById('book-open-anim');
-        anim.style.display = 'flex';
-
-        setTimeout(() => {
-            document.getElementById('book-left').classList.add('open');
-            document.getElementById('book-right').classList.add('open');
-        }, 300);
-
-        setTimeout(() => {
-            anim.style.display = 'none';
-            if (callback) callback();
-        }, 1400);
-    }
-
-    // ─── FLASH BRANCO (TRANSIÇÃO DE CENA) ───
-    function sceneFlash() {
-        const flash = document.getElementById('panel-flash');
-        gsap.fromTo(flash,
-            { opacity: 0.9 },
-            { opacity: 0, duration: 0.5, ease: "power2.out" }
-        );
-    }
-
-    // ─── ONOMATOPEIA ───
-    const sfxWords = ["CLANK!", "ZAP!", "WOW!", "BEEP!", "POW!", "ZZZ!", "OH!"];
-    function showSFX() {
-        const el = document.getElementById('sfx-text');
-        el.innerText = sfxWords[Math.floor(Math.random() * sfxWords.length)];
-        el.style.top = (10 + Math.random() * 30) + '%';
-        el.style.left = (5 + Math.random() * 20) + '%';
-        el.style.fontSize = (3 + Math.random() * 3) + 'rem';
-        el.style.transform = `rotate(${-20 + Math.random() * 40}deg)`;
-        gsap.fromTo(el,
-            { opacity: 0, scale: 0.4 },
-            { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)",
-              onComplete: () => gsap.to(el, { opacity: 0, duration: 0.4, delay: 1.2 }) }
-        );
-    }
-
-    // ─── IMAGEM COM RETRY ───
-    async function loadImageWithRetry(url, retries = 15) {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const resp = await fetch(url);
-                if (resp.ok) return true;
-            } catch (e) {}
-            await new Promise(r => setTimeout(r, 3000));
-        }
-        return false;
-    }
-
-    // ─── CICLO DE IMAGENS ───
-    let currentSequenceId = 0;
-
-    async function startImageSequence(images, data) {
-        if (imageTimer) clearTimeout(imageTimer);
-        currentSequenceId++;
-        const seqId = currentSequenceId;
-        
-        const imgEl = document.getElementById('scene-image');
-        const loader = document.getElementById('loader');
-
-        const playFrame = async (idx) => {
-            const url = `${API_URL}/images/${images[idx]}`;
-            // Removemos o loader para não piscar "Aguardando" enquanto a IA ainda está gerando a imagem 2 e 3
-            const ready = await loadImageWithRetry(url);
-            if (seqId !== currentSequenceId) return false;
+            const imgEl = document.getElementById('scene-image');
+            const loader = document.getElementById('loader');
             
-            if (ready) {
-                imgEl.src = url;
-                // Animação Ken Burns suave
-                gsap.fromTo(imgEl,
-                    { scale: 1.08, x: -15, y: 5 },
-                    { scale: 1.25, x: 15, y: -5, duration: 12, ease: "sine.inOut" }
-                );
-                showSFX();
-                return true;
-            }
-            return false;
-        };
+            loader.style.display = 'none';
+            imgEl.style.display = "block";
 
-        if (images.length === 0) {
-            triggerDecisionModal(data);
-            return;
-        }
+            const playFrame = async (idx) => {
+                const url = `${API_URL}/images/${images[idx]}`;
+                const ready = await loadImageWithRetry(url);
+                if (seqId !== currentSequenceId) return false;
+                if (ready) {
+                    imgEl.src = url;
+                    // Efeito Ken Burns Cinematico
+                    gsap.fromTo(imgEl,
+                        { scale: 1.05, x: 0, y: 0, opacity: 0.2 },
+                        { scale: 1.15, x: 10, y: -10, opacity: 1, duration: 10, ease: "sine.inOut" }
+                    );
+                    return true;
+                }
+                return false;
+            };
 
-        for (let i = 0; i < images.length; i++) {
-            if (seqId !== currentSequenceId) return;
-            await playFrame(i);
-            
-            if (i < images.length - 1) {
-                // Espera o tempo da imagem antes de ir para a próxima
-                await new Promise(r => setTimeout(r, 12000));
-            } else {
-                // Última imagem: espera 8 segundos e chama o modal
-                await new Promise(r => setTimeout(r, 8000));
-                if (seqId === currentSequenceId) {
-                    triggerDecisionModal(data);
+            if (images.length === 0) { triggerDecisionModal(data); return; }
+
+            for (let i = 0; i < images.length; i++) {
+                if (seqId !== currentSequenceId) return;
+                await playFrame(i);
+                
+                // Transição de fade inout para a próxima
+                if (i < images.length - 1) {
+                    await new Promise(r => setTimeout(r, 8000));
+                } else {
+                    await new Promise(r => setTimeout(r, 8000));
+                    if (seqId === currentSequenceId) triggerDecisionModal(data);
                 }
             }
         }
-    }
 
-    async function triggerDecisionModal(data) {
-        if (data.opcoes && data.opcoes.length > 0) {
-            if (data.session_id === lastSessionId || !lastSessionId) {
-                const transicoes = [
-                    "E agora, vamos por",
-                    "Qual será o nosso próximo passo? Escolha",
-                    "O que você acha melhor fazer? Podemos ir por",
-                    "A decisão é sua! Vamos por",
-                    "Chegou a hora de decidir! Você prefere",
-                    "O destino está em suas mãos. Vamos seguir por"
-                ];
-                const t = transicoes[Math.floor(Math.random() * transicoes.length)];
-                const perguntaRobo = `${t} ${data.opcoes[0]}, ou por ${data.opcoes[1]}?`;
-
-                // Mostra o modal IMEDIATAMENTE no telão
+        function triggerDecisionModal(data) {
+            if (data.opcoes && data.opcoes.length > 0) {
                 showModal({
                     pergunta: "QUAL É A SUA DECISÃO?",
                     opcoes: data.opcoes
                 });
-
-                // E avisa o backend para o robô falar
-                try {
-                    await fetch(`${API_URL}/publicar_modal`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            pergunta: perguntaRobo,
-                            opcoes: data.opcoes 
-                        })
-                    });
-                } catch (e) {
-                    console.error("Erro ao publicar modal da história:", e);
-                }
             }
         }
-    }
 
-    // ─── EFEITOS SONOROS DE FUNDO (PALAVRAS-CHAVE) ───
-    // Dicionário de palavras-chave para arquivos de áudio
-    // Você precisa criar uma pasta "sfx" dentro da pasta "apresentacao" e colocar esses MP3 lá.
-    const sfxDictionary = {
-        "engrenagem": "gears.mp3",
-        "engrenagens": "gears.mp3",
-        "babbage": "gears.mp3",
-        "vapor": "steam.mp3",
-        "mecânico": "gears.mp3",
-        "válvula": "electric.mp3",
-        "eletricidade": "electric.mp3",
-        "cabo": "electric.mp3",
-        "turing": "typewriter.mp3",
-        "nasa": "rocket.mp3",
-        "foguete": "rocket.mp3",
-        "lua": "rocket.mp3",
-        "espaço": "rocket.mp3",
-        "apple": "click.mp3",
-        "iphone": "click.mp3"
-    };
-
-    function playBackgroundSFX(textoHistoria) {
-        if (!textoHistoria) return;
-        const lowerText = textoHistoria.toLowerCase();
-        
-        for (const [keyword, filename] of Object.entries(sfxDictionary)) {
-            if (lowerText.includes(keyword)) {
-                // Tenta tocar o áudio. 
-                const audio = new Audio(`sfx/${filename}`);
-                audio.volume = 0.4; // Volume ambiente suave
-                audio.play().catch(e => console.log(`[SFX] Arquivo sfx/${filename} não encontrado ou bloqueado pelo navegador.`, e));
-                break; // Toca apenas o som da primeira palavra-chave principal que encontrar na frase
-            }
-        }
-    }
-
-    // ─── ATUALIZA CENA ───
-    async function updateScene(data) {
-        if (!data) return;
-
-        // Force cleanup of any previous modal
-        hideModal();
-
-        sceneFlash();
-
-        // Texto com animação de entrada
-        const textEl = document.getElementById('story-text');
-        gsap.to(textEl, { opacity: 0, y: -8, duration: 0.2, onComplete: () => {
-            const histText = data.historia || data.historia_original || "Carregando história...";
-            textEl.innerText = histText;
-            gsap.fromTo(textEl, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" });
+        function showModal(data) {
+            isModalLocallyOpen = true;
+            const modalEl = document.getElementById('interaction-modal');
+            const modalBox = modalEl.querySelector('.modal-box');
             
-            // Dispara o som ambiente com base no texto gerado!
-            playBackgroundSFX(histText);
-        }});
-
-        // Imagens
-        const frames = data.imagens_arquivos || [];
-        if (data.referencia_arquivo) {
-            startImageSequence([data.referencia_arquivo, ...frames], data);
-        } else if (frames.length > 0) {
-            startImageSequence(frames, data);
-        } else {
-            // Se não tiver imagens, chama o modal mais rápido
-            setTimeout(() => triggerDecisionModal(data), 5000);
-        }
-    }
-
-    // ─── MONITORAMENTO ───
-    async function checkActiveSession() {
-        const loader = document.getElementById('loader');
-        try {
-            const res = await fetch(`${API_URL}/visualizador/cena_atual`);
-            const state = await res.json();
-
-            if (state.status === "ativo") {
-                const currentData = state.dados;
-                const histText = currentData.historia || currentData.historia_original || "";
-                
-                // Só processa nova cena se o texto ou sessão mudaram
-                if (state.session_id !== lastSessionId || histText !== lastHistoryText) {
-                    lastSessionId = state.session_id;
-                    lastHistoryText = histText;
-                    loader.style.display = 'none';
-                    // Ao começar nova cena, forçamos o modal a fechar
-                    hideModal(); 
-                    updateScene(currentData);
-                } else if (!isModalLocallyOpen) {
-                    // Se a cena é a mesma e o modal ainda não subiu, mantém o loader escondido
-                    loader.style.display = 'none';
-                }
-                
-            } else if (state.status === "modal") {
-                loader.style.display = 'none';
-                showModal(state.dados);
-            } else if (!isModalLocallyOpen) {
-                // Só mostra o loader se não estivermos interagindo com o modal
-                loader.style.display = 'flex';
-                document.getElementById('loader-msg').innerText = "AGUARDANDO HISTÓRIA...";
+            modalEl.style.display = 'flex';
+            document.getElementById('modal-question').innerText = data.pergunta;
+            
+            gsap.fromTo(modalBox, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "power3.out" });
+            
+            const optsContainer = document.getElementById('modal-options');
+            optsContainer.innerHTML = '';
+            optsContainer.style.pointerEvents = 'auto'; // RESET POINTER EVENTS HERE
+            
+            if (data.opcoes) {
+                data.opcoes.forEach((opt, idx) => {
+                    const btn = document.createElement('div');
+                    btn.className = 'choice-btn';
+                    btn.innerText = opt;
+                    btn.onclick = async () => {
+                        optsContainer.style.pointerEvents = 'none';
+                        btn.style.background = 'var(--accent)';
+                        btn.style.color = '#000';
+                        
+                        try {
+                            await fetch(`${API_URL}/enviar_escolha`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ escolha_idx: idx, escolha_texto: opt })
+                            });
+                            hideModal();
+                        } catch(e) {
+                            console.error(e);
+                        }
+                    };
+                    optsContainer.appendChild(btn);
+                });
             }
-        } catch (err) {
-            console.error("Erro ao sincronizar:", err);
         }
-    }
 
-    // ─── INICIALIZAÇÃO ───
-    document.getElementById('btn-start').addEventListener('click', () => {
-        const intro = document.getElementById('intro-screen');
-        gsap.to(intro, { opacity: 0, duration: 0.3, onComplete: () => {
-            intro.style.display = 'none';
-            openBook(() => {
-                document.getElementById('manga-stage').style.display = 'flex';
-                gsap.fromTo('#manga-stage', { opacity: 0 }, { opacity: 1, duration: 0.4 });
-                setInterval(checkActiveSession, 3000);
-            });
-        }});
-    });
-</script>
+        function hideModal() {
+            document.getElementById('interaction-modal').style.display = 'none';
+            isModalLocallyOpen = false;
+        }
+
+        async function checkActiveSession() {
+            try {
+                const req = await fetch(`${API_URL}/visualizador/cena_atual`);
+                const data = await req.json();
+
+                if (data.status === "aguardando" || data.status === "pensando") {
+                    document.getElementById('loader').style.display = 'flex';
+                    if (!isModalLocallyOpen && data.status === "aguardando") {
+                        document.getElementById('loader').querySelector('div:last-child').innerText = "AGUARDANDO O NAO...";
+                    } else if (data.status === "pensando") {
+                        document.getElementById('loader').querySelector('div:last-child').innerText = "CRIANDO PRÓXIMA CENA...";
+                    }
+                    return;
+                }
+
+                if (data.status === "modal") {
+                    document.getElementById('loader').style.display = 'none';
+                    const modalData = data.dados || data;
+                    if (!isModalLocallyOpen || document.getElementById('modal-question').innerText !== modalData.pergunta) {
+                        showModal({
+                            pergunta: modalData.pergunta,
+                            opcoes: modalData.opcoes
+                        });
+                    }
+                    return;
+                }
+
+                // Status ATIVO
+                const sceneData = data.dados || data;
+                const textoHistoria = sceneData.historia_original || sceneData.historia || "";
+                
+                if (data.session_id !== lastSessionId || textoHistoria !== lastHistoryText) {
+                    lastSessionId = data.session_id;
+                    lastHistoryText = textoHistoria;
+
+                    hideModal();
+                    document.getElementById('loader').style.display = 'flex'; // mantem loader até imagem 1 carregar
+                    
+                    const storyTextEl = document.getElementById('story-text');
+                    typeWriterEffect(textoHistoria, storyTextEl);
+
+                    const hasImages = Array.isArray(sceneData.imagens_arquivos) && sceneData.imagens_arquivos.length > 0;
+                    if (hasImages) {
+                        startImageSequence(sceneData.imagens_arquivos, sceneData);
+                    } else {
+                        document.getElementById('loader').style.display = 'none';
+                        triggerDecisionModal(sceneData);
+                    }
+                }
+            } catch (err) {
+                console.log("Erro ao sincronizar:", err);
+            }
+        }
+
+        function pollStatus() {
+            setInterval(checkActiveSession, 2000);
+        }
+
+    </script>
 </body>
 </html>

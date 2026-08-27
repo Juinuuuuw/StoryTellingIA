@@ -3,8 +3,21 @@ const readline = require("readline");
 const fs = require("fs");
 const path = require("path");
 
-const SERVIDOR_FLASK = "http://192.168.16.76:5000";
+let base64Referencia = null;
+const caminhoReferencia = path.join(__dirname, 'referencia.png');
+if (fs.existsSync(caminhoReferencia)) {
+    const imgData = fs.readFileSync(caminhoReferencia);
+    base64Referencia = Buffer.from(imgData).toString('base64');
+    console.log("🌟 IP-Adapter ATIVADO: Imagem de referência carregada com sucesso!");
+} else {
+    console.log("⚠️ IP-Adapter inativo: 'referencia.png' não encontrada na pasta do projeto.");
+}
+
+const SERVIDOR_FLASK = "http://127.0.0.1:5000";
 const FORGE_API_TXT2IMG = "http://127.0.0.1:7860/sdapi/v1/txt2img";
+const FORGE_API_IMG2IMG = "http://127.0.0.1:7860/sdapi/v1/img2img";
+const FORGE_API_SVD = "http://127.0.0.1:7860/sdapi/v1/svd";
+
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -26,7 +39,8 @@ function prepararPastaSessao(seed) {
 }
 
 function salvarImagem(base64, nomeArquivo) {
-    const filePath = path.join(PASTA_SESSAO, nomeArquivo);
+    const fileNameOnly = path.basename(nomeArquivo);
+    const filePath = path.join(PASTA_SESSAO, fileNameOnly);
     const buffer = Buffer.from(base64, "base64");
     fs.writeFileSync(filePath, buffer);
     console.log(`      💾 Imagem salva em: ${filePath}`);
@@ -49,54 +63,147 @@ let IMAGEM_REFERENCIA_GLOBAL = null;
 // ============================================================
 // GERAÇÃO DE SEQUÊNCIA COM IP-ADAPTER
 // ============================================================
-async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negativePrompt, numeroCena, dadosDaCena) {
-    console.log(`\n🎨 Gerando Storyboard - Cena ${numeroCena} (${microcenasTextos.length} quadros)`);
+const REMBG_API = "http://127.0.0.1:5001/rembg";
 
-    const seedCena = SEED_SESSAO; 
+// ============================================================
+// REMOÇÃO DE FUNDO COM REMBG (via Forge API)
+// ============================================================
+async function removerFundo(inputBase64, nomeArquivoSaida) {
+    try {
+        const response = await axios.post(REMBG_API, {
+            input_image: inputBase64,
+            model: "u2net",
+            return_mask: false,
+            alpha_matting: false
+        }, { timeout: 60000 });
+
+        if (response.data && response.data.image) {
+            const nomeAlpha = nomeArquivoSaida.replace(".png", "_alpha.png");
+            salvarImagem(response.data.image, nomeAlpha);
+            console.log(`      ✨ Alpha gerado: ${nomeAlpha}`);
+            return nomeAlpha;
+        }
+    } catch (err) {
+        console.log(`      ⚠️  rembg não disponível (${err.message}). Usando imagem original.`);
+    }
+    return null; // sem alpha, usa original
+}
+
+// ============================================================
+// GERAÇÃO DE VÍDEO COM SVD (STABLE VIDEO DIFFUSION)
+// ============================================================
+async function gerarVideoSVD(imagemBase64, nomeCena) {
+    try {
+        console.log(`      🎥 Iniciando geração de vídeo SVD para: ${nomeCena}`);
+        const payloadSvd = {
+            init_images: [imagemBase64],
+            width: 1024,
+            height: 576,
+            video_frames: 14,
+            motion_bucket_id: 127,
+            fps: 6,
+            override_settings: {
+                sd_model_checkpoint: "svd_xt.safetensors"
+            }
+        };
+
+        const response = await axios.post(FORGE_API_SVD, payloadSvd, { 
+            timeout: 300000,
+            responseType: 'json'
+        });
+
+        if (response.data && response.data.video) {
+            const videoBase64 = response.data.video;
+            const buffer = Buffer.from(videoBase64, 'base64');
+            const nomeVideo = nomeCena.replace('.png', '.mp4');
+            const caminhoFisico = path.join(__dirname, `sessao_${SEED_SESSAO}`, nomeVideo);
+            
+            fs.writeFileSync(caminhoFisico, buffer);
+            console.log(`      📹 Vídeo SVD salvo com sucesso: ${nomeVideo}`);
+        }
+    } catch (err) {
+        console.log(`      ❌ Erro na geração do vídeo SVD: ${err.message}`);
+    }
+}
+
+// ============================================================
+// GERAÇÃO DE SEQUÊNCIA POR CAMADAS
+// ============================================================
+async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negativePrompt, numeroCena, dadosDaCena) {
+    console.log(`\n🎨 Gerando Storyboard - Cena ${numeroCena}`);
+
+    const seedCena = SEED_SESSAO;
 
     for (let i = 0; i < promptsImagens.length; i++) {
         const promptAtual = promptsImagens[i];
-        const acaoTexto = microcenasTextos[i];
+        const acaoTexto = microcenasTextos[i] || `Quadro ${i+1}`;
+        const nomeBase = dadosDaCena ? dadosDaCena.imagens_arquivos[i] : `sessao_${SEED_SESSAO}/cena_${numeroCena}_quadro_${i+1}.png`;
 
         console.log(`   🎬 Quadro ${i + 1}: [${acaoTexto}]`);
 
         const payloadTxt = {
             prompt: promptAtual,
             negative_prompt: negativePrompt || "",
-            steps: 28,                        
+            steps: 28,
             width: 768,
             height: 768,
             sampler_name: "DPM++ 2M Karras",
-            cfg_scale: 7.0,                   
-            seed: seedCena,
+            cfg_scale: 7.0,
+            seed: seedCena + (i * 100),
             alwayson_scripts: {},
             override_settings: {
                 "CLIP_stop_at_last_layers": 2
             }
         };
 
+        if (base64Referencia) {
+            payloadTxt.alwayson_scripts["controlnet"] = {
+                "args": [
+                    {
+                        "enabled": true,
+                        "module": "ip-adapter_clip_sdxl",
+                        "model": "ip-adapter_sdxl",
+                        "weight": 0.85,
+                        "image": base64Referencia,
+                        "resize_mode": "Crop and Resize",
+                        "lowvram": false,
+                        "processor_res": 512,
+                        "guidance_start": 0.0,
+                        "guidance_end": 1.0,
+                        "control_mode": "Balanced"
+                    }
+                ]
+            };
+        }
+
+
         try {
             const response = await axios.post(FORGE_API_TXT2IMG, payloadTxt, { 
-                timeout: 180000,
+                timeout: 300000,
                 responseType: 'json'
             });
 
             if (response.data && response.data.images) {
-                const nomeImg = `cena_${numeroCena}_quadro_${i + 1}.png`;
-                salvarImagem(response.data.images[0], nomeImg);
-                registrarLog(`[IMAGEM: ${nomeImg}] Prompt: ${promptAtual}`);
+                const imgBase64 = response.data.images[0];
+                salvarImagem(imgBase64, nomeBase);
+                
+                registrarLog(`[QUADRO-${i+1}] ${nomeBase}: ${promptAtual}`);
+                
+                // Se ainda não temos uma referência, define a âncora do IP-Adapter
+                // NOTA: Se for AnimateDiff, pegamos a primeira imagem estática do array (images[0]) para usar como âncora, se necessário
+                if (!base64Referencia) {
+                    base64Referencia = response.data.images[0];
+                    console.log(`      🌟 IP-Adapter ÂNCORA DEFINIDA: Esta imagem será o padrão para a história!`);
+                }
             }
-
-            console.log(`      ✅ Quadro ${i + 1} concluído.`);
-            
-            // Se for o primeiro quadro e tivermos dados para publicar, liberamos a apresentação e o NAO!
-            if (i === 0 && dadosDaCena) {
-                await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dadosDaCena).catch(() => {});
-                dadosDaCena = null; // Para não publicar de novo nos próximos loops
-            }
-            
+            console.log(`      ✅ Quadro ${i+1} concluído.`);
         } catch (err) {
             console.log(`      ❌ Erro no Quadro ${i + 1}:`, err.message);
+        }
+
+        // Após o primeiro quadro completo, publica a cena para o front
+        if (i === 0 && dadosDaCena) {
+            await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dadosDaCena).catch(() => {});
         }
     }
 }
@@ -361,19 +468,9 @@ async function main() {
     console.log(dados.historia_original);
     registrarLog(`\n--- CENA ${contadorCena} ---\n${dados.historia_original}\n`);
 
-    // Primeira cena: gerar o primeiro quadro SEM IP-Adapter (referência)
+    // Primeira cena: gerar em camadas
     if (dados.prompts_imagens && dados.prompts_imagens.length > 0) {
-        console.log("\n📸 Gerando imagem de referência...");
-        await gerarPrimeiroQuadro(dados.prompts_imagens[0], dados.microcenas_textos[0], negative);
-
-        // PUBLICAR CENA APÓS A PRIMEIRA IMAGEM ESTAR PRONTA
-        await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dados).catch(() => {});
-
-        if (dados.prompts_imagens.length > 1) {
-            const promptsRestantes = dados.prompts_imagens.slice(1);
-            const microcenasRestantes = dados.microcenas_textos.slice(1);
-            await gerarSequenciaStoryboard(promptsRestantes, microcenasRestantes, negative, contadorCena, null); // null pq já foi publicada
-        }
+        await gerarSequenciaStoryboard(dados.prompts_imagens, dados.microcenas_textos, negative, contadorCena, dados);
     } else {
         await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dados).catch(() => {});
     }

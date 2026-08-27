@@ -12,7 +12,7 @@ CORS(app)
 # ============================================================
 # CONFIGURAÇÕES
 # ============================================================
-NAO_IP   = "172.16.61.45"
+NAO_IP   = "169.254.133.44"
 NAO_PORT = 9559
 
 # Caminho do Python 2.7 que vem junto com o SDK NAOqi no Windows.

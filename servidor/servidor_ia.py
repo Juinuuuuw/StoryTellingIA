@@ -6,6 +6,8 @@ import os
 import re
 import json
 from state_manager import manager
+import rag_historico
+import canonical_scenes
 
 app = Flask(__name__)
 CORS(app) # Habilita CORS para todas as rotas
@@ -46,32 +48,20 @@ def serve_image(filename):
 ESTILO_TOONYOU = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed, cel shading"
 NEGATIVE_TOONYOU = "3d, cgi, render, 2.5d, photorealistic, realistic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, (3 people, 4 people, crowd:1.4), merged faces, merged bodies, fused characters, extra person, duplicate character"
 
-def montar_prompt_microcena(cena, personagens_globais):
-    nomes_presentes = [n.lower() for n in cena.get("personagens", [])]
-    desc_txt = ""
-    for p in personagens_globais:
-        if p.get("nome").lower() in nomes_presentes:
-            desc_txt += f"{p['descricao_visual']}, "
+# Prompts específicos para personagem isolado (fundo branco/simples para rembg)
+ESTILO_CHAR_ISOLADO = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed, cel shading, simple white background, character sheet, full body, isolated character"
+NEGATIVE_CHAR_ISOLADO = "3d, cgi, render, photorealistic, realistic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, background scenery, detailed background, complex background, gradient background, multiple characters, crowd, merged bodies"
 
-    acao = cena.get('acao', 'playing')
-    camera = cena.get('camera', 'medium shot')
-    emocao = cena.get('emocao', 'happy')
-    cenario = cena.get('cenario', 'detailed colorful background')
-
-    # Estrutura SD 1.5: Estilo + Personagem + Ação + Cenário + Tags extras
-    prompt = f"{ESTILO_TOONYOU}, {desc_txt} {acao} in {cenario}, {emocao} expression, {camera}, highly detailed scenery"
-    return prompt.strip()
+# Prompts específicos para fundo sem personagens
+ESTILO_FUNDO = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed scenery, cel shading, empty scene, background art, environmental concept art, cinematic wide shot"
+NEGATIVE_FUNDO = "3d, cgi, render, photorealistic, realistic, lowres, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, people, person, character, human, man, woman, child, boy, girl, figure, silhouette"
 
 def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, npc_principal):
     """
-    3 quadros com apenas UM personagem cada para melhor geração de imagem:
-      Quadro 1 → ALUNO sozinho (solo, 1person)
-      Quadro 2 → NPC sozinho (solo, 1person)
-      Quadro 3 → ALUNO sozinho (outra ação/ângulo) (solo, 1person)
-
-    Usa ação/cenário/emoção das microcenas geradas pela IA como base.
+    Gera 3 prompts distintos (Storyboard Completo).
+    Cada prompt é uma cena COMPLETA (fundo + personagens interagindo) para manter a qualidade e consistência.
     """
-    while len(microcenas_raw) < 3:
+    while len(microcenas_raw) < 4:
         microcenas_raw.append(microcenas_raw[-1].copy())
 
     desc_por_nome = {}
@@ -81,54 +71,47 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
     student_desc = desc_por_nome.get(student_name.lower(), "1child, cute student, period-appropriate clothing")
     npc_desc     = desc_por_nome.get(npc_principal.lower(), "1man, historical figure, period-appropriate clothing")
 
-    quadros = []
+    prompts = []
+    textos = []
 
-    # ---------- Quadro 1: ALUNO sozinho ----------
-    c1 = microcenas_raw[0]
-    q1 = (
-        f"{ESTILO_TOONYOU}, "
-        f"solo, 1person, 1child, {student_desc}, "
-        f"{c1.get('acao','looking around curiously')} in {c1.get('cenario','detailed colorful background')}, "
-        f"{c1.get('emocao','curious')} expression, {c1.get('camera','medium shot')}, "
-        f"highly detailed scenery"
-    )
-    quadros.append(q1)
+    for i, cena in enumerate(microcenas_raw[:4]):
+        personagens_presentes = cena.get('personagens', [])
+        
+        # Monta a descrição física apenas dos personagens que estão na cena
+        desc_personagens = []
+        for p_nome in personagens_presentes:
+            if p_nome.lower() == student_name.lower():
+                desc_personagens.append(f"1child, {student_desc}")
+            elif p_nome.lower() == npc_principal.lower():
+                desc_personagens.append(f"1man, {npc_desc}")
+        
+        char_prompt = ", ".join(desc_personagens) if desc_personagens else "no humans, scenery focus"
+        
+        acao = cena.get('acao', 'standing')
+        emocao = cena.get('emocao', 'neutral')
+        cenario = cena.get('cenario', 'detailed background')
+        camera = cena.get('camera', 'medium shot')
 
-    # ---------- Quadro 2: NPC sozinho ----------
-    c2 = microcenas_raw[1]
-    q2 = (
-        f"{ESTILO_TOONYOU}, "
-        f"solo, 1person, 1man, {npc_desc}, "
-        f"{c2.get('acao','explaining something important')} in {c2.get('cenario','detailed colorful background')}, "
-        f"{c2.get('emocao','focused')} expression, {c2.get('camera','medium shot')}, "
-        f"highly detailed scenery"
-    )
-    quadros.append(q2)
+        prompt_completo = (
+            f"masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed, cel shading, "
+            f"{char_prompt}, {acao}, {emocao} expression, {cenario}, {camera}, cinematic lighting"
+        )
+        prompts.append(prompt_completo)
+        textos.append(acao)
 
-    # ---------- Quadro 3: ALUNO sozinho (Close-up ou ação de reação) ----------
-    c3 = microcenas_raw[2]
-    q3 = (
-        f"{ESTILO_TOONYOU}, "
-        f"solo, 1person, 1child, {student_desc}, "
-        f"{c3.get('acao','interacting or reacting')} in {c3.get('cenario','detailed colorful background')}, "
-        f"{c3.get('emocao','focused')} expression, {c3.get('camera','close-up')}, "
-        f"highly detailed scenery"
-    )
-    quadros.append(q3)
-
-    return quadros
+    return prompts, textos
 
 # ============================================================
 # GERAÇÃO DE CONTEÚDO (CONTRATADO PELO STATE MANAGER)
 # ============================================================
 
-def gerar_json_seguro(prompt, temperatura=0.4):
+def gerar_json_seguro(prompt, temperatura=0.75):
     try:
         resposta = ollama.chat(
             model=MODELO, 
             messages=[{'role': 'user', 'content': prompt}], 
             format='json',
-            options={'temperature': temperatura, 'num_predict': 1000},
+            options={'temperature': temperatura, 'num_predict': 2000},
             keep_alive=0
         )
         conteudo = resposta.message.content.strip()
@@ -138,10 +121,11 @@ def gerar_json_seguro(prompt, temperatura=0.4):
         print(f"❌ Erro no JSON: {e}")
         return {}
 
-def montar_prompt_narrativo(contexto, historico="", student_visual_fixo=""):
-    # Se já temos o visual fixo do aluno, incluímos no prompt para o LLM não inventar outro
+def montar_prompt_narrativo(contexto, historico="", student_visual_fixo="",
+                            fatos_rag="", instrucao_canonica="", ato=1,
+                            escolha_anterior=""):
     genero_instrucao = f"GENDER: {contexto.get('student_genero', 'Masculino')}"
-    
+
     student_visual_instruction = (
         f"FIXED VISUAL (use EXACTLY as is, do not change): {student_visual_fixo}"
         if student_visual_fixo
@@ -161,90 +145,208 @@ def montar_prompt_narrativo(contexto, historico="", student_visual_fixo=""):
     scenery_guideline = contexto.get("scenery_guideline", "")
     scenery_instruction = f"### SCENERY ATMOSPHERE (MANDATORY GUIDELINE) ###\n{scenery_guideline}" if scenery_guideline else ""
 
-    intro_rule = (
-        "- THIS IS THE FIRST SCENE. Start the 'historia' with an engaging and welcoming introduction to set the stage "
-        f"(e.g., 'Bem-vindo à nossa viagem histórica! Em 1936, na cidade de Cambridge, {contexto['student_name']} começava sua aventura...')."
-    ) if not historico else "- Continue the narration smoothly from the previous events."
+    # --- 3-ACT STRUCTURE ---
+    ato_descricoes = {
+        1: {
+            "nome": "ACT 1 — INTRODUCTION & WORLD DISCOVERY",
+            "instrucao": (
+                "This is Act 1 (the opening). PRIMARY GOALS: rich world-building and character introduction. "
+                "Set the scene with immersive sensory details (sounds, smells, textures, lighting). "
+                "Introduce the historical figure as a flawed, complex, relatable human being — NOT a textbook name. "
+                "Plant the seeds of the central conflict. End the scene pulling the student in with a question or challenge. "
+                "The tone should be inviting and full of wonder."
+            )
+        },
+        2: {
+            "nome": "ACT 2 — CONFLICT, TENSION & BREAKTHROUGH",
+            "instrucao": (
+                "This is Act 2 (the heart of the story). This is where DRAMA happens. "
+                "Push characters to their limits. Show the real human cost of their work: exhaustion, doubt, injustice, failure before triumph. "
+                "Choices must feel weighty and consequential. "
+                "If there is a CANONICAL SCENE instruction below, it MUST happen in this chapter. "
+                "Do NOT resolve the central tension yet — leave it charged."
+            )
+        },
+        3: {
+            "nome": "ACT 3 — CLIMAX, RESOLUTION & LEGACY",
+            "instrucao": (
+                "This is Act 3 — THE FINAL CHAPTER. Bring the story to its emotional peak and resolution. "
+                "Honor the historical figure's legacy with warmth, specificity, and emotional depth. "
+                "The student must feel they truly witnessed something historic. "
+                "End with genuine meaning: hope, inspiration, or bittersweet reflection. "
+                "Do NOT end with a generic goodbye. Make the ending feel earned."
+            )
+        }
+    }
+    ato_info = ato_descricoes.get(ato, ato_descricoes[1])
 
-    prompt = f"""[SYSTEM: BILINGUAL STORYBOARD ENGINE]
-Role: Professional Director & Portuguese Narrator.
-Style: ToonYou 3D Animation / Pixar style.
+    # --- RAG FACTS SECTION ---
+    secao_rag = ""
+    if fatos_rag:
+        secao_rag = f"""### HISTORICAL FACTS DATABASE (USE AS THE BACKBONE OF YOUR NARRATIVE) ###
+These are REAL, VERIFIED historical facts. Weave them naturally into the story.
+Do NOT fabricate events that contradict these. Use specific details (names, numbers, places).
+{fatos_rag}
+"""
+
+    # --- CANONICAL SCENE SECTION ---
+    secao_canonica = ""
+    if instrucao_canonica:
+        secao_canonica = f"""### ⚡ CANONICAL SCENE — HIGH PRIORITY MANDATORY INSTRUCTION ⚡ ###
+{instrucao_canonica}
+
+CANONICAL SCENE COHERENCE RULE (CRITICAL):
+- This scene MUST be shown through a complete, logical sequence of cause and effect.
+- Do NOT just mention the element (a sign, a machine, a phone call) in a single passing sentence.
+- Every sentence must flow naturally into the next. The canonical scene must MAKE SENSE in context.
+- If the scene involves an injustice (bathroom, coffee), show the full action: character walks, sees, reacts.
+- Do NOT combine canonical scene elements with unrelated plot points in the same sentence.
+"""
+
+    # --- PLAYER CHOICE SEED ---
+    secao_escolha = ""
+    if escolha_anterior:
+        secao_escolha = f"""### AÇÃO DO JOGADOR — PONTO DE PARTIDA OBRIGATÓRIO ###
+O jogador escolheu: "{escolha_anterior}"
+CRÍTICO: A "historia" DEVE começar a partir desta ação. Mostre {contexto['student_name']} fazendo ou
+dizendo exatamente o que foi escolhido. Não resuma — dramatize.
+Exemplo: se o jogador escolheu 'Perguntar a Katherine sobre os problemas enfrentados',
+a historia deve começar com algo como:
+"{contexto['student_name']} respirou fundo e virou-se para Katherine. 'Katherine,' disse ele
+com cuidado, 'o que foi mais difícil para você aqui na NASA?' A cientista parou de escrever..."
+A escolha deve ser a PRIMEIRA ação visível na narrativa, não um contexto de fundo.
+"""
+
+    # --- HISTORY SECTION (ENRICHED) ---
+    if not historico:
+        intro_rule = (
+            f"- THIS IS THE FIRST SCENE. Drop the student directly into the world. "
+            f"Open with a specific sensory detail (a sound, a smell, a visual). "
+            f"Introduce the setting and character through what the student experiences, not narration."
+        )
+    else:
+        acao_label = f"'{escolha_anterior}'" if escolha_anterior else "a previous choice"
+        intro_rule = (
+            f"- THIS IS NOT THE FIRST SCENE. OBEY THESE ANTI-REPETITION RULES STRICTLY:\n"
+            f"  1. NEVER start with '[student] entrou' or any version of entering/walking into a room.\n"
+            f"  2. NEVER repeat the setting description (Katherine at her desk, the room, etc.) — reader knows.\n"
+            f"  3. NEVER use the phrase 'por décima sétima vez' or similar counters.\n"
+            f"  4. NEVER use the Q&A template: student asks 'você precisa de mais dados?' / Katherine says 'Sim, preciso'.\n"
+            f"  5. The scene MUST open IN MEDIAS RES — in the middle of the action chosen by the player: {acao_label}.\n"
+            f"  6. If the choice was a question, the scene STARTS with {contexto['student_name']} already asking it and Katherine's SPECIFIC, DETAILED response.\n"
+            f"  7. DO NOT repeat information already told in the History section."
+        )
+
+    # --- BLACKLIST ---
+    blacklist = f"""### FORBIDDEN PHRASES AND PATTERNS — NEVER USE THESE ###
+Using any of these is a critical failure:
+- "[{contexto['student_name']}] inclina-se para frente" (or any variation of leaning)
+- "[{contexto['student_name']}] franze as sobrancelhas"
+- "[{contexto['student_name']}] observa atentamente" as a standalone sentence without action
+- "Que escolha interessante!" or "Boa escolha!"
+- "E agora?" or "O que faremos?" as standalone filler sentences
+- Repeating ANY action, observation, or setting detail from the previous chapter
+- Describing a character's internal thoughts WITHOUT any accompanying external action
+- Starting a sentence with "[{contexto['student_name']}] percebe que..."
+- Ending any sentence with "...e sorri" without context
+- Generic options like "Continuar" or "Explorar" — options MUST be specific actions
+"""
+
+    prompt = f"""[SYSTEM: BILINGUAL STORYBOARD ENGINE — NARRATIVE QUALITY MODE]
+Role: Professional Screenwriter, Director & Portuguese Narrator.
+Style: Studio Ghibli / Pixar — emotionally resonant, visually specific, historically grounded.
 Output: Valid JSON only.
 
+⚠️⚠️⚠️ ABSOLUTE LANGUAGE LAW ⚠️⚠️⚠️
+The "historia" field MUST be written 100% in BRAZILIAN PORTUGUESE (PT-BR).
+Writing "historia" in English is a FATAL ERROR that will BREAK the entire system.
+Before outputting, verify: is every single sentence in "historia" in Portuguese? If not, rewrite.
+The ONLY fields allowed in English are: acao, camera, emocao, cenario, descricao_visual.
+⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+
+### NARRATIVE ACT ###
+{ato_info['nome']}
+{ato_info['instrucao']}
+
+{secao_escolha}
+{secao_rag}
+{secao_canonica}
 ### CHARACTER PROTOCOL ###
 - The Student ({contexto['student_name']}) is the PROTAGONIST and is a CHILD (8-12 years old).
 - {genero_instrucao}
 - CRITICAL PERSPECTIVE RULE: ALWAYS write the story ("historia") in the THIRD PERSON. Refer to {contexto['student_name']} by name. Never use "Você" or "Eu".
 - {contexto['student_name']} is PHYSICALLY PRESENT in the historical scene as an assistant, researcher, or engineer.
-- NPCs must interact directly with {contexto['student_name']}.
-- CRITICAL: {contexto['student_name']} (CHILD) and {contexto.get('npc_principal')} (ADULT) must have distinct visual descriptions. NEVER reuse the NPC description for the student.
+- NPCs must interact directly with {contexto['student_name']} — give them specific dialogue and mannerisms.
+- CRITICAL: {contexto['student_name']} (CHILD) and {contexto.get('npc_principal')} (ADULT) must have distinct visual descriptions.
 {npc_visual_instruction}
 
 ### NARRATION RULES ###
-- The story MUST be a rich, immersive paragraph (4-6 sentences) describing the atmosphere and current event.
-- It MUST be told by an external narrator about {contexto['student_name']}.
-{intro_rule}
-- Do NOT summarize.
+- The story MUST be a rich, immersive paragraph (4-6 sentences) describing atmosphere AND action.
+- Use specific sensory details: what the student SEES, HEARS, SMELLS, FEELS.
+- Include at least ONE piece of specific historical detail (a name, a number, a place, a machine).
+- NPCs must have at least ONE line of direct dialogue (in PT-BR).
+- {intro_rule}
+- Do NOT summarize — show, do not tell.
 
 ### STUDENT VISUAL ###
 {student_visual_instruction}
 
 {scenery_instruction}
 
+{blacklist}
 ### JSON SCHEMA & LANGUAGE RULES (STRICT ENFORCEMENT) ###
-You MUST return ONLY a JSON object matching this exact schema. Pay close attention to the requested LANGUAGE for each field.
+Return ONLY a JSON object matching this exact schema:
 {{
-  "historia": "string (MUST BE PT-BR) - Rich, immersive paragraph (4-6 sentences) in THIRD PERSON describing the atmosphere and current event. Tell the story ABOUT {contexto['student_name']}.",
+  "historia": "string ⚠️ EM PORTUGUÊS BRASILEIRO (PT-BR) OBRIGATÓRIO ⚠️ — Parágrafo rico e imersivo (4-6 frases) em TERCEIRA PESSOA. Deve incluir: detalhes sensoriais específicos, pelo menos UMA fala direta do NPC, UM fato histórico real. Conte a história SOBRE {contexto['student_name']}. SE o jogador fez uma escolha (ver seção AÇÃO DO JOGADOR), a primeira frase DEVE mostrar essa escolha acontecendo.",
   "opcoes": [
-    "string (PT-BR) - ACTION 1. Must be a descriptive ACTION or DIALOGUE choice (e.g., 'Investigar as engrenagens da máquina' or 'Perguntar a Alan sobre o código'). NEVER use just names (like 'Alan Turing') or generic words (like 'Continuar').",
-    "string (PT-BR) - ACTION 2. Must be a completely different descriptive ACTION or DIALOGUE choice."
+    "string (PT-BR) — SPECIFIC ACTION 1. A concrete, descriptive action or dialogue choice directly tied to THIS scene (e.g., 'Ajudar Turing a ajustar os rotores da Bombe' or 'Perguntar a Katherine sobre os calculos que ela verificou'). NEVER generic words.",
+    "string (PT-BR) — SPECIFIC ACTION 2. A completely different concrete action with different consequences."
   ],
   "personagens": [
     {{
       "nome": "string",
-      "descricao_visual": "string (MUST BE EN-US) - The exact physical description."
+      "descricao_visual": "string (MUST BE EN-US) — Exact physical description."
     }}
   ],
   "microcenas": [
     {{
-      "acao": "string (MUST BE EN-US) - Highly descriptive and dynamic action. DO NOT use generic 'looking at' or 'standing'. Describe posture, hands, and object interaction (e.g., 'leaning over the desk, tracing the copper wires with his fingers').",
-      "camera": "string (MUST BE EN-US) - Camera angle. VARY THIS! Choose from: 'close-up', 'medium shot', 'full body shot', 'low angle', 'high angle', 'dutch angle', 'extreme close-up'.",
-      "emocao": "string (MUST BE EN-US) - Character's emotion (e.g., 'amazed', 'focused').",
-      "cenario": "string (MUST BE STRICTLY EN-US) - Highly detailed scenery description. NO PORTUGUESE ALLOWED. Example: 'large 1930s laboratory, dark wooden desks, glowing lamps, brass mechanical calculators, dusty bookshelves'",
-      "personagens": ["string (Character Name)"]
+      "acao": "string (MUST BE EN-US) — Highly descriptive and dynamic action verb phrase. NO passive verbs ('looking', 'standing'). Use active physical interactions.",
+      "camera": "string (MUST BE EN-US) — Camera angle. VARY per microcena: 'close-up', 'medium shot', 'full body shot', 'low angle', 'high angle', 'dutch angle', 'extreme close-up', 'wide establishment shot'.",
+      "emocao": "string (MUST BE EN-US) — Character emotion or 'neutral'.",
+      "cenario": "string (MUST BE STRICTLY EN-US) — Fully standalone, highly detailed scenery. NO Portuguese. NO 'same as before'.",
+      "personagens": ["string (Character Name, or EMPTY for environment shots)"]
     }}
   ]
 }}
 
-[CRITICAL FATAL ERROR WARNING]: The image generator ONLY understands English. If you write 'acao', 'camera', 'emocao', or 'cenario' in Portuguese, the system will CRASH. DO NOT TRANSLATE THEM TO PORTUGUESE.
+[FATAL ERROR WARNING]: Image generator ONLY understands English. 'acao', 'camera', 'emocao', 'cenario' in Portuguese = SYSTEM CRASH.
 
-### MICROCENAS RULES (CRITICAL FOR IMAGE GENERATION) ###
-- Each microcena must have ONLY ONE character (solo).
-- microcena 1: STUDENT ONLY ({contexto['student_name']}). personagens: ["{contexto['student_name']}"]
-- microcena 2: NPC ONLY ({contexto.get('npc_principal', 'NPC')}). Use strong visual descriptors for the NPC. personagens: ["{contexto.get('npc_principal', 'NPC')}"]
-- microcena 3: STUDENT ONLY ({contexto['student_name']}). DIFFERENT action or close-up. personagens: ["{contexto['student_name']}"]
-- NEVER swap characters between scenes.
-- CRITICAL ACTION RULE: Actions MUST be visually dynamic and directly related to the story step. DO NOT use passive verbs like "looking", "standing", or "listening". Use active physical interactions (e.g., "holding a punched card up to the light", "furiously writing equations on the chalkboard", "plugging a cable into the mainframe").
-- CRITICAL CAMERA RULE: You MUST use a DIFFERENT camera angle for each microcena to create a dynamic storyboard. Do not repeat angles.
-- CRITICAL SCENERY RULE: NEVER use references like "same as before". Each microcena is generated independently. Write a fully standalone, highly detailed scenery description (IN ENGLISH) for EACH micro-scene.
+### MICROCENAS RULES ###
+- Generate EXACTLY 4 microcenas.
+- At least 1 (max 2) must be an Establishment Shot (empty 'personagens' array) focusing on the environment or a key object.
+- Max 1 character per microcena to avoid AI glitches.
+- Camera angles MUST be different for each microcena.
+- For student microcenas: personagens: ["{contexto['student_name']}"]
+- For NPC microcenas: personagens: ["{contexto.get('npc_principal', 'NPC')}"]
 
 ### CURRENT STORY TASK ###
 Student: {contexto['student_name']}
 Theme: {contexto['theme']}
-Step: {contexto['current_step']}
+Step: {contexto['current_step']} (Chapter {contexto.get('step_index', 0) + 1} of {contexto.get('total_steps', 6)})
 Historical Context: {contexto['historical_facts']}
 Goal: {contexto['goal']}
 Emotion: {contexto['emotion']}
-Must: {contexto['must_happen']}
+Must Happen: {contexto['must_happen']}
 Forbidden: {contexto['cannot_happen']}
 History: {historico}
 
 [CRITICAL: TECHNICAL METADATA MUST BE IN ENGLISH.]
-[CRITICAL: EACH MICROCENA MUST HAVE ONLY ONE CHARACTER (SOLO).]
+[CRITICAL: GENERATE EXACTLY 4 MICROCENAS. MAX 1 CHARACTER PER MICROCENA.]
 """
+
     if contexto.get("is_final"):
-        prompt += "\nIMPORTANT: FINAL STEP. No 'opcoes'. Warm ending."
-    
+        prompt += "\nIMPORTANT: FINAL STEP. No 'opcoes' needed (use two warm reflective options). Write a meaningful, specific ending that honors the historical figure's real legacy."
+
     return prompt
 
 # ============================================================
@@ -259,8 +361,10 @@ def fixar_visual_aluno(personagens, student_name, state):
     """
     student_visual_fixo = state.get("student_visual_fixed")
 
+    aluno_encontrado = False
     for p in personagens:
         if p.get("nome", "").lower() == student_name.lower():
+            aluno_encontrado = True
             if not student_visual_fixo:
                 # Primeira cena: guardar o que o LLM gerou
                 state["student_visual_fixed"] = p["descricao_visual"]
@@ -269,6 +373,13 @@ def fixar_visual_aluno(personagens, student_name, state):
                 # Cenas seguintes: blindar a descrição
                 p["descricao_visual"] = student_visual_fixo
             break
+
+    # Se a IA esquecer de colocar o aluno na lista, nós adicionamos à força
+    if not aluno_encontrado and student_visual_fixo:
+        personagens.append({
+            "nome": student_name,
+            "descricao_visual": student_visual_fixo
+        })
 
     return personagens
 
@@ -279,33 +390,29 @@ def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name=
     if not isinstance(microcenas, list) or len(microcenas) == 0:
         microcenas = [{"acao": "character appearing", "camera": "wide shot", "emocao": "neutral", "cenario": "detailed background", "personagens": [p["nome"] for p in personagens_globais]}]
     
-    while len(microcenas) < 3:
+    while len(microcenas) < 4:
         microcenas.append(microcenas[-1].copy())
 
-    # CORREÇÃO: usa tríptico alternado (aluno / inventor / juntos)
-    if student_name and npc_principal:
-        prompts_imagens = montar_triptico_prompts(microcenas[:3], personagens_globais, student_name, npc_principal)
-    else:
-        prompts_imagens = [montar_prompt_microcena(c, personagens_globais) for c in microcenas[:3]]
-    
-    # Textos descritivos dos quadros para o log
-    textos_quadros = [
-        f"[ALUNO] {microcenas[0].get('acao', '')}",
-        f"[{npc_principal or 'NPC'}] {microcenas[1].get('acao', '')}",
-        f"[ALUNO-2] {microcenas[2].get('acao', '')}",
-    ]
+    # Sistema Clássico: 4 Cenas Completas
+    prompts_imagens, textos_quadros = montar_triptico_prompts(microcenas[:4], personagens_globais, student_name, npc_principal)
 
-    # Nomes de arquivo que o story_client.js vai gerar
-    imagens_arquivos = [f"sessao_{sid}/cena_{num_cena}_quadro_{i+1}.png" for i in range(len(prompts_imagens))]
-    ref_arquivo = f"sessao_{sid}/cena_1_referencia_global.png" if num_cena == 1 else imagens_arquivos[0]
+    nomes_base = []
+    for idx, mc in enumerate(microcenas[:4]):
+        num_q = idx + 1
+        if len(mc.get("personagens", [])) > 0:
+            # Tem personagem: vamos usar AnimateDiff, gerar como GIF
+            nomes_base.append(f"sessao_{sid}/cena_{num_cena}_quadro_{num_q}.gif")
+        else:
+            # Sem personagem: imagem estática única
+            nomes_base.append(f"sessao_{sid}/cena_{num_cena}_quadro_{num_q}.png")
 
     return {
         "historia": cena_dados.get("historia", ""),
         "fala_robo": cena_dados.get("historia", ""),
         "opcoes": (cena_dados.get("opcoes", []) + ["Continuar", "Explorar"])[:2],
         "prompts_imagens": prompts_imagens,
-        "imagens_arquivos": imagens_arquivos,
-        "referencia_arquivo": ref_arquivo,
+        "imagens_arquivos": nomes_base,
+        "referencia_arquivo": nomes_base[0],
         "microcenas_textos": textos_quadros
     }
 
@@ -351,6 +458,8 @@ def publicar_cena():
 
 @app.route('/publicar_modal', methods=['POST'])
 def publicar_modal():
+    global ESCOLHA_PENDENTE
+    ESCOLHA_PENDENTE = None  # Evita que um clique duplo acidental responda a próxima pergunta
     dados = request.json
     SESSAO_ATIVA["status"] = "modal"
     SESSAO_ATIVA["last_scene_data"] = dados
@@ -364,35 +473,54 @@ def iniciar():
     tema = dados.get('tema', 'Escola')
     genero = dados.get('genero', 'Masculino')
     visual_fixo = dados.get('visual_fixo', '')
-    
+
     sid = manager.create_session(nome, skill, tema)
     ctx = manager.get_current_context(sid)
-    
+
     # Salva o gênero no estado para persistência
     state = manager.load_state(sid)
     state["student"]["genero"] = genero
     if visual_fixo:
         state["student_visual_fixed"] = visual_fixo
-    
-    # Primeira cena: ainda não há visual fixo (ou usa o que veio do modal)
-    prompt = montar_prompt_narrativo(ctx, student_visual_fixo=visual_fixo)
+
+    # RAG + Cena Canônica
+    fatos = rag_historico.buscar_fatos(
+        npc_nome=ctx.get("npc_principal", ""),
+        step_id=ctx.get("current_step", ""),
+        goal=ctx.get("goal", ""),
+        topk=3
+    )
+    inst_canonica = canonical_scenes.obter_instrucao_canonica(
+        skill=skill,
+        session_id=sid,
+        step_atual=ctx.get("current_step", "")
+    )
+    id_cena_sorteada = canonical_scenes.obter_id_cena_sorteada(skill, sid)
+    print(f"✨ Sessão [{sid}] | Cena canônica sorteada: [{id_cena_sorteada}]")
+
+    prompt = montar_prompt_narrativo(
+        ctx,
+        student_visual_fixo=visual_fixo,
+        fatos_rag=fatos,
+        instrucao_canonica=inst_canonica,
+        ato=ctx.get("ato", 1)
+    )
     cena_raw = gerar_json_seguro(prompt)
-    
+
     personagens = cena_raw.get("personagens", [])
     if not personagens:
         desc_padrao = "1boy" if genero == "Masculino" else "1girl"
         desc_final = visual_fixo if visual_fixo else f"{desc_padrao}, short hair, brown eyes, light skin, period-appropriate clothing"
         personagens = [{"nome": nome, "descricao_visual": desc_final}]
-    
+
     # Fixa o visual do aluno e salva no state
     personagens = fixar_visual_aluno(personagens, nome, state)
     state["personagens_globais"] = personagens
+    state["last_narrative"] = cena_raw.get("historia", "")
     manager.save_state(sid)
-    
+
     proc = processar_cena(cena_raw, personagens, sid, 1, student_name=nome, npc_principal=ctx.get("npc_principal", ""))
-    
-    # NÃO ATUALIZA SESSAO_ATIVA AQUI MAIS. O client fará isso.
-    
+
     return jsonify({
         'session_id': sid, 'status': 'sucesso', 'node_id': ctx['current_step'],
         'historia_original': proc['historia'],
@@ -402,6 +530,7 @@ def iniciar():
         'referencia_arquivo': proc['referencia_arquivo'],
         'microcenas_textos': proc['microcenas_textos'],
         'negative_prompt': NEGATIVE_TOONYOU,
+        'negative_prompt_char': NEGATIVE_CHAR_ISOLADO,
         'opcoes': proc['opcoes'], 'tem_opcoes': True
     })
 
@@ -410,44 +539,65 @@ def escolher():
     dados = request.json
     sid = dados.get('session_id')
     escolha = dados.get('escolha_texto', '')
-    
+
     state = manager.advance_state(sid, escolha)
     if not state: return jsonify({'status': 'erro'}), 400
-    
+
     ctx = manager.get_current_context(sid)
     if not ctx: return jsonify({'status': 'sucesso', 'tem_opcoes': False, 'historia_original': "Fim da jornada!"})
 
+    # Monta histórico enriquecido
     historico_texto = ""
     if state["history"]:
-        historico_texto = "### PREVIOUS CHAPTERS (FOR CONTINUITY) ###\n"
+        historico_texto = "### PREVIOUS CHAPTERS (FOR CONTINUITY — DO NOT REPEAT THESE EVENTS) ###\n"
         for h in state["history"]:
-            # Tenta recuperar o texto da história gerada para cada passo para o LLM saber o que já foi dito
-            historico_texto += f"- Step {h['step']}: User chose '{h['choice']}'\n"
-    
-    # Passa o visual fixo do aluno para o LLM não inventar outro
+            ato_label = f"Act {h.get('ato', '?')}"
+            historico_texto += f"- [{ato_label}, step '{h['step']}', emotion: {h.get('emotion', 'unknown')}]: {h.get('narrative', '')}\n"
+            historico_texto += f"  → Player chose to: '{h['choice']}'\n"
+
+    # RAG + Cena Canônica
+    skill = ctx.get("skill", state["student"].get("focus_skill", ""))
+    fatos = rag_historico.buscar_fatos(
+        npc_nome=ctx.get("npc_principal", ""),
+        step_id=ctx.get("current_step", ""),
+        goal=ctx.get("goal", ""),
+        topk=3
+    )
+    inst_canonica = canonical_scenes.obter_instrucao_canonica(
+        skill=skill,
+        session_id=sid,
+        step_atual=ctx.get("current_step", "")
+    )
+
     student_visual_fixo = state.get("student_visual_fixed", "")
-    prompt = montar_prompt_narrativo(ctx, historico_texto, student_visual_fixo=student_visual_fixo)
+    prompt = montar_prompt_narrativo(
+        ctx,
+        historico_texto,
+        student_visual_fixo=student_visual_fixo,
+        fatos_rag=fatos,
+        instrucao_canonica=inst_canonica,
+        ato=ctx.get("ato", 2),
+        escolha_anterior=escolha  # <-- A escolha vira o ponto de partida da narrativa
+    )
     cena_raw = gerar_json_seguro(prompt)
 
     # Garante que o visual do aluno nos personagens gerados seja o fixo
     personagens = state.get("personagens_globais", [])
     novos_personagens = cena_raw.get("personagens", [])
     if novos_personagens:
-        # Atualiza descrições de NPCs novos, mas blinda o aluno
         for np in novos_personagens:
             if np.get("nome", "").lower() != state["student"]["name"].lower():
-                # NPC novo ou atualizado: adiciona/atualiza na lista global
                 nomes_existentes = [p["nome"].lower() for p in personagens]
                 if np["nome"].lower() not in nomes_existentes:
                     personagens.append(np)
         fixar_visual_aluno(personagens, state["student"]["name"], state)
         state["personagens_globais"] = personagens
-        manager.save_state(sid)
+
+    state["last_narrative"] = cena_raw.get("historia", "")
+    manager.save_state(sid)
 
     num_cena = state["current_step_idx"] + 1
     proc = processar_cena(cena_raw, personagens, sid, num_cena, student_name=state["student"]["name"], npc_principal=ctx.get("npc_principal", ""))
-
-    # NÃO ATUALIZA SESSAO_ATIVA AQUI MAIS. O client fará isso.
 
     return jsonify({
         'session_id': sid, 'status': 'sucesso', 'node_id': ctx['current_step'],
@@ -458,6 +608,7 @@ def escolher():
         'referencia_arquivo': proc['imagens_arquivos'][0],
         'microcenas_textos': proc['microcenas_textos'],
         'negative_prompt': NEGATIVE_TOONYOU,
+        'negative_prompt_char': NEGATIVE_CHAR_ISOLADO,
         'opcoes': proc['opcoes'], 'tem_opcoes': not ctx.get('is_final', False)
     })
 

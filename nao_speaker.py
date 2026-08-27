@@ -2,10 +2,24 @@
 import json
 import time
 import urllib.request
-import qi
+import os
+import sys
+import subprocess
 
-SERVER_URL = "http://192.168.16.76:5000/visualizador/cena_atual"
-NAO_IP     = "169.254.193.121"
+try:
+    import paramiko
+    PARAMIKO_DISPONIVEL = True
+except ImportError:
+    PARAMIKO_DISPONIVEL = False
+
+try:
+    import qi
+    QI_DISPONIVEL = True
+except ImportError:
+    QI_DISPONIVEL = False
+
+SERVER_URL = "http://192.168.16.69:5000/visualizador/cena_atual"
+NAO_IP     = "169.254.22.3  "
 NAO_PORT   = 9559
 
 # ============================================================
@@ -103,28 +117,58 @@ def limpar_texto(texto):
     return t.strip()
 
 # ============================================================
-# CONEXÃO
+# CONEXÃO E FALLBACK
 # ============================================================
-print("Conectando ao NAO...")
-try:
-    app = qi.Application(["nao_speaker", "--qi-url", "tcp://{}:{}".format(NAO_IP, NAO_PORT)])
-    app.start()
-    session = app.session
+def falar_fallback(texto_animado, texto_puro):
+    if not PARAMIKO_DISPONIVEL:
+        print("Erro: A biblioteca 'paramiko' não está instalada e 'qi' não foi encontrado.")
+        return
+        
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(NAO_IP, username="nao", password="nao", timeout=5)
+        
+        # Define linguagem antes de falar
+        ssh.exec_command('qicli call ALTextToSpeech.setLanguage "Brazilian"')
+        
+        # Executa ALAnimatedSpeech
+        cmd = f'qicli call ALAnimatedSpeech.say "{texto_animado}"'
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        erro = stderr.read().decode().strip()
+        
+        if erro or stdout.channel.recv_exit_status() != 0:
+            print("SSH ALAnimatedSpeech falhou:", erro)
+            print("Tentando TTS simples via SSH...")
+            cmd_puro = f'qicli call ALTextToSpeech.say "{texto_puro}"'
+            ssh.exec_command(cmd_puro)
+        
+        ssh.close()
+    except Exception as e:
+        print("Erro ao tentar enviar comando via SSH para o NAO:", e)
 
-    tts     = session.service("ALTextToSpeech")
-    anim    = session.service("ALAnimatedSpeech")
-    motion  = session.service("ALMotion")
+if QI_DISPONIVEL:
+    print("Conectando ao NAO nativamente (qi)...")
+    try:
+        app = qi.Application(["nao_speaker", "--qi-url", "tcp://{}:{}".format(NAO_IP, NAO_PORT)])
+        app.start()
+        session = app.session
+        tts     = session.service("ALTextToSpeech")
+        anim    = session.service("ALAnimatedSpeech")
+        motion  = session.service("ALMotion")
+        tts.setLanguage("Brazilian")
+        config = {"bodyLanguageMode": "contextual"}
+        print("Conectado ao NAO!")
+    except Exception as e:
+        print("Erro ao conectar ao NAO: " + str(e))
+        raise SystemExit
+else:
+    print("Módulo 'qi' não encontrado no Python 3. Usando modo de envio direto via SSH (Paramiko)...")
+    if not PARAMIKO_DISPONIVEL:
+        print("AVISO: A biblioteca 'paramiko' não foi encontrada! Execute: pip install paramiko")
+    else:
+        print("Paramiko pronto para conectar ao NAO via SSH!")
 
-    tts.setLanguage("Brazilian")
-
-    # Modo: "contextual" = NAO escolhe gestos automáticos enquanto fala
-    # Você pode trocar por "disabled" para usar só os gestos manuais
-    config = {"bodyLanguageMode": "contextual"}
-
-    print("Conectado ao NAO!")
-except Exception as e:
-    print("Erro ao conectar ao NAO: " + str(e))
-    raise SystemExit
 
 # ============================================================
 # LOOP PRINCIPAL
@@ -161,11 +205,15 @@ while True:
                 texto_animado = "^start({}) {}".format(anim_path, texto)
 
                 try:
-                    anim.say(texto_animado, config)
+                    if QI_DISPONIVEL:
+                        anim.say(texto_animado, config)
+                    else:
+                        falar_fallback(texto_animado, texto)
                 except Exception as e1:
                     print("ALAnimatedSpeech falhou (" + str(e1) + "), usando TTS simples...")
                     try:
-                        tts.say(texto)
+                        if QI_DISPONIVEL:
+                            tts.say(texto)
                     except Exception as e2:
                         print("TTS também falhou: " + str(e2))
 
