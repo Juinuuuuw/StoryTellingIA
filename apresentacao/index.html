@@ -501,13 +501,186 @@
         #fim-screen .emoji { font-size: 5rem; margin-bottom: 20px; animation: pop 0.6s ease; }
         #fim-titulo { font-family: 'Playfair Display', serif; font-size: 3rem; color: var(--accent); margin-bottom: 16px; }
         #fim-subtitulo { font-family: 'Montserrat', sans-serif; font-size: 1.2rem; color: rgba(255,255,255,0.65); }
+        /* ─── TELA DE CADASTRO ─── */
+        #cadastro-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+        .cadastro-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 60px 70px;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+        }
+        .cadastro-titulo {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.8rem;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        .cadastro-subtitulo {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.9rem;
+            letter-spacing: 3px;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            margin-bottom: 48px;
+        }
+        .cadastro-label {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: block;
+            text-align: left;
+        }
+        #input-nome {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 18px 24px;
+            color: #fff;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            margin-bottom: 40px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        #input-nome:focus { border-color: var(--accent); }
+        #input-nome::placeholder { color: rgba(255,255,255,0.2); }
+        .card-grid {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .card-grid.cols-2.jornadas { grid-template-columns: 1fr 1fr; }
+        .card-opcao {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 14px;
+            padding: 22px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .card-opcao:hover { border-color: var(--accent); background: rgba(212,175,55,0.08); }
+        .card-opcao.selected { border-color: var(--accent); background: rgba(212,175,55,0.15); }
+        .card-opcao .card-emoji { font-size: 2rem; margin-bottom: 8px; }
+        .card-opcao .card-titulo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .card-opcao .card-desc {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.45);
+            letter-spacing: 1px;
+        }
+        .cadastro-btn {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 16px 60px;
+            font-size: 1rem;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 4px;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        .cadastro-btn:hover:not(:disabled) { background: var(--accent); color: #000; box-shadow: 0 0 24px var(--accent); }
+        .cadastro-btn:disabled { opacity: 0.3; cursor: default; }
+        .cadastro-step { display: none; }
+        .cadastro-step.ativo { display: block; }
+        .step-indicator {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Intro -->
-    <div id="intro-screen">
-        <button class="intro-btn" onclick="startPresentation()">INICIAR EXPERIÊNCIA</button>
+    <!-- Tela de Cadastro (substitui o botão simples de intro) -->
+    <div id="cadastro-screen">
+        <div class="cadastro-box">
+            <div class="cadastro-titulo">Exploradores da História</div>
+            <div class="cadastro-subtitulo">NAO · Experiência Interativa</div>
+
+            <!-- STEP 1: Nome -->
+            <div class="cadastro-step ativo" id="step-nome">
+                <div class="step-indicator">Passo 1 de 3</div>
+                <label class="cadastro-label">Qual é o seu nome?</label>
+                <input id="input-nome" type="text" placeholder="Digite seu nome aqui..." maxlength="30"
+                    oninput="validarStepNome()" onkeydown="if(event.key==='Enter') avancarParaGenero()">
+                <button class="cadastro-btn" id="btn-nome" onclick="avancarParaGenero()" disabled>CONTINUAR →</button>
+            </div>
+
+            <!-- STEP 2: Gênero + Jornada -->
+            <div class="cadastro-step" id="step-jornada">
+                <div class="step-indicator">Passo 2 de 3</div>
+                <label class="cadastro-label">Qual é o seu gênero?</label>
+                <div class="card-grid cols-2" style="margin-bottom:32px;">
+                    <div class="card-opcao" id="card-masculino" onclick="selecionarGenero('Masculino')">
+                        <div class="card-emoji">👦</div>
+                        <div class="card-titulo">Masculino</div>
+                    </div>
+                    <div class="card-opcao" id="card-feminino" onclick="selecionarGenero('Feminino')">
+                        <div class="card-emoji">👧</div>
+                        <div class="card-titulo">Feminino</div>
+                    </div>
+                </div>
+                <label class="cadastro-label" style="margin-top:8px;">Escolha sua jornada histórica</label>
+                <div class="card-grid jornadas">
+                    <div class="card-opcao" id="card-turing" onclick="selecionarJornada('alan_turing','Cambridge (1936)')">
+                        <div class="card-emoji">🖥️</div>
+                        <div class="card-titulo">Alan Turing</div>
+                        <div class="card-desc">Cambridge · 1936</div>
+                    </div>
+                    <div class="card-opcao" id="card-katherine" onclick="selecionarJornada('katherine_johnson','NASA (NASA Langley)')">
+                        <div class="card-emoji">🚀</div>
+                        <div class="card-titulo">Katherine Johnson</div>
+                        <div class="card-desc">NASA Langley · Anos 50</div>
+                    </div>
+                </div>
+                <button class="cadastro-btn" id="btn-jornada" onclick="avancarParaPersonagem()" disabled style="margin-top:32px;">CONTINUAR →</button>
+            </div>
+
+            <!-- STEP 3: Personalização do personagem -->
+            <div class="cadastro-step" id="step-personagem">
+                <div class="step-indicator">Passo 3 de 3 — Monte seu personagem</div>
+                <div id="personagem-pergunta-titulo" class="cadastro-label" style="text-align:center;font-size:1rem;color:rgba(255,255,255,0.7);margin-bottom:24px;"></div>
+                <div id="personagem-opcoes-grid" class="card-grid"></div>
+                <button class="cadastro-btn" id="btn-personagem" onclick="avancarPersonagem()" disabled style="margin-top:32px;">CONFIRMAR →</button>
+            </div>
+
+            <!-- STEP 4: Aguardando -->
+            <div class="cadastro-step" id="step-aguardando">
+                <div class="spinner" style="margin:0 auto 24px;"></div>
+                <div style="font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--accent);margin-bottom:12px;">Abrindo o livro...</div>
+                <div style="font-family:'Montserrat',sans-serif;font-size:0.9rem;color:rgba(255,255,255,0.4);letter-spacing:2px;">Preparando sua jornada histórica</div>
+            </div>
+        </div>
     </div>
 
     <!-- Loader -->
@@ -601,10 +774,201 @@
             type();
         }
 
-        function startPresentation() {
-            document.getElementById('intro-screen').style.display = 'none';
-            document.getElementById('story-panel').style.display = 'block';
-            pollStatus();
+        // ─── CADASTRO / REGISTRO ─────────────────────────────────────────
+
+        let cadNome = '';
+        let cadGenero = '';
+        let cadSkill = '';
+        let cadTema = '';
+
+        const PERGUNTAS_PERSONAGEM = [
+            {
+                chave: 'comprimento',
+                pergunta: 'Qual o tamanho do seu cabelo?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Curto', emoji: '💈', tag: 'short' },
+                    { label: 'Médio', emoji: '✂️', tag: 'medium length' },
+                    { label: 'Longo', emoji: '🌊', tag: 'long' },
+                    { label: 'Preso', emoji: '🎀', tag: 'ponytail' }
+                ]
+            },
+            {
+                chave: 'tipo',
+                pergunta: 'Como é o tipo do seu cabelo?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Liso', emoji: '➖', tag: 'straight' },
+                    { label: 'Ondulado', emoji: '〰️', tag: 'wavy' },
+                    { label: 'Cacheado', emoji: '🌀', tag: 'curly' },
+                    { label: 'Crespo', emoji: '🔘', tag: 'coily' }
+                ]
+            },
+            {
+                chave: 'cor_cabelo',
+                pergunta: 'Qual é a cor do seu cabelo?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Preto', emoji: '⬛', tag: 'black hair' },
+                    { label: 'Castanho', emoji: '🟫', tag: 'brown hair' },
+                    { label: 'Loiro', emoji: '🟡', tag: 'blonde hair' },
+                    { label: 'Ruivo', emoji: '🔴', tag: 'red hair' }
+                ]
+            },
+            {
+                chave: 'pele',
+                pergunta: 'Qual é a cor da sua pele?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Clara', emoji: '🤍', tag: 'light skin' },
+                    { label: 'Morena', emoji: '🟤', tag: 'tanned skin' },
+                    { label: 'Negra', emoji: '⬛', tag: 'dark skin' },
+                    { label: 'Amarelada', emoji: '🟨', tag: 'pale skin' }
+                ]
+            },
+            {
+                chave: 'olhos',
+                pergunta: 'E os seus olhos?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Castanhos', emoji: '🟤', tag: 'brown eyes' },
+                    { label: 'Verdes', emoji: '🟢', tag: 'green eyes' },
+                    { label: 'Azuis', emoji: '🔵', tag: 'blue eyes' },
+                    { label: 'Escuros', emoji: '⚫', tag: 'dark eyes' }
+                ]
+            }
+        ];
+
+        let perguntaPersonagemAtual = 0;
+        const respostasPersonagem = {};
+
+        function mostrarStep(id) {
+            document.querySelectorAll('.cadastro-step').forEach(s => s.classList.remove('ativo'));
+            document.getElementById(id).classList.add('ativo');
+            gsap.fromTo('.cadastro-box', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' });
+        }
+
+        function validarStepNome() {
+            cadNome = document.getElementById('input-nome').value.trim();
+            document.getElementById('btn-nome').disabled = cadNome.length < 2;
+        }
+
+        function avancarParaGenero() {
+            cadNome = document.getElementById('input-nome').value.trim();
+            if (cadNome.length < 2) return;
+            mostrarStep('step-jornada');
+        }
+
+        function selecionarGenero(genero) {
+            cadGenero = genero;
+            document.getElementById('card-masculino').classList.toggle('selected', genero === 'Masculino');
+            document.getElementById('card-feminino').classList.toggle('selected', genero === 'Feminino');
+            validarStepJornada();
+        }
+
+        function selecionarJornada(skill, tema) {
+            cadSkill = skill;
+            cadTema = tema;
+            document.getElementById('card-turing').classList.toggle('selected', skill === 'alan_turing');
+            document.getElementById('card-katherine').classList.toggle('selected', skill === 'katherine_johnson');
+            validarStepJornada();
+        }
+
+        function validarStepJornada() {
+            document.getElementById('btn-jornada').disabled = !(cadGenero && cadSkill);
+        }
+
+        function avancarParaPersonagem() {
+            if (!cadGenero || !cadSkill) return;
+            perguntaPersonagemAtual = 0;
+            mostrarStep('step-personagem');
+            renderizarPerguntaPersonagem();
+        }
+
+        function renderizarPerguntaPersonagem() {
+            const p = PERGUNTAS_PERSONAGEM[perguntaPersonagemAtual];
+            document.getElementById('personagem-pergunta-titulo').innerText = p.pergunta;
+            document.getElementById('btn-personagem').disabled = true;
+
+            const isLast = perguntaPersonagemAtual === PERGUNTAS_PERSONAGEM.length - 1;
+            document.getElementById('btn-personagem').innerText = isLast ? 'INICIAR JORNADA ✨' : 'CONFIRMAR →';
+
+            const grid = document.getElementById('personagem-opcoes-grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${p.cols}, 1fr)`;
+
+            p.opcoes.forEach((op, idx) => {
+                const card = document.createElement('div');
+                card.className = 'card-opcao';
+                card.innerHTML = `<div class="card-emoji">${op.emoji}</div><div class="card-titulo">${op.label}</div>`;
+                const jaRespondido = respostasPersonagem[p.chave];
+                if (jaRespondido && jaRespondido.tag === op.tag) card.classList.add('selected');
+                card.onclick = () => {
+                    respostasPersonagem[p.chave] = op;
+                    grid.querySelectorAll('.card-opcao').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    document.getElementById('btn-personagem').disabled = false;
+                };
+                grid.appendChild(card);
+            });
+
+            gsap.fromTo('.cadastro-box', { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' });
+        }
+
+        function avancarPersonagem() {
+            if (!respostasPersonagem[PERGUNTAS_PERSONAGEM[perguntaPersonagemAtual].chave]) return;
+            perguntaPersonagemAtual++;
+            if (perguntaPersonagemAtual < PERGUNTAS_PERSONAGEM.length) {
+                renderizarPerguntaPersonagem();
+            } else {
+                iniciarHistoria();
+            }
+        }
+
+        async function iniciarHistoria() {
+            mostrarStep('step-aguardando');
+
+            // Monta a string de visual do personagem
+            const r = respostasPersonagem;
+            const generoIngles = cadGenero === 'Feminino' ? '1girl' : '1boy';
+            let roupaTag = 'period-appropriate clothing';
+            if (cadSkill === 'alan_turing') roupaTag = 'casual 1930s clothes, vintage sweater and trousers';
+            else if (cadSkill === 'katherine_johnson') roupaTag = cadGenero === 'Feminino' ? 'formal 1960s suit, elegant vintage dress' : 'formal 1960s suit, elegant vintage suit';
+
+            const visualFixo = `${generoIngles}, ${r.comprimento.tag} ${r.tipo.tag} ${r.cor_cabelo.tag}, ${r.pele.tag}, ${r.olhos.tag}, ${roupaTag}`;
+
+            try {
+                const resp = await fetch(`${API_URL}/iniciar_historia`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nome: cadNome,
+                        tema: cadTema,
+                        skill: cadSkill,
+                        genero: cadGenero,
+                        visual_fixo: visualFixo
+                    })
+                });
+                const dados = await resp.json();
+                if (dados.status === 'sucesso') {
+                    // Sinaliza ao story_client (daemon) para iniciar a geração de imagens
+                    fetch(`${API_URL}/iniciar_daemon`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: dados.session_id })
+                    }).catch(() => {});
+                    // Esconde o cadastro e inicia o polling
+                    document.getElementById('cadastro-screen').style.display = 'none';
+                    document.getElementById('story-panel').style.display = 'block';
+                    pollStatus();
+                } else {
+                    alert('Erro ao iniciar a história. Tente novamente.');
+                    mostrarStep('step-nome');
+                }
+            } catch (e) {
+                alert('Não foi possível conectar ao servidor. Verifique se ele está rodando.');
+                mostrarStep('step-aguardando');
+            }
         }
 
         async function loadImageWithRetry(url, retries = 30) {

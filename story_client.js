@@ -1,49 +1,44 @@
+/**
+ * story_client.js — MODO DAEMON
+ * Roda em background sem nenhum input manual do terminal.
+ * Fica polling /daemon_poll até receber uma sessão para processar,
+ * então gera todas as imagens e dispara o quiz automaticamente.
+ */
+
 const axios = require("axios");
-const readline = require("readline");
 const fs = require("fs");
 const path = require("path");
 
+// ─── CONFIGURAÇÃO ─────────────────────────────────────────────
+const SERVIDOR_FLASK  = "http://127.0.0.1:5000";
+const FORGE_TXT2IMG   = "http://127.0.0.1:7860/sdapi/v1/txt2img";
+const POLL_INTERVAL   = 2000; // ms entre cada poll ao servidor
+
+// IP-Adapter: carrega imagem de referência se existir
 let base64Referencia = null;
-const caminhoReferencia = path.join(__dirname, 'referencia.png');
+const caminhoReferencia = path.join(__dirname, "referencia.png");
 if (fs.existsSync(caminhoReferencia)) {
-    const imgData = fs.readFileSync(caminhoReferencia);
-    base64Referencia = Buffer.from(imgData).toString('base64');
-    console.log("🌟 IP-Adapter ATIVADO: Imagem de referência carregada com sucesso!");
+    base64Referencia = fs.readFileSync(caminhoReferencia).toString("base64");
+    console.log("🌟 IP-Adapter ATIVADO: referencia.png carregada.");
 } else {
-    console.log("⚠️ IP-Adapter inativo: 'referencia.png' não encontrada na pasta do projeto.");
+    console.log("⚠️  IP-Adapter inativo: referencia.png não encontrada.");
 }
 
-const SERVIDOR_FLASK = "http://127.0.0.1:5000";
-const FORGE_API_TXT2IMG = "http://127.0.0.1:7860/sdapi/v1/txt2img";
-const FORGE_API_IMG2IMG = "http://127.0.0.1:7860/sdapi/v1/img2img";
-const FORGE_API_SVD = "http://127.0.0.1:7860/sdapi/v1/svd";
-
-
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-// ============================================================
-// CONFIGURAÇÃO DE DIRETÓRIOS
-// ============================================================
+// ─── PASTA DE SESSÃO ──────────────────────────────────────────
 let PASTA_SESSAO = "";
 
-function prepararPastaSessao(seed) {
+function prepararPasta(sessionId) {
     const baseDir = path.join(__dirname, "historias_geradas");
     if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir);
-
-    PASTA_SESSAO = path.join(baseDir, `sessao_${seed}`);
+    PASTA_SESSAO = path.join(baseDir, `sessao_${sessionId}`);
     if (!fs.existsSync(PASTA_SESSAO)) fs.mkdirSync(PASTA_SESSAO);
-    console.log(`\n📂 Arquivos serão salvos em: ${PASTA_SESSAO}`);
+    console.log(`\n📂 Pasta da sessão: ${PASTA_SESSAO}`);
 }
 
 function salvarImagem(base64, nomeArquivo) {
-    const fileNameOnly = path.basename(nomeArquivo);
-    const filePath = path.join(PASTA_SESSAO, fileNameOnly);
-    const buffer = Buffer.from(base64, "base64");
-    fs.writeFileSync(filePath, buffer);
-    console.log(`      💾 Imagem salva em: ${filePath}`);
+    const filePath = path.join(PASTA_SESSAO, path.basename(nomeArquivo));
+    fs.writeFileSync(filePath, Buffer.from(base64, "base64"));
+    console.log(`      💾 Salvo: ${filePath}`);
 }
 
 function registrarLog(conteudo) {
@@ -51,97 +46,18 @@ function registrarLog(conteudo) {
     fs.appendFileSync(filePath, conteudo + "\n");
 }
 
-function perguntar(texto) {
-    return new Promise((resolve) => {
-        rl.question(texto, resolve);
-    });
-}
-
-let SEED_SESSAO = Math.floor(Math.random() * 1000000000);
-let IMAGEM_REFERENCIA_GLOBAL = null; 
-
-// ============================================================
-// GERAÇÃO DE SEQUÊNCIA COM IP-ADAPTER
-// ============================================================
-const REMBG_API = "http://127.0.0.1:5001/rembg";
-
-// ============================================================
-// REMOÇÃO DE FUNDO COM REMBG (via Forge API)
-// ============================================================
-async function removerFundo(inputBase64, nomeArquivoSaida) {
-    try {
-        const response = await axios.post(REMBG_API, {
-            input_image: inputBase64,
-            model: "u2net",
-            return_mask: false,
-            alpha_matting: false
-        }, { timeout: 60000 });
-
-        if (response.data && response.data.image) {
-            const nomeAlpha = nomeArquivoSaida.replace(".png", "_alpha.png");
-            salvarImagem(response.data.image, nomeAlpha);
-            console.log(`      ✨ Alpha gerado: ${nomeAlpha}`);
-            return nomeAlpha;
-        }
-    } catch (err) {
-        console.log(`      ⚠️  rembg não disponível (${err.message}). Usando imagem original.`);
-    }
-    return null; // sem alpha, usa original
-}
-
-// ============================================================
-// GERAÇÃO DE VÍDEO COM SVD (STABLE VIDEO DIFFUSION)
-// ============================================================
-async function gerarVideoSVD(imagemBase64, nomeCena) {
-    try {
-        console.log(`      🎥 Iniciando geração de vídeo SVD para: ${nomeCena}`);
-        const payloadSvd = {
-            init_images: [imagemBase64],
-            width: 1024,
-            height: 576,
-            video_frames: 14,
-            motion_bucket_id: 127,
-            fps: 6,
-            override_settings: {
-                sd_model_checkpoint: "svd_xt.safetensors"
-            }
-        };
-
-        const response = await axios.post(FORGE_API_SVD, payloadSvd, { 
-            timeout: 300000,
-            responseType: 'json'
-        });
-
-        if (response.data && response.data.video) {
-            const videoBase64 = response.data.video;
-            const buffer = Buffer.from(videoBase64, 'base64');
-            const nomeVideo = nomeCena.replace('.png', '.mp4');
-            const caminhoFisico = path.join(__dirname, `sessao_${SEED_SESSAO}`, nomeVideo);
-            
-            fs.writeFileSync(caminhoFisico, buffer);
-            console.log(`      📹 Vídeo SVD salvo com sucesso: ${nomeVideo}`);
-        }
-    } catch (err) {
-        console.log(`      ❌ Erro na geração do vídeo SVD: ${err.message}`);
-    }
-}
-
-// ============================================================
-// GERAÇÃO DE SEQUÊNCIA POR CAMADAS
-// ============================================================
-async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negativePrompt, numeroCena, dadosDaCena) {
+// ─── GERAÇÃO DE IMAGENS ───────────────────────────────────────
+async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negativePrompt, numeroCena, dadosDaCena, seedCena) {
     console.log(`\n🎨 Gerando Storyboard - Cena ${numeroCena}`);
-
-    const seedCena = SEED_SESSAO;
 
     for (let i = 0; i < promptsImagens.length; i++) {
         const promptAtual = promptsImagens[i];
-        const acaoTexto = microcenasTextos[i] || `Quadro ${i+1}`;
-        const nomeBase = dadosDaCena ? dadosDaCena.imagens_arquivos[i] : `sessao_${SEED_SESSAO}/cena_${numeroCena}_quadro_${i+1}.png`;
+        const acaoTexto   = microcenasTextos[i] || `Quadro ${i + 1}`;
+        const nomeBase    = dadosDaCena ? dadosDaCena.imagens_arquivos[i] : `cena_${numeroCena}_q${i + 1}.png`;
 
         console.log(`   🎬 Quadro ${i + 1}: [${acaoTexto}]`);
 
-        const payloadTxt = {
+        const payload = {
             prompt: promptAtual,
             negative_prompt: negativePrompt || "",
             steps: 28,
@@ -151,433 +67,201 @@ async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negati
             cfg_scale: 7.0,
             seed: seedCena + (i * 100),
             alwayson_scripts: {},
-            override_settings: {
-                "CLIP_stop_at_last_layers": 2
-            }
+            override_settings: { CLIP_stop_at_last_layers: 2 }
         };
 
         if (base64Referencia) {
-            payloadTxt.alwayson_scripts["controlnet"] = {
-                "args": [
-                    {
-                        "enabled": true,
-                        "module": "ip-adapter_clip_sdxl",
-                        "model": "ip-adapter_sdxl",
-                        "weight": 0.85,
-                        "image": base64Referencia,
-                        "resize_mode": "Crop and Resize",
-                        "lowvram": false,
-                        "processor_res": 512,
-                        "guidance_start": 0.0,
-                        "guidance_end": 1.0,
-                        "control_mode": "Balanced"
-                    }
-                ]
+            payload.alwayson_scripts["controlnet"] = {
+                args: [{
+                    enabled: true,
+                    module: "ip-adapter_clip_sdxl",
+                    model: "ip-adapter_sdxl",
+                    weight: 0.85,
+                    image: base64Referencia,
+                    resize_mode: "Crop and Resize",
+                    lowvram: false,
+                    processor_res: 512,
+                    guidance_start: 0.0,
+                    guidance_end: 1.0,
+                    control_mode: "Balanced"
+                }]
             };
         }
 
-
         try {
-            const response = await axios.post(FORGE_API_TXT2IMG, payloadTxt, { 
-                timeout: 300000,
-                responseType: 'json'
-            });
-
-            if (response.data && response.data.images) {
+            const response = await axios.post(FORGE_TXT2IMG, payload, { timeout: 300000 });
+            if (response.data?.images) {
                 const imgBase64 = response.data.images[0];
                 salvarImagem(imgBase64, nomeBase);
-                
-                registrarLog(`[QUADRO-${i+1}] ${nomeBase}: ${promptAtual}`);
-                
-                // Se ainda não temos uma referência, define a âncora do IP-Adapter
-                // NOTA: Se for AnimateDiff, pegamos a primeira imagem estática do array (images[0]) para usar como âncora, se necessário
+                registrarLog(`[QUADRO-${i + 1}] ${nomeBase}: ${promptAtual}`);
                 if (!base64Referencia) {
-                    base64Referencia = response.data.images[0];
-                    console.log(`      🌟 IP-Adapter ÂNCORA DEFINIDA: Esta imagem será o padrão para a história!`);
+                    base64Referencia = imgBase64;
+                    console.log("      🌟 IP-Adapter ÂNCORA definida nesta imagem.");
                 }
             }
-            console.log(`      ✅ Quadro ${i+1} concluído.`);
+            console.log(`      ✅ Quadro ${i + 1} concluído.`);
         } catch (err) {
-            console.log(`      ❌ Erro no Quadro ${i + 1}:`, err.message);
+            console.log(`      ❌ Erro Quadro ${i + 1}: ${err.message}`);
         }
 
-        // Após o primeiro quadro completo, publica a cena para o front
+        // Após o primeiro quadro, publica a cena no frontend
         if (i === 0 && dadosDaCena) {
-            await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dadosDaCena).catch(() => {});
+            axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dadosDaCena).catch(() => {});
         }
     }
 }
 
-// ============================================================
-// COMUNICAÇÃO COM O SERVIDOR FLASK
-// ============================================================
-async function iniciarSessao(nome, tema, skill, genero) {
-    try {
-        const resp = await axios.post(`${SERVIDOR_FLASK}/iniciar_historia`, { 
-            nome, 
-            tema, 
-            skill,
-            genero
-        });
-        return resp.data;
-    } catch (err) {
-        console.log("❌ Erro ao conectar ao servidor Flask.");
-        return null;
-    }
-}
-
-async function escolherCena(session_id, node_id, escolha_idx, escolha_texto) {
-    try {
-        const resp = await axios.post(`${SERVIDOR_FLASK}/escolher`, {
-            session_id,
-            node_id,
-            escolha_idx,
-            escolha_texto
-        });
-        return resp.data;
-    } catch (err) {
-        console.log("❌ Erro ao escolher cena.");
-        return null;
-    }
-}
-
-function mostrarMenu(titulo, opcoes) {
-    console.log(`\n--- ${titulo} ---`);
-    opcoes.forEach((op, index) => {
-        console.log(`${index + 1}. ${op}`);
-    });
-}
-
-function mostrarOpcoes(opcoes) {
-    mostrarMenu("SUA ESCOLHA", opcoes);
-}
-
-// ============================================================
-// COMUNICAÇÃO COM O ROBÔ NAO
-// ============================================================
-async function speakNAO(text) {
-    if (!text) return;
-    
-    // Limpeza básica para o robô não ler caracteres especiais
-    const textoLimpo = text
-        .replace(/[""«»]/g, '')
-        .replace(/[—–]/g, ',')
-        .replace(/\.\.\./g, '.')
-        .replace(/[*_~`#]/g, '')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
-
-    try {
-        const ROBOT_BRIDGE = SERVIDOR_FLASK.replace(":5000", ":8080");
-        await axios.post(`${ROBOT_BRIDGE}/speak`, { text: textoLimpo });
-    } catch (e) {
-        // Silencioso se o robô não estiver ligado ou erro na bridge
-    }
-}
-
-const FRASES_ESPERA_INICIO = [
-    "Ajustando meus sensores temporais... Só um momento.",
-    "Acessando os arquivos históricos... Preparando nossa viagem.",
-    "Iniciando os motores de imaginação. Aguarde um instante."
-];
-
-const FRASES_ESPERA_MEIO = [
-    "Hmm, pensando em como a história continua...",
-    "Calculando as consequências da sua escolha... Interessante...",
-    "Deixe-me consultar os registros para ver o que acontece agora...",
-    "Processando as memórias daquela época... Só um segundo.",
-    "Um momento, estou visualizando como essa decisão muda tudo."
-];
-
+// ─── COMUNICAÇÃO COM O ROBÔ NAO ───────────────────────────────
 async function falarEnrolacao(isInicio, escolhaTexto = "") {
-    const frasesPensando = isInicio ? FRASES_ESPERA_INICIO : FRASES_ESPERA_MEIO;
-    const fraseP = frasesPensando[Math.floor(Math.random() * frasesPensando.length)];
-    
-    let fraseFinal = fraseP;
+    const frases = isInicio
+        ? ["Ajustando meus sensores temporais... Só um momento.", "Acessando os arquivos históricos... Preparando nossa viagem.", "Iniciando os motores de imaginação. Aguarde um instante."]
+        : ["Hmm, pensando em como a história continua...", "Calculando as consequências da sua escolha...", "Deixe-me consultar os registros para ver o que acontece agora..."];
+
+    let frase = frases[Math.floor(Math.random() * frases.length)];
     if (!isInicio && escolhaTexto) {
-        const confirmacoes = [
-            "Hmm, então você selecionou",
-            "Boa escolha! Você decidiu ir por",
-            "Interessante... você escolheu",
-            "Muito bem, vamos seguir por",
-            "Legal! Você optou por",
-            "Ótimo caminho! Vamos ver o que acontece em"
-        ];
-        const c = confirmacoes[Math.floor(Math.random() * confirmacoes.length)];
-        // Sem aspas para evitar bugs no ALAnimatedSpeech
-        fraseFinal = `${c} ${escolhaTexto}. ${fraseP}`;
+        const conf = ["Então você escolheu", "Interessante... você optou por", "Muito bem, vamos seguir por"];
+        frase = `${conf[Math.floor(Math.random() * conf.length)]} ${escolhaTexto}. ${frase}`;
     }
 
-    console.log(`\n🤖 NAO (Pensando): "${fraseFinal}"`);
+    console.log(`\n🤖 NAO (Pensando): "${frase}"`);
     try {
-        await axios.post(`${SERVIDOR_FLASK}/definir_pensando`, { frase: fraseFinal });
-        // Dá 1.5s para o Flask respirar e o NAO conseguir ler o estado antes de travar a thread na IA
+        await axios.post(`${SERVIDOR_FLASK}/definir_pensando`, { frase });
         await new Promise(r => setTimeout(r, 1500));
     } catch (e) {}
 }
 
-async function fazerPerguntaModal(pergunta, opcoes) {
-    console.log(`\n🗣️ NAO (Pergunta): "${pergunta}"`);
-    
-    // O backend agora cuida da fala via status="modal".
-    await axios.post(`${SERVIDOR_FLASK}/publicar_modal`, { pergunta, opcoes }).catch(()=>{});
-    
-    let escolhaTexto = "";
-    let idxReal = 0;
-    
-    while(true) {
-        try {
-            const res = await axios.get(`${SERVIDOR_FLASK}/esperar_escolha`);
-            if (res.data && res.data.status === "ok") {
-                idxReal = res.data.dados.escolha_idx;
-                escolhaTexto = res.data.dados.escolha_texto;
-                break;
-            }
-        } catch (err) {}
-        await new Promise(r => setTimeout(r, 1000));
-    }
-    
-    return { idx: idxReal, texto: escolhaTexto };
-}
+// ─── PROCESSAMENTO DE UMA SESSÃO ─────────────────────────────
+async function processarSessao(sessionId) {
+    console.log(`\n🚀 Iniciando processamento da sessão: ${sessionId}`);
 
-function adicionarOpcoesNaFala(cenaPayload) {
-    if (!cenaPayload.tem_opcoes || !cenaPayload.opcoes || cenaPayload.opcoes.length < 2) return;
-    const transicoes = [
-        "E agora, vamos seguir por",
-        "Qual será o nosso próximo passo? Escolha",
-        "O que você acha melhor fazer? Podemos ir por",
-        "A decisão é sua! Vamos por"
-    ];
-    const t = transicoes[Math.floor(Math.random() * transicoes.length)];
-    // Sem aspas para não bugar o parser do NAO
-    cenaPayload.fala_robo += ` ${t} ${cenaPayload.opcoes[0]}, ou por ${cenaPayload.opcoes[1]}?`;
-}
-
-// ============================================================
-// LOOP PRINCIPAL
-// ============================================================
-async function main() {
-    let contadorCena = 1; // Inicializa o contador
-
-    console.log("\n==================================================");
-    console.log("🎬 NAO - EXPLORADORES DA HISTÓRIA");
-    console.log("==================================================");
-
-    const nome = await perguntar("Qual o nome da criança? ");
-    
-    const generos = ["Masculino", "Feminino"];
-    mostrarMenu("QUAL O GÊNERO DO PERSONAGEM?", generos);
-    const generoIdx = parseInt(await perguntar("Selecione (1-2): ")) - 1;
-    const genero = generos[generoIdx] || "Masculino";
-
-    const jornadas = [
-        { label: "Alan Turing - Cambridge (1936)", value: "alan_turing", tema: "Cambridge (1936)" },
-        { label: "Katherine Johnson - NASA (NASA Langley)", value: "katherine_johnson", tema: "NASA (NASA Langley)" }
-    ];
-
-    mostrarMenu("ESCOLHA SUA JORNADA HISTÓRICA", jornadas.map(j => j.label));
-    const jornadaIdx = parseInt(await perguntar("Selecione (1-2): ")) - 1;
-    const jornadaEscolhida = jornadas[jornadaIdx] || jornadas[0];
-
-    const tema = jornadaEscolhida.tema;
-    const skill = jornadaEscolhida.value;
-
-    console.log("\n⏳ Iniciando montagem do personagem no telão...");
-
-    const pCompCabelo = {
-        pergunta: `Oi ${nome}, primeiramente me ajude a imaginar você. Qual o tamanho do seu cabelo?`,
-        opcoes: ["Curto", "Médio", "Longo", "Preso (Rabo de cavalo)"],
-        tags: ["short", "medium length", "long", "ponytail"]
-    };
-    const respCompCabelo = await fazerPerguntaModal(pCompCabelo.pergunta, pCompCabelo.opcoes);
-
-    const pTipoCabelo = {
-        pergunta: "Legal! E como é o tipo do seu cabelo?",
-        opcoes: ["Liso", "Ondulado", "Cacheado", "Crespo"],
-        tags: ["straight", "wavy", "curly", "coily"]
-    };
-    const respTipoCabelo = await fazerPerguntaModal(pTipoCabelo.pergunta, pTipoCabelo.opcoes);
-
-    const pCorCabelo = {
-        pergunta: "Entendi! E qual é a cor do seu cabelo?",
-        opcoes: ["Preto", "Castanho", "Loiro", "Ruivo"],
-        tags: ["black hair", "brown hair", "blonde hair", "red hair"]
-    };
-    const respCorCabelo = await fazerPerguntaModal(pCorCabelo.pergunta, pCorCabelo.opcoes);
-    
-    let tagCabeloFinal = `${pCompCabelo.tags[respCompCabelo.idx]} ${pTipoCabelo.tags[respTipoCabelo.idx]} ${pCorCabelo.tags[respCorCabelo.idx]}`;
-
-    const pPele = {
-        pergunta: "Perfeito! E qual é a cor da sua pele?",
-        opcoes: ["Pele Clara", "Pele Morena", "Pele Negra", "Pele Amarelada"],
-        tags: ["light skin", "tanned skin", "dark skin", "pale skin"]
-    };
-    const respPele = await fazerPerguntaModal(pPele.pergunta, pPele.opcoes);
-
-    const pOlhos = {
-        pergunta: "Quase lá. E os seus olhos?",
-        opcoes: ["Olhos Castanhos", "Olhos Verdes", "Olhos Azuis", "Olhos Escuros"],
-        tags: ["brown eyes", "green eyes", "blue eyes", "dark eyes"]
-    };
-    const respOlhos = await fazerPerguntaModal(pOlhos.pergunta, pOlhos.opcoes);
-
-    // Roupa automática baseada na jornada
-    let roupaTag = "period-appropriate clothing";
-    if (skill === "alan_turing") {
-        roupaTag = "casual 1930s clothes, vintage sweater and trousers";
-    } else if (skill === "steve_jobs") {
-        roupaTag = "casual 1970s clothes, vintage turtleneck and jeans";
-    } else if (skill === "katherine_johnson") {
-        roupaTag = genero === "Feminino" ? "formal 1960s suit, elegant vintage dress" : "formal 1960s suit, elegant vintage suit";
+    // Carrega o estado atual da sessão via /status
+    let state;
+    try {
+        const r = await axios.get(`${SERVIDOR_FLASK}/status`);
+        state = r.data;
+    } catch (e) {
+        console.log("❌ Não foi possível obter estado do servidor:", e.message);
+        return;
     }
 
-    // Constrói a string do prompt de personagem
-    const generoIngles = genero === "Feminino" ? "1girl" : "1boy";
-    const studentVisualFixo = `${generoIngles}, ${tagCabeloFinal}, ${pPele.tags[respPele.idx]}, ${pOlhos.tags[respOlhos.idx]}, ${roupaTag}`;
-
-    console.log(`\n✅ Visual montado: ${studentVisualFixo}`);
-
-    console.log("\n⏳ Preparando o mundo e abrindo o livro...");
-    falarEnrolacao(true); // O robô enrola enquanto a IA gera a primeira cena
-    const dados = await axios.post(`${SERVIDOR_FLASK}/iniciar_historia`, { 
-        nome, tema, skill, genero, visual_fixo: studentVisualFixo
-    }).then(r => r.data).catch(() => null);
-
-    if (!dados || dados.status !== "sucesso") {
-        console.log("Erro ao iniciar.");
-        process.exit(0);
+    if (!state || !state.dados) {
+        console.log("❌ Estado inválido retornado pelo servidor.");
+        return;
     }
 
-    // AGORA SIM: Criamos a pasta com o ID que o servidor nos deu
-    SEED_SESSAO = dados.session_id; 
-    prepararPastaSessao(SEED_SESSAO);
-    registrarLog(`ALUNO: ${nome}\nTEMA: ${tema}\nSKILL: ${skill}\nSESSION_ID: ${SEED_SESSAO}\nVISUAL: ${studentVisualFixo}\n`);
+    const dados = state.dados;
+    const sessionIdReal = state.session_id || sessionId;
+    prepararPasta(sessionIdReal);
+    base64Referencia = null; // reseta âncora para cada nova sessão
 
-    let session_id = dados.session_id;
-    let node_id = dados.node_id;
-    let temOpcoes = dados.tem_opcoes;
-    const negative = dados.negative_prompt || "";
+    const seedSessao = parseInt(sessionIdReal) || Math.floor(Math.random() * 1e9);
+    let contadorCena = 1;
+
+    registrarLog(`SESSION_ID: ${sessionIdReal}\n`);
 
     console.log(`\n📖 CENA ${contadorCena}:`);
     console.log(dados.historia_original);
     registrarLog(`\n--- CENA ${contadorCena} ---\n${dados.historia_original}\n`);
 
-    // Primeira cena: gerar em camadas
-    if (dados.prompts_imagens && dados.prompts_imagens.length > 0) {
-        await gerarSequenciaStoryboard(dados.prompts_imagens, dados.microcenas_textos, negative, contadorCena, dados);
+    falarEnrolacao(true);
+
+    if (dados.prompts_imagens?.length > 0) {
+        await gerarSequenciaStoryboard(dados.prompts_imagens, dados.microcenas_textos, dados.negative_prompt || "", contadorCena, dados, seedSessao);
     } else {
         await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dados).catch(() => {});
     }
 
-    // opcoes_atuais guarda SEMPRE as opções da cena mais recente
-    let opcoes_atuais = dados.opcoes || [];
+    let temOpcoes = dados.tem_opcoes !== false;
 
+    // ─── LOOP DE ESCOLHAS ──────────────────────────────────────
     while (temOpcoes) {
-        console.log("\n👀 Aguardando o jogador escolher uma opção no telão...");
+        console.log("\n👀 Aguardando escolha do jogador...");
+
         let escolhaTexto = "";
         let idxReal = 0;
 
         while (true) {
             try {
                 const res = await axios.get(`${SERVIDOR_FLASK}/esperar_escolha`);
-                if (res.data && res.data.status === "ok") {
-                    idxReal = res.data.dados.escolha_idx;
+                if (res.data?.status === "ok") {
+                    idxReal      = res.data.dados.escolha_idx;
                     escolhaTexto = res.data.dados.escolha_texto;
                     break;
                 }
-            } catch (err) {}
-            // Espera 1 segundo antes de checar novamente
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (e) {}
+            await new Promise(r => setTimeout(r, 1000));
         }
 
         contadorCena++;
-        console.log(`\n⏳ O jogador escolheu: "${escolhaTexto}"`);
-        registrarLog(`\nESCOLHA DO USUÁRIO: ${escolhaTexto}`);
+        console.log(`\n⏳ Jogador escolheu: "${escolhaTexto}"`);
+        registrarLog(`\nESCOLHA: ${escolhaTexto}`);
 
-        falarEnrolacao(false, escolhaTexto); // O robô confirma a escolha e enrola
+        falarEnrolacao(false, escolhaTexto);
 
-        const resposta = await escolherCena(session_id, node_id, idxReal, escolhaTexto);
-        if (!resposta || resposta.status !== "sucesso") {
-            console.log("❌ Erro na escolha.");
+        let resposta;
+        try {
+            const r = await axios.post(`${SERVIDOR_FLASK}/escolher`, {
+                session_id: sessionIdReal,
+                node_id: null,
+                escolha_idx: idxReal,
+                escolha_texto: escolhaTexto
+            });
+            resposta = r.data;
+        } catch (e) {
+            console.log("❌ Erro ao registrar escolha:", e.message);
             break;
         }
 
-        node_id = resposta.node_id;
-        temOpcoes = resposta.tem_opcoes;
+        if (!resposta || resposta.status !== "sucesso") break;
+
+        temOpcoes = resposta.tem_opcoes !== false;
 
         console.log(`\n📖 CENA ${contadorCena}:`);
         console.log(resposta.historia_original);
         registrarLog(`\n--- CENA ${contadorCena} ---\n${resposta.historia_original}\n`);
 
-        if (resposta.prompts_imagens && resposta.prompts_imagens.length > 0) {
-            await gerarSequenciaStoryboard(resposta.prompts_imagens, resposta.microcenas_textos, negative, contadorCena, resposta);
+        if (resposta.prompts_imagens?.length > 0) {
+            await gerarSequenciaStoryboard(resposta.prompts_imagens, resposta.microcenas_textos, resposta.negative_prompt || "", contadorCena, resposta, seedSessao + contadorCena * 1000);
         } else {
             await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, resposta).catch(() => {});
         }
 
-        // CORREÇÃO: atualiza opcoes_atuais IMEDIATAMENTE para a próxima iteração
-        opcoes_atuais = resposta.opcoes || [];
-
         if (!temOpcoes) console.log("\n🎬 Fim da história!");
     }
 
-    console.log(`\n✨ Sessão encerrada! Todos os arquivos estão em: ${PASTA_SESSAO}`);
+    console.log(`\n✨ Sessão encerrada! Arquivos em: ${PASTA_SESSAO}`);
 
-    // ──────────────────────────────────────────────
-    // QUIZ: Aciona a geração do quiz no servidor Flask
-    // O frontend (index.html) detecta o status "quiz_gerando" via polling
-    // ──────────────────────────────────────────────
-    console.log("\n📝 Acionando quiz de revisão da sessão...");
+    // Dispara o quiz
     try {
-        await axios.post(`${SERVIDOR_FLASK}/finalizar_sessao`, { session_id });
-        console.log("✅ Quiz solicitado! O telão exibirá as perguntas automaticamente.");
-    } catch (err) {
-        console.log("⚠️ Não foi possível acionar o quiz:", err.message);
-    }
-
-    rl.close();
-}
-
-// ============================================================
-// GERAÇÃO DO PRIMEIRO QUADRO (referência inicial)
-// ============================================================
-async function gerarPrimeiroQuadro(promptImagem, microcenaTexto, negativePrompt) {
-    console.log(`   🎬 Quadro REFERÊNCIA: [${microcenaTexto}]`);
-
-    const payloadTxt = {
-        prompt: promptImagem,
-        negative_prompt: negativePrompt || "",
-        steps: 25,
-        width: 768,
-        height: 768,
-        sampler_name: "DPM++ 2M Karras",
-        cfg_scale: 7.0,
-        seed: SEED_SESSAO + 1,
-        save_images: true,
-        send_images: true,
-        override_settings: {
-            "CLIP_stop_at_last_layers": 2
-        }
-    };
-
-    try {
-        const response = await axios.post(FORGE_API_TXT2IMG, payloadTxt, { 
-            timeout: 120000,
-            responseType: 'json'
-        });
-
-        if (response.data && response.data.images && response.data.images.length > 0) {
-            IMAGEM_REFERENCIA_GLOBAL = response.data.images[0];
-
-            // Salva fisicamente
-            salvarImagem(IMAGEM_REFERENCIA_GLOBAL, "cena_1_referencia_global.png");
-            registrarLog(`[IMAGEM: cena_1_referencia_global.png] Prompt: ${promptImagem}`);
-
-            console.log(`      ✅ Quadro de referência gerado e salvo!`);
-        }
-    } catch (err) {
-        console.log(`      ❌ Erro ao gerar quadro de referência.`, err.message);
+        await axios.post(`${SERVIDOR_FLASK}/finalizar_sessao`, { session_id: sessionIdReal });
+        console.log("✅ Quiz solicitado ao servidor.");
+    } catch (e) {
+        console.log("⚠️  Não foi possível acionar o quiz:", e.message);
     }
 }
 
-main();
+// ─── LOOP PRINCIPAL DO DAEMON ─────────────────────────────────
+async function daemonLoop() {
+    console.log("\n==================================================");
+    console.log("🤖 NAO — STORY CLIENT DAEMON");
+    console.log("==================================================");
+    console.log(`Polling ${SERVIDOR_FLASK}/daemon_poll a cada ${POLL_INTERVAL}ms...`);
+    console.log("Aguardando cadastro pelo navegador...\n");
+
+    while (true) {
+        try {
+            const res = await axios.get(`${SERVIDOR_FLASK}/daemon_poll`, { timeout: 5000 });
+            if (res.data?.status === "ok" && res.data.session_id) {
+                await processarSessao(res.data.session_id);
+                // Após finalizar, volta a aguardar nova sessão
+                console.log("\n⏳ Aguardando próxima sessão...\n");
+                base64Referencia = null; // limpa âncora para a próxima sessão
+            }
+        } catch (e) {
+            // Servidor offline ou sem resposta — silencioso
+        }
+        await new Promise(r => setTimeout(r, POLL_INTERVAL));
+    }
+}
+
+daemonLoop();

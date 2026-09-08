@@ -939,5 +939,38 @@ def ver_resultados():
     return jsonify(quiz_manager.get_resultado_geral())
 
 
+
+# Fila de sessões que o daemon (story_client.js) precisa processar
+_daemon_queue = []
+_daemon_lock = threading.Lock()
+
+@app.route('/iniciar_daemon', methods=['POST'])
+def iniciar_daemon():
+    """
+    Chamado pelo frontend após o cadastro.
+    Enfileira o session_id para que o story_client daemon gere as imagens.
+    """
+    dados = request.json
+    sid = dados.get('session_id')
+    if not sid:
+        return jsonify({"status": "erro", "msg": "session_id ausente"}), 400
+    with _daemon_lock:
+        _daemon_queue.append(sid)
+    print(f"📡 Daemon notificado para sessão: {sid}")
+    return jsonify({"status": "ok"})
+
+@app.route('/daemon_poll', methods=['GET'])
+def daemon_poll():
+    """
+    Endpoint que o story_client daemon fica polling.
+    Retorna a próxima sessão a processar (se houver).
+    """
+    with _daemon_lock:
+        if _daemon_queue:
+            sid = _daemon_queue.pop(0)
+            return jsonify({"status": "ok", "session_id": sid})
+    return jsonify({"status": "vazio"})
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
