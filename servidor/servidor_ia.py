@@ -5,9 +5,13 @@ from datetime import datetime
 import os
 import re
 import json
+import threading
 from state_manager import manager
 import rag_historico
 import canonical_scenes
+import quiz_manager
+
+quiz_manager.init_db()
 
 app = Flask(__name__)
 CORS(app) # Habilita CORS para todas as rotas
@@ -419,9 +423,13 @@ def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name=
 # Variável global para o visualizador (PC2) seguir o que o terminal (PC1) está fazendo
 SESSAO_ATIVA = {
     "session_id": None,
-    "status": "aguardando", # pode ser "aguardando", "pensando", "ativo"
+    "status": "aguardando", # pode ser: "aguardando", "pensando", "ativo", "modal", "quiz_gerando", "quiz", "quiz_fim"
     "fala_enrolacao": "",
-    "last_scene_data": None
+    "last_scene_data": None,
+    # --- Quiz ---
+    "quiz_perguntas": [],    # lista de dicts com pergunta, opcoes, resposta_correta
+    "quiz_ids": [],          # IDs das perguntas no banco SQLite
+    "quiz_idx_atual": 0,     # índice da pergunta sendo exibida
 }
 
 ESCOLHA_PENDENTE = None
@@ -629,12 +637,231 @@ def visualizador_cena():
             "status": "modal",
             "dados": SESSAO_ATIVA["last_scene_data"]
         })
-        
+
+    if SESSAO_ATIVA["status"] == "quiz_gerando":
+        return jsonify({"status": "quiz_gerando"})
+
+    if SESSAO_ATIVA["status"] == "quiz":
+        return jsonify({
+            "status": "quiz",
+            "session_id": SESSAO_ATIVA["session_id"],
+            "dados": SESSAO_ATIVA["last_scene_data"]
+        })
+
+    if SESSAO_ATIVA["status"] == "quiz_fim":
+        return jsonify({
+            "status": "quiz_fim",
+            "session_id": SESSAO_ATIVA["session_id"],
+            "dados": SESSAO_ATIVA["last_scene_data"]
+        })
+
     return jsonify({
         "status": "ativo",
         "session_id": SESSAO_ATIVA["session_id"],
         "dados": SESSAO_ATIVA["last_scene_data"]
     })
+
+
+
+# ============================================================
+# QUIZ — GERAÇÃO E PERSISTÊNCIA
+# ============================================================
+
+def montar_prompt_quiz(student_name, historico):
+    """
+    Monta o prompt para a IA gerar 3 perguntas de múltipla escolha
+    baseadas no histórico narrativo da sessão.
+    """
+    resumo_historia = ""
+    for h in historico:
+        ato = h.get("ato", "?")
+        step = h.get("step", "?")
+        narrative = h.get("narrative", "")
+        choice = h.get("choice", "")
+        resumo_historia += f"- [Ato {ato}, Cena '{step}']: {narrative}\n"
+        resumo_historia += f"  → O aluno escolheu: '{choice}'\n"
+
+    prompt = f"""[SYSTEM: QUIZ GENERATOR — EDUCATIONAL ASSESSMENT MODE]
+Role: Educational Quiz Designer.
+Output: Valid JSON only.
+
+You just narrated a historical story to a student named {student_name}.
+Based on the story events described below, generate EXACTLY 3 multiple-choice questions in BRAZILIAN PORTUGUESE (PT-BR).
+
+### STORY SUMMARY ###
+{resumo_historia}
+
+### QUIZ RULES ###
+1. Each question must be directly based on a REAL fact mentioned in the story above.
+2. Each question must have EXACTLY 4 options.
+3. One option must be "Não me lembro." (always the LAST option, index 3).
+4. One option must be the correct answer.
+5. Two options must be plausible but incorrect distractors.
+6. Questions must be clear, short, and appropriate for children (8-12 years old).
+7. Spread questions across different moments of the story (beginning, middle, end).
+8. The "resposta_correta" field must be the INDEX (0, 1, 2, or 3) of the correct option in the "opcoes" array.
+9. "Não me lembro." must ALWAYS be at index 3.
+
+### JSON SCHEMA ###
+Return ONLY a JSON object:
+{{
+  "perguntas": [
+    {{
+      "pergunta": "string — A question in PT-BR about a specific fact from the story",
+      "opcoes": [
+        "string — Correct answer OR distractor",
+        "string — Distractor",
+        "string — Distractor",
+        "Não me lembro."
+      ],
+      "resposta_correta": 0,
+      "ato": 1
+    }}
+  ]
+}}
+
+CRITICAL: Generate EXACTLY 3 perguntas. All text in PT-BR. "Não me lembro." must be the last option (index 3) in every question.
+"""
+    return prompt
+
+
+def publicar_proxima_pergunta_quiz():
+    """Publica no SESSAO_ATIVA a pergunta atual do quiz."""
+    idx = SESSAO_ATIVA["quiz_idx_atual"]
+    perguntas = SESSAO_ATIVA["quiz_perguntas"]
+    ids = SESSAO_ATIVA["quiz_ids"]
+
+    if idx < len(perguntas):
+        SESSAO_ATIVA["status"] = "quiz"
+        SESSAO_ATIVA["last_scene_data"] = {
+            "pergunta_id": ids[idx] if idx < len(ids) else None,
+            "dados": perguntas[idx],
+            "num_atual": idx + 1,
+            "total": len(perguntas)
+        }
+        print(f"❓ Quiz: Publicando pergunta {idx + 1}/{len(perguntas)}")
+
+
+@app.route('/finalizar_sessao', methods=['POST'])
+def finalizar_sessao():
+    """
+    Acionado pelo story_client.js ao fim da história.
+    Dispara a geração do quiz em background e atualiza o status para o frontend.
+    """
+    dados = request.json
+    sid = dados.get('session_id')
+    state = manager.load_state(sid)
+
+    if not state:
+        return jsonify({"status": "erro", "msg": "Sessão não encontrada"}), 404
+
+    # Sinaliza ao frontend que o quiz está sendo gerado (loading)
+    SESSAO_ATIVA["status"] = "quiz_gerando"
+    SESSAO_ATIVA["session_id"] = sid
+    SESSAO_ATIVA["quiz_perguntas"] = []
+    SESSAO_ATIVA["quiz_ids"] = []
+    SESSAO_ATIVA["quiz_idx_atual"] = 0
+
+    def gerar_e_publicar():
+        historico = state.get("history", [])
+        student_name = state["student"]["name"]
+        tema = state["student"].get("theme", "")
+        skill = state["student"].get("focus_skill", "")
+
+        print(f"\n🧠 Gerando quiz para sessão [{sid}] — Aluno: {student_name}")
+
+        prompt_quiz = montar_prompt_quiz(student_name, historico)
+        quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
+        perguntas = quiz_raw.get("perguntas", [])
+
+        if not perguntas:
+            print("❌ IA não gerou perguntas. Usando fallback vazio.")
+            SESSAO_ATIVA["status"] = "quiz_fim"
+            return
+
+        # Garante que "Não me lembro." está sempre na posição 3
+        for p in perguntas:
+            opcoes = p.get("opcoes", [])
+            # Remove "Não me lembro." se estiver em posição errada
+            opcoes_sem_nao = [o for o in opcoes if o.strip().lower() != "não me lembro."]
+            # Garante exatamente 3 distractors + "Não me lembro." no final
+            while len(opcoes_sem_nao) < 3:
+                opcoes_sem_nao.append("Não disponível")
+            p["opcoes"] = opcoes_sem_nao[:3] + ["Não me lembro."]
+
+        # Persiste no banco SQLite
+        quiz_manager.criar_sessao_quiz(sid, student_name, tema, skill)
+        ids = quiz_manager.salvar_perguntas(sid, perguntas)
+
+        SESSAO_ATIVA["quiz_perguntas"] = perguntas
+        SESSAO_ATIVA["quiz_ids"] = ids
+        SESSAO_ATIVA["quiz_idx_atual"] = 0
+
+        publicar_proxima_pergunta_quiz()
+
+    threading.Thread(target=gerar_e_publicar, daemon=True).start()
+    return jsonify({"status": "ok", "msg": "Quiz sendo gerado..."})
+
+
+@app.route('/responder_quiz', methods=['POST'])
+def responder_quiz():
+    """
+    Recebe a resposta do aluno para a pergunta atual.
+    Salva no banco e avança para a próxima pergunta (ou finaliza).
+    """
+    dados = request.json
+    sid = dados.get('session_id')
+    pergunta_id = dados.get('pergunta_id')
+    resposta_idx = dados.get('resposta_idx')
+
+    perguntas = SESSAO_ATIVA.get("quiz_perguntas", [])
+    idx_atual = SESSAO_ATIVA.get("quiz_idx_atual", 0)
+
+    if idx_atual >= len(perguntas):
+        return jsonify({"status": "erro", "msg": "Índice de pergunta fora do range"}), 400
+
+    resposta_correta_idx = perguntas[idx_atual].get("resposta_correta", 0)
+    correta = (resposta_idx == resposta_correta_idx)
+    deu_up = (resposta_idx == 3)  # Índice 3 = "Não me lembro."
+
+    # Salva no banco
+    if pergunta_id:
+        quiz_manager.salvar_resposta(sid, pergunta_id, resposta_idx, correta, deu_up)
+
+    # Avança para a próxima pergunta
+    SESSAO_ATIVA["quiz_idx_atual"] += 1
+    proximo_idx = SESSAO_ATIVA["quiz_idx_atual"]
+
+    if proximo_idx < len(perguntas):
+        publicar_proxima_pergunta_quiz()
+        status_retorno = "proxima"
+    else:
+        # Quiz finalizado
+        SESSAO_ATIVA["status"] = "quiz_fim"
+        resultado = quiz_manager.get_resultado_sessao(sid)
+        SESSAO_ATIVA["last_scene_data"] = {"resultado": resultado}
+        status_retorno = "fim"
+        print(f"\n🎉 Quiz encerrado! Sessão {sid} | Resultado: {resultado}")
+
+    return jsonify({
+        "status": status_retorno,
+        "correta": correta,
+        "deu_up": deu_up,
+        "resposta_correta_idx": resposta_correta_idx
+    })
+
+
+@app.route('/resultados', methods=['GET'])
+def ver_resultados():
+    """Retorna o resultado agregado de todas as sessões de quiz."""
+    session_id = request.args.get('session_id')
+    if session_id:
+        resultado = quiz_manager.get_resultado_sessao(session_id)
+        if not resultado:
+            return jsonify({"status": "erro", "msg": "Sessão não encontrada"}), 404
+        return jsonify(resultado)
+    return jsonify(quiz_manager.get_resultado_geral())
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)

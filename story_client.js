@@ -528,6 +528,19 @@ async function main() {
     }
 
     console.log(`\n✨ Sessão encerrada! Todos os arquivos estão em: ${PASTA_SESSAO}`);
+
+    // ──────────────────────────────────────────────
+    // QUIZ: Aciona a geração do quiz no servidor Flask
+    // O frontend (index.html) detecta o status "quiz_gerando" via polling
+    // ──────────────────────────────────────────────
+    console.log("\n📝 Acionando quiz de revisão da sessão...");
+    try {
+        await axios.post(`${SERVIDOR_FLASK}/finalizar_sessao`, { session_id });
+        console.log("✅ Quiz solicitado! O telão exibirá as perguntas automaticamente.");
+    } catch (err) {
+        console.log("⚠️ Não foi possível acionar o quiz:", err.message);
+    }
+
     rl.close();
 }
 

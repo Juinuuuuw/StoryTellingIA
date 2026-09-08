@@ -210,6 +210,142 @@
             color: #000;
             box-shadow: 0 0 20px var(--accent);
         }
+
+        /* ─── QUIZ MODAL ─── */
+        #quiz-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            backdrop-filter: blur(12px);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .quiz-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 50px 60px;
+            max-width: 950px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+        }
+
+        #quiz-progress {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.9rem;
+            letter-spacing: 3px;
+            color: var(--accent);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        #quiz-question {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.4rem;
+            color: #fff;
+            margin-bottom: 40px;
+            line-height: 1.35;
+            text-shadow: var(--text-glow);
+        }
+
+        #quiz-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .quiz-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 22px 18px;
+            border-radius: 12px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 300;
+            text-align: left;
+            line-height: 1.3;
+        }
+
+        .quiz-btn:hover:not(:disabled) {
+            background: rgba(255,255,255,0.12);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+
+        .quiz-btn.correta {
+            background: rgba(46, 204, 113, 0.25) !important;
+            border-color: #2ecc71 !important;
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.4) !important;
+        }
+
+        .quiz-btn.errada {
+            background: rgba(231, 76, 60, 0.25) !important;
+            border-color: #e74c3c !important;
+        }
+
+        .quiz-btn.revelada {
+            background: rgba(46, 204, 113, 0.15) !important;
+            border-color: #2ecc71 !important;
+        }
+
+        /* ─── TELA FIM QUIZ ─── */
+        #quiz-fim-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 9998;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        #quiz-fim-screen .emoji {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            animation: pop 0.6s ease;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        #quiz-fim-titulo {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        #quiz-fim-subtitulo {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.4rem;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 40px;
+        }
+
+        .quiz-fim-badge {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 30px 60px;
+            font-family: 'Playfair Display', serif;
+            font-size: 4rem;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -248,6 +384,23 @@
             <h2 id="modal-question"></h2>
             <div id="modal-options" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;"></div>
         </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quiz-modal">
+        <div class="quiz-box">
+            <div id="quiz-progress">Pergunta 1 de 3</div>
+            <h2 id="quiz-question">Carregando pergunta...</h2>
+            <div id="quiz-options"></div>
+        </div>
+    </div>
+
+    <!-- Tela de Fim do Quiz -->
+    <div id="quiz-fim-screen">
+        <div class="emoji">🎉</div>
+        <div id="quiz-fim-titulo">Parabéns!</div>
+        <div id="quiz-fim-subtitulo">Você completou a jornada histórica!</div>
+        <div class="quiz-fim-badge" id="quiz-fim-badge">0 / 0</div>
     </div>
 
     <script>
@@ -430,6 +583,38 @@
                     return;
                 }
 
+                // ── Quiz: gerando ──
+                if (data.status === "quiz_gerando") {
+                    document.getElementById('loader').style.display = 'flex';
+                    document.getElementById('loader').querySelector('div:last-child').innerText = "PREPARANDO PERGUNTAS...";
+                    hideModal();
+                    return;
+                }
+
+                // ── Quiz: pergunta atual ──
+                if (data.status === "quiz") {
+                    document.getElementById('loader').style.display = 'none';
+                    const quizData = data.dados;
+                    const perguntaId = quizData ? quizData.pergunta_id : null;
+                    const dadosPergunta = quizData ? quizData.dados : null;
+                    const numAtual = quizData ? quizData.num_atual : 1;
+                    const total = quizData ? quizData.total : 3;
+
+                    if (dadosPergunta && document.getElementById('quiz-question').innerText !== dadosPergunta.pergunta) {
+                        showQuizModal(data.session_id, perguntaId, dadosPergunta, numAtual, total);
+                    }
+                    return;
+                }
+
+                // ── Quiz: finalizado ──
+                if (data.status === "quiz_fim") {
+                    const resultado = data.dados ? data.dados.resultado : null;
+                    if (document.getElementById('quiz-fim-screen').style.display !== 'flex') {
+                        showQuizFim(resultado);
+                    }
+                    return;
+                }
+
                 // Status ATIVO
                 const sceneData = data.dados || data;
                 const textoHistoria = sceneData.historia_original || sceneData.historia || "";
@@ -454,6 +639,112 @@
                 }
             } catch (err) {
                 console.log("Erro ao sincronizar:", err);
+            }
+        }
+
+        // ─── QUIZ FUNCTIONS ───────────────────────────────────────────────
+
+        let quizRespondidaAtual = false;
+
+        function showQuizModal(sessionId, perguntaId, dadosPergunta, numAtual, total) {
+            quizRespondidaAtual = false;
+
+            document.getElementById('quiz-progress').innerText = `Pergunta ${numAtual} de ${total}`;
+            document.getElementById('quiz-question').innerText = dadosPergunta.pergunta;
+
+            const optsContainer = document.getElementById('quiz-options');
+            optsContainer.innerHTML = '';
+
+            const quizModal = document.getElementById('quiz-modal');
+            quizModal.style.display = 'flex';
+
+            gsap.fromTo(quizModal.querySelector('.quiz-box'),
+                { scale: 0.92, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" }
+            );
+
+            dadosPergunta.opcoes.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-btn';
+                btn.innerText = opt;
+                btn.onclick = () => respondirQuiz(sessionId, perguntaId, idx, dadosPergunta.resposta_correta, btn, optsContainer);
+                optsContainer.appendChild(btn);
+            });
+        }
+
+        async function respondirQuiz(sessionId, perguntaId, respostaIdx, respostaCorretaIdx, btnClicado, optsContainer) {
+            if (quizRespondidaAtual) return;
+            quizRespondidaAtual = true;
+
+            // Bloqueia todos os botões
+            optsContainer.querySelectorAll('.quiz-btn').forEach(b => b.disabled = true);
+
+            // Feedback visual imediato
+            if (respostaIdx === respostaCorretaIdx) {
+                btnClicado.classList.add('correta');
+            } else {
+                btnClicado.classList.add('errada');
+                // Revela a resposta correta
+                const btns = optsContainer.querySelectorAll('.quiz-btn');
+                if (btns[respostaCorretaIdx]) btns[respostaCorretaIdx].classList.add('revelada');
+            }
+
+            // Envia resposta ao servidor
+            try {
+                await fetch(`${API_URL}/responder_quiz`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        pergunta_id: perguntaId,
+                        resposta_idx: respostaIdx
+                    })
+                });
+            } catch(e) {
+                console.error("Erro ao enviar resposta do quiz:", e);
+            }
+
+            // Aguarda 2s mostrando o feedback antes de fechar o modal (o polling atualizará a próxima)
+            await new Promise(r => setTimeout(r, 2000));
+            document.getElementById('quiz-question').innerText = "..."; // reset para o polling detectar mudança
+        }
+
+        function showQuizFim(resultado) {
+            document.getElementById('quiz-modal').style.display = 'none';
+            document.getElementById('loader').style.display = 'none';
+
+            const fimScreen = document.getElementById('quiz-fim-screen');
+            fimScreen.style.display = 'flex';
+
+            gsap.fromTo(fimScreen, { opacity: 0 }, { opacity: 1, duration: 1, ease: "power2.out" });
+
+            if (resultado) {
+                const acertos = resultado.acertos || 0;
+                const total = resultado.total_perguntas || 3;
+                const nome = resultado.nome_aluno || "Explorador";
+                const pct = resultado.percentual || 0;
+
+                document.getElementById('quiz-fim-badge').innerText = `${acertos} / ${total}`;
+
+                let titulo = "Parabéns!";
+                let subtitulo = `${nome}, você completou a jornada histórica!`;
+
+                if (pct === 100) {
+                    titulo = "Perfeito! 🌟";
+                    subtitulo = `${nome}, acertou tudo! Você é um verdadeiro explorador da história!`;
+                } else if (pct >= 66) {
+                    titulo = "Muito bem! 👏";
+                    subtitulo = `${nome}, você conhece bem a história!`;
+                } else if (pct >= 33) {
+                    titulo = "Bom trabalho!";
+                    subtitulo = `${nome}, continue explorando para aprender mais!`;
+                } else {
+                    titulo = "Continue tentando!";
+                    subtitulo = `${nome}, cada jornada é uma nova oportunidade de aprender!`;
+                }
+
+                document.getElementById('quiz-fim-titulo').innerText = titulo;
+                document.getElementById('quiz-fim-subtitulo').innerText = subtitulo;
             }
         }
 
