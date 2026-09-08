@@ -132,98 +132,101 @@ async function falarEnrolacao(isInicio, escolhaTexto = "") {
 
 // ─── PROCESSAMENTO DE UMA SESSÃO ─────────────────────────────
 async function processarSessao(sessionId) {
-    console.log(`\n🚀 Iniciando processamento da sessão: ${sessionId}`);
+    console.log(`\n🚀 Processando sessão: ${sessionId}`);
+    base64Referencia = null; // reseta âncora
 
-    // Carrega o estado atual da sessão via /status
-    let state;
-    try {
-        const r = await axios.get(`${SERVIDOR_FLASK}/status`);
-        state = r.data;
-    } catch (e) {
-        console.log("❌ Não foi possível obter estado do servidor:", e.message);
+    // Aguarda o servidor terminar de gerar a 1ª cena (status=ativo)
+    console.log("⏳ Aguardando geração da 1ª cena pelo servidor...");
+    let dadosCena = null;
+    for (let tentativa = 0; tentativa < 120; tentativa++) {
+        try {
+            const r = await axios.get(`${SERVIDOR_FLASK}/visualizador/cena_atual`, { timeout: 5000 });
+            const d = r.data;
+            if (d?.status === "ativo" && d.session_id === sessionId && d.dados?.historia_original) {
+                dadosCena = d.dados;
+                break;
+            }
+        } catch (e) {}
+        await new Promise(r => setTimeout(r, 1500));
+    }
+
+    if (!dadosCena) {
+        console.log("❌ Timeout esperando a 1ª cena. Sessão encerrada.");
         return;
     }
 
-    if (!state || !state.dados) {
-        console.log("❌ Estado inválido retornado pelo servidor.");
-        return;
-    }
+    prepararPasta(sessionId);
+    registrarLog(`SESSION_ID: ${sessionId}\n`);
 
-    const dados = state.dados;
-    const sessionIdReal = state.session_id || sessionId;
-    prepararPasta(sessionIdReal);
-    base64Referencia = null; // reseta âncora para cada nova sessão
-
-    const seedSessao = parseInt(sessionIdReal) || Math.floor(Math.random() * 1e9);
+    const seedSessao = parseInt(sessionId) || Math.floor(Math.random() * 1e9);
     let contadorCena = 1;
-
-    registrarLog(`SESSION_ID: ${sessionIdReal}\n`);
+    let ultimaHistoria = dadosCena.historia_original;
 
     console.log(`\n📖 CENA ${contadorCena}:`);
-    console.log(dados.historia_original);
-    registrarLog(`\n--- CENA ${contadorCena} ---\n${dados.historia_original}\n`);
+    console.log(dadosCena.historia_original);
+    registrarLog(`\n--- CENA ${contadorCena} ---\n${dadosCena.historia_original}\n`);
 
     falarEnrolacao(true);
 
-    if (dados.prompts_imagens?.length > 0) {
-        await gerarSequenciaStoryboard(dados.prompts_imagens, dados.microcenas_textos, dados.negative_prompt || "", contadorCena, dados, seedSessao);
+    if (dadosCena.prompts_imagens?.length > 0) {
+        await gerarSequenciaStoryboard(
+            dadosCena.prompts_imagens,
+            dadosCena.microcenas_textos || [],
+            dadosCena.negative_prompt || "",
+            contadorCena, dadosCena, seedSessao
+        );
     } else {
-        await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dados).catch(() => {});
+        await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dadosCena).catch(() => {});
     }
 
-    let temOpcoes = dados.tem_opcoes !== false;
+    let temOpcoes = dadosCena.tem_opcoes !== false;
 
     // ─── LOOP DE ESCOLHAS ──────────────────────────────────────
+    // O browser (index.html) é quem recebe a escolha e chama /escolher.
+    // O daemon apenas aguarda uma nova cena aparecer em /visualizador/cena_atual.
     while (temOpcoes) {
-        console.log("\n👀 Aguardando escolha do jogador...");
+        console.log("\n👀 Aguardando jogador escolher e próxima cena ser gerada...");
 
-        let escolhaTexto = "";
-        let idxReal = 0;
-
-        while (true) {
+        // Aguarda até aparecer uma cena diferente da última
+        let proximaCena = null;
+        for (let tentativa = 0; tentativa < 300; tentativa++) {
             try {
-                const res = await axios.get(`${SERVIDOR_FLASK}/esperar_escolha`);
-                if (res.data?.status === "ok") {
-                    idxReal      = res.data.dados.escolha_idx;
-                    escolhaTexto = res.data.dados.escolha_texto;
+                const r = await axios.get(`${SERVIDOR_FLASK}/visualizador/cena_atual`, { timeout: 5000 });
+                const d = r.data;
+                if (d?.status === "ativo" && d.dados?.historia_original &&
+                    d.dados.historia_original !== ultimaHistoria) {
+                    proximaCena = d.dados;
+                    break;
+                }
+                // Se chegou no quiz, a história acabou
+                if (d?.status === "quiz_gerando" || d?.status === "quiz" || d?.status === "quiz_fim") {
+                    temOpcoes = false;
                     break;
                 }
             } catch (e) {}
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 1500));
         }
+
+        if (!proximaCena || !temOpcoes) break;
 
         contadorCena++;
-        console.log(`\n⏳ Jogador escolheu: "${escolhaTexto}"`);
-        registrarLog(`\nESCOLHA: ${escolhaTexto}`);
-
-        falarEnrolacao(false, escolhaTexto);
-
-        let resposta;
-        try {
-            const r = await axios.post(`${SERVIDOR_FLASK}/escolher`, {
-                session_id: sessionIdReal,
-                node_id: null,
-                escolha_idx: idxReal,
-                escolha_texto: escolhaTexto
-            });
-            resposta = r.data;
-        } catch (e) {
-            console.log("❌ Erro ao registrar escolha:", e.message);
-            break;
-        }
-
-        if (!resposta || resposta.status !== "sucesso") break;
-
-        temOpcoes = resposta.tem_opcoes !== false;
+        dadosCena = proximaCena;
+        ultimaHistoria = dadosCena.historia_original;
+        temOpcoes = dadosCena.tem_opcoes !== false;
 
         console.log(`\n📖 CENA ${contadorCena}:`);
-        console.log(resposta.historia_original);
-        registrarLog(`\n--- CENA ${contadorCena} ---\n${resposta.historia_original}\n`);
+        console.log(dadosCena.historia_original);
+        registrarLog(`\n--- CENA ${contadorCena} ---\n${dadosCena.historia_original}\n`);
 
-        if (resposta.prompts_imagens?.length > 0) {
-            await gerarSequenciaStoryboard(resposta.prompts_imagens, resposta.microcenas_textos, resposta.negative_prompt || "", contadorCena, resposta, seedSessao + contadorCena * 1000);
+        if (dadosCena.prompts_imagens?.length > 0) {
+            await gerarSequenciaStoryboard(
+                dadosCena.prompts_imagens,
+                dadosCena.microcenas_textos || [],
+                dadosCena.negative_prompt || "",
+                contadorCena, dadosCena, seedSessao + contadorCena * 1000
+            );
         } else {
-            await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, resposta).catch(() => {});
+            await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dadosCena).catch(() => {});
         }
 
         if (!temOpcoes) console.log("\n🎬 Fim da história!");
@@ -231,9 +234,8 @@ async function processarSessao(sessionId) {
 
     console.log(`\n✨ Sessão encerrada! Arquivos em: ${PASTA_SESSAO}`);
 
-    // Dispara o quiz
     try {
-        await axios.post(`${SERVIDOR_FLASK}/finalizar_sessao`, { session_id: sessionIdReal });
+        await axios.post(`${SERVIDOR_FLASK}/finalizar_sessao`, { session_id: sessionId });
         console.log("✅ Quiz solicitado ao servidor.");
     } catch (e) {
         console.log("⚠️  Não foi possível acionar o quiz:", e.message);
