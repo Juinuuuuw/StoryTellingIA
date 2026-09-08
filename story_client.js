@@ -372,12 +372,11 @@ async function main() {
 
     const jornadas = [
         { label: "Alan Turing - Cambridge (1936)", value: "alan_turing", tema: "Cambridge (1936)" },
-        { label: "Steve Jobs - Vale do Silício (Apple)", value: "steve_jobs", tema: "Vale do Silício (Apple)" },
         { label: "Katherine Johnson - NASA (NASA Langley)", value: "katherine_johnson", tema: "NASA (NASA Langley)" }
     ];
 
     mostrarMenu("ESCOLHA SUA JORNADA HISTÓRICA", jornadas.map(j => j.label));
-    const jornadaIdx = parseInt(await perguntar("Selecione (1-3): ")) - 1;
+    const jornadaIdx = parseInt(await perguntar("Selecione (1-2): ")) - 1;
     const jornadaEscolhida = jornadas[jornadaIdx] || jornadas[0];
 
     const tema = jornadaEscolhida.tema;
@@ -387,31 +386,26 @@ async function main() {
 
     const pCompCabelo = {
         pergunta: `Oi ${nome}, primeiramente me ajude a imaginar você. Qual o tamanho do seu cabelo?`,
-        opcoes: ["Curto", "Médio", "Longo", "Raspado (Careca)"],
-        tags: ["short", "medium length", "long", "shaved head"]
+        opcoes: ["Curto", "Médio", "Longo", "Preso (Rabo de cavalo)"],
+        tags: ["short", "medium length", "long", "ponytail"]
     };
     const respCompCabelo = await fazerPerguntaModal(pCompCabelo.pergunta, pCompCabelo.opcoes);
 
-    let tagCabeloFinal = "";
-    if (respCompCabelo.idx === 3) {
-        tagCabeloFinal = "shaved head";
-    } else {
-        const pTipoCabelo = {
-            pergunta: "Legal! E como é o tipo do seu cabelo?",
-            opcoes: ["Liso", "Ondulado", "Cacheado", "Crespo"],
-            tags: ["straight", "wavy", "curly", "coily"]
-        };
-        const respTipoCabelo = await fazerPerguntaModal(pTipoCabelo.pergunta, pTipoCabelo.opcoes);
+    const pTipoCabelo = {
+        pergunta: "Legal! E como é o tipo do seu cabelo?",
+        opcoes: ["Liso", "Ondulado", "Cacheado", "Crespo"],
+        tags: ["straight", "wavy", "curly", "coily"]
+    };
+    const respTipoCabelo = await fazerPerguntaModal(pTipoCabelo.pergunta, pTipoCabelo.opcoes);
 
-        const pCorCabelo = {
-            pergunta: "Entendi! E qual é a cor do seu cabelo?",
-            opcoes: ["Preto", "Castanho", "Loiro", "Ruivo"],
-            tags: ["black hair", "brown hair", "blonde hair", "red hair"]
-        };
-        const respCorCabelo = await fazerPerguntaModal(pCorCabelo.pergunta, pCorCabelo.opcoes);
-        
-        tagCabeloFinal = `${pCompCabelo.tags[respCompCabelo.idx]} ${pTipoCabelo.tags[respTipoCabelo.idx]} ${pCorCabelo.tags[respCorCabelo.idx]}`;
-    }
+    const pCorCabelo = {
+        pergunta: "Entendi! E qual é a cor do seu cabelo?",
+        opcoes: ["Preto", "Castanho", "Loiro", "Ruivo"],
+        tags: ["black hair", "brown hair", "blonde hair", "red hair"]
+    };
+    const respCorCabelo = await fazerPerguntaModal(pCorCabelo.pergunta, pCorCabelo.opcoes);
+    
+    let tagCabeloFinal = `${pCompCabelo.tags[respCompCabelo.idx]} ${pTipoCabelo.tags[respTipoCabelo.idx]} ${pCorCabelo.tags[respCorCabelo.idx]}`;
 
     const pPele = {
         pergunta: "Perfeito! E qual é a cor da sua pele?",

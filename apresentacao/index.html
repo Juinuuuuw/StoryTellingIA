@@ -332,6 +332,175 @@
             font-size: 4rem;
             color: #fff;
         }
+
+        /* ─── QUESTIONÁRIO LIKERT ─── */
+        #likert-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #050510;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .likert-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 50px 60px;
+            max-width: 960px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        .likert-section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .likert-section-desc {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.45);
+            margin-bottom: 36px;
+            letter-spacing: 1px;
+        }
+
+        .likert-progress {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.8rem;
+            letter-spacing: 3px;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .likert-question-block {
+            margin-bottom: 40px;
+        }
+
+        .likert-question-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            color: #f4f4f4;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .likert-scale {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .likert-label {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            min-width: 80px;
+        }
+        .likert-label.right { text-align: right; }
+
+        .likert-buttons {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .likert-btn {
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.25);
+            background: transparent;
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .likert-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
+        .likert-btn.selected { background: var(--accent); border-color: var(--accent); color: #000; transform: scale(1.1); }
+
+        .likert-grid {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .likert-grid table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .likert-grid th {
+            color: var(--accent);
+            font-size: 0.9rem;
+            padding: 10px 8px;
+            text-align: center;
+        }
+        .likert-grid td {
+            padding: 12px 8px;
+            text-align: center;
+            color: #f4f4f4;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            font-size: 0.95rem;
+        }
+        .likert-grid td:first-child { text-align: left; padding-left: 0; }
+        .likert-grid .grid-btn {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.25);
+            background: transparent;
+            color: #fff;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .likert-grid .grid-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .likert-grid .grid-btn.selected { background: var(--accent); border-color: var(--accent); color: #000; }
+
+        .likert-next-btn {
+            margin-top: 40px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 14px 50px;
+            font-size: 1rem;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 3px;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            display: block;
+            margin-left: auto;
+        }
+        .likert-next-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent); }
+        .likert-next-btn:disabled { opacity: 0.35; cursor: default; }
+
+        /* ─── TELA FINAL COMPLETA ─── */
+        #fim-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 10000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+        }
+        #fim-screen .emoji { font-size: 5rem; margin-bottom: 20px; animation: pop 0.6s ease; }
+        #fim-titulo { font-family: 'Playfair Display', serif; font-size: 3rem; color: var(--accent); margin-bottom: 16px; }
+        #fim-subtitulo { font-family: 'Montserrat', sans-serif; font-size: 1.2rem; color: rgba(255,255,255,0.65); }
     </style>
 </head>
 <body>
@@ -381,12 +550,30 @@
         </div>
     </div>
 
-    <!-- Tela de Fim do Quiz -->
+    <!-- Tela de Fim do Quiz Cognitivo -->
     <div id="quiz-fim-screen">
         <div class="emoji">🎉</div>
         <div id="quiz-fim-titulo">Parabéns!</div>
         <div id="quiz-fim-subtitulo">Você completou a jornada histórica!</div>
         <div class="quiz-fim-badge" id="quiz-fim-badge">0 / 0</div>
+    </div>
+
+    <!-- Questionário Likert Estático -->
+    <div id="likert-screen">
+        <div class="likert-box">
+            <div class="likert-progress" id="likert-progress"></div>
+            <div class="likert-section-title" id="likert-section-title"></div>
+            <div class="likert-section-desc" id="likert-section-desc"></div>
+            <div id="likert-questions-container"></div>
+            <button class="likert-next-btn" id="likert-next-btn" onclick="likertNext()">CONTINUAR →</button>
+        </div>
+    </div>
+
+    <!-- Tela Final da Experiência -->
+    <div id="fim-screen">
+        <div class="emoji">⭐</div>
+        <div id="fim-titulo">Obrigado pela participação!</div>
+        <div id="fim-subtitulo">Sua jornada histórica está completa. Os dados foram registrados.</div>
     </div>
 
     <script>
@@ -446,12 +633,13 @@
             });
         }
 
-        async function startImageSequence(images, data) {
+        async function startImageSequence(images, data, textChunks) {
             currentSequenceId++;
             const seqId = currentSequenceId;
 
             const imgEl = document.getElementById('scene-image');
             const loader = document.getElementById('loader');
+            const storyTextEl = document.getElementById('story-text');
             
             loader.style.display = 'none';
             imgEl.style.display = "block";
@@ -462,6 +650,9 @@
                 if (seqId !== currentSequenceId) return false;
                 if (ready) {
                     imgEl.src = url;
+                    if (textChunks && textChunks[idx]) {
+                        typeWriterEffect(textChunks[idx], storyTextEl);
+                    }
                     // Efeito Ken Burns Cinematico
                     gsap.fromTo(imgEl,
                         { scale: 1.05, x: 0, y: 0, opacity: 0.2 },
@@ -489,7 +680,7 @@
         }
 
         function triggerDecisionModal(data) {
-            if (data.opcoes && data.opcoes.length > 0) {
+            if (data.tem_opcoes !== false && data.opcoes && data.opcoes.length > 0) {
                 showModal({
                     pergunta: "QUAL É A SUA DECISÃO?",
                     opcoes: data.opcoes
@@ -613,12 +804,30 @@
                     document.getElementById('loader').style.display = 'flex'; // mantem loader até imagem 1 carregar
                     
                     const storyTextEl = document.getElementById('story-text');
-                    typeWriterEffect(textoHistoria, storyTextEl);
-
+                    
                     const hasImages = Array.isArray(sceneData.imagens_arquivos) && sceneData.imagens_arquivos.length > 0;
                     if (hasImages) {
-                        startImageSequence(sceneData.imagens_arquivos, sceneData);
+                        // Split text into sentences
+                        const sentences = textoHistoria.match(/[^.!?]+[.!?]+/g) || [textoHistoria];
+                        const numChunks = sceneData.imagens_arquivos.length;
+                        const textChunks = [];
+                        const base = Math.floor(sentences.length / numChunks);
+                        let remainder = sentences.length % numChunks;
+                        let sIdx = 0;
+                        for (let i = 0; i < numChunks; i++) {
+                            let count = base + (remainder > 0 ? 1 : 0);
+                            remainder--;
+                            let chunkSentences = [];
+                            for(let j = 0; j < count && sIdx < sentences.length; j++) {
+                                chunkSentences.push(sentences[sIdx].trim());
+                                sIdx++;
+                            }
+                            textChunks.push(chunkSentences.join(' '));
+                        }
+                        
+                        startImageSequence(sceneData.imagens_arquivos, sceneData, textChunks);
                     } else {
+                        typeWriterEffect(textoHistoria, storyTextEl);
                         document.getElementById('loader').style.display = 'none';
                         triggerDecisionModal(sceneData);
                     }
@@ -691,12 +900,11 @@
 
             const fimScreen = document.getElementById('quiz-fim-screen');
             fimScreen.style.display = 'flex';
-
             gsap.fromTo(fimScreen, { opacity: 0 }, { opacity: 1, duration: 1, ease: "power2.out" });
 
             if (resultado) {
                 const acertos = resultado.acertos || 0;
-                const total = resultado.total_perguntas || 3;
+                const total = resultado.total_perguntas || 5;
                 const nome = resultado.nome_aluno || "Explorador";
                 const pct = resultado.percentual || 0;
 
@@ -721,6 +929,220 @@
 
                 document.getElementById('quiz-fim-titulo').innerText = titulo;
                 document.getElementById('quiz-fim-subtitulo').innerText = subtitulo;
+            }
+
+            // Após 4 segundos, transiciona para o questionário Likert
+            setTimeout(() => {
+                fimScreen.style.display = 'none';
+                iniciarLikert();
+            }, 4000);
+        }
+
+        // ─── QUESTIONÁRIO LIKERT ───────────────────────────────────────────
+
+        const LIKERT_SECOES = [
+            {
+                titulo: "Imersão Narrativa",
+                desc: "",
+                tipo: "escala",
+                perguntas: [
+                    { texto: "Consegui imaginar facilmente os acontecimentos apresentados na história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "Enquanto ouvia a história, deixei de prestar atenção, por alguns momentos, no que estava ao meu redor.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "Fiquei mentalmente envolvido(a) com a história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "A história despertou alguma reação emocional em mim.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                ]
+            },
+            {
+                titulo: "Engajamento com a Experiência",
+                desc: "",
+                tipo: "escala",
+                perguntas: [
+                    { texto: "A experiência prendeu minha atenção.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "Gostei de acompanhar a experiência.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "Fiquei curioso(a) para saber o que aconteceria em seguida.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                ]
+            },
+            {
+                titulo: "Interação com o NAO",
+                desc: "",
+                tipo: "escala",
+                perguntas: [
+                    { texto: "Consegui compreender claramente o que o NAO dizia.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "Os movimentos e gestos do NAO combinaram com a história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "A troca de falas com o NAO ocorreu de forma fluida.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                ]
+            },
+            {
+                titulo: "Contribuição das Imagens",
+                desc: "",
+                tipo: "escala",
+                perguntas: [
+                    { texto: "As imagens ajudaram a compreender e imaginar os acontecimentos da história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "As imagens tornaram a experiência mais envolvente.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                ]
+            },
+            {
+                titulo: "Personalização e Adaptação Percebida",
+                desc: "",
+                tipo: "escala",
+                perguntas: [
+                    { texto: "Senti que a história considerou o que aconteceu durante minha interação com o NAO.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                    { texto: "Tive a impressão de que minhas respostas ou ações influenciaram a experiência.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+                ]
+            },
+            {
+                titulo: "Percepção da Geração Dinâmica",
+                desc: "",
+                tipo: "escala",
+                perguntas: [
+                    { texto: "Na sua percepção, a história estava pronta antes da sessão ou foi gerada ou adaptada durante a interação?", labelEsq: "Tenho certeza de que já estava pronta", labelDir: "Tenho certeza de que foi gerada ou adaptada durante a interação" },
+                    { texto: "Na sua percepção, as imagens estavam prontas antes da sessão ou foram geradas durante a interação?", labelEsq: "Tenho certeza de que já estavam prontas", labelDir: "Tenho certeza de que foram geradas durante a interação" },
+                ]
+            },
+            {
+                titulo: "Percepção do NAO Após a Interação",
+                desc: "Agora, considerando toda a experiência que você acabou de realizar com o NAO, indique sua impressão sobre ele. Em cada linha existem duas características opostas. Marque um valor entre 1 e 5.",
+                tipo: "grid",
+                grupos: [
+                    {
+                        subtitulo: "Antropomorfismo",
+                        linhas: ["Falso / Natural", "Com aspecto mecânico / Com aspecto humano", "Inconsciente / Consciente", "Artificial / Realista", "Move-se com rigidez / Move-se com fluidez"]
+                    },
+                    {
+                        subtitulo: "Animacidade",
+                        linhas: ["Morto / Com vida", "Parado / Enérgico", "Artificial / Realista", "Estático / Interativo", "Apático / Participativo"]
+                    },
+                    {
+                        subtitulo: "Simpatia",
+                        linhas: ["Não gosto / Gosto", "Hostil / Amigável", "Antipático / Gentil", "Desagradável / Agradável", "Horrível / Simpático"]
+                    },
+                    {
+                        subtitulo: "Inteligência Percebida",
+                        linhas: ["Incompetente / Competente", "Ignorante / Sabedor", "Irresponsável / Responsável", "Pouco inteligente / Inteligente", "Insensato / Sensato"]
+                    },
+                    {
+                        subtitulo: "Segurança Percebida",
+                        linhas: ["Ansioso / Descontraído", "Calmo / Agitado", "Sereno / Surpreendido"]
+                    }
+                ]
+            },
+            {
+                titulo: "Expectativa e Experiência",
+                desc: "",
+                tipo: "escala",
+                perguntas: [
+                    { texto: "Considerando suas expectativas antes da sessão, como você avalia a experiência realizada?", labelEsq: "Muito abaixo do que eu esperava", labelDir: "Muito acima do que eu esperava" },
+                ]
+            }
+        ];
+
+        let likertSecaoAtual = 0;
+        const likertRespostas = {};
+
+        function iniciarLikert() {
+            likertSecaoAtual = 0;
+            document.getElementById('likert-screen').style.display = 'flex';
+            gsap.fromTo('#likert-screen', { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "power2.out" });
+            renderizarSecaoLikert();
+        }
+
+        function renderizarSecaoLikert() {
+            const totalSecoes = LIKERT_SECOES.length;
+            const secao = LIKERT_SECOES[likertSecaoAtual];
+            const secaoNum = likertSecaoAtual + 1;
+
+            document.getElementById('likert-progress').innerText = `Seção ${secaoNum} de ${totalSecoes}`;
+            document.getElementById('likert-section-title').innerText = secao.titulo;
+            document.getElementById('likert-section-desc').innerText = secao.desc || '';
+
+            const container = document.getElementById('likert-questions-container');
+            container.innerHTML = '';
+
+            if (secao.tipo === 'escala') {
+                secao.perguntas.forEach((p, pIdx) => {
+                    const chave = `s${likertSecaoAtual}_q${pIdx}`;
+                    const block = document.createElement('div');
+                    block.className = 'likert-question-block';
+                    block.innerHTML = `
+                        <div class="likert-question-text">${p.texto}</div>
+                        <div class="likert-scale">
+                            <span class="likert-label">${p.labelEsq}</span>
+                            <div class="likert-buttons" id="btns_${chave}">
+                                ${[1,2,3,4,5].map(v => `<button class="likert-btn" onclick="selecionarLikert('${chave}',${v},this)">${v}</button>`).join('')}
+                            </div>
+                            <span class="likert-label right">${p.labelDir}</span>
+                        </div>`;
+                    container.appendChild(block);
+                });
+            } else if (secao.tipo === 'grid') {
+                secao.grupos.forEach((grupo, gIdx) => {
+                    const header = document.createElement('div');
+                    header.style.cssText = 'font-family:"Playfair Display",serif;font-size:1.2rem;color:var(--accent);margin:24px 0 10px;';
+                    header.innerText = grupo.subtitulo;
+                    container.appendChild(header);
+
+                    const gridDiv = document.createElement('div');
+                    gridDiv.className = 'likert-grid';
+                    let tableHtml = `<table><thead><tr><th style="text-align:left">Par</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody>`;
+                    grupo.linhas.forEach((linha, lIdx) => {
+                        const chave = `s${likertSecaoAtual}_g${gIdx}_l${lIdx}`;
+                        tableHtml += `<tr><td>${linha}</td>${[1,2,3,4,5].map(v => `<td><button class="grid-btn" id="grid_${chave}_${v}" onclick="selecionarGrid('${chave}',${v})">${v}</button></td>`).join('')}</tr>`;
+                    });
+                    tableHtml += `</tbody></table>`;
+                    gridDiv.innerHTML = tableHtml;
+                    container.appendChild(gridDiv);
+                });
+            }
+
+            atualizarBotaoLikert();
+            gsap.fromTo('.likert-box', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" });
+        }
+
+        function selecionarLikert(chave, valor, btn) {
+            likertRespostas[chave] = valor;
+            const container = btn.closest('.likert-buttons');
+            container.querySelectorAll('.likert-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            atualizarBotaoLikert();
+        }
+
+        function selecionarGrid(chave, valor) {
+            likertRespostas[chave] = valor;
+            [1,2,3,4,5].forEach(v => {
+                const b = document.getElementById(`grid_${chave}_${v}`);
+                if (b) b.classList.toggle('selected', v === valor);
+            });
+            atualizarBotaoLikert();
+        }
+
+        function secaoRespondida() {
+            const secao = LIKERT_SECOES[likertSecaoAtual];
+            if (secao.tipo === 'escala') {
+                return secao.perguntas.every((_, pIdx) => likertRespostas[`s${likertSecaoAtual}_q${pIdx}`] !== undefined);
+            } else if (secao.tipo === 'grid') {
+                return secao.grupos.every((grupo, gIdx) =>
+                    grupo.linhas.every((_, lIdx) => likertRespostas[`s${likertSecaoAtual}_g${gIdx}_l${lIdx}`] !== undefined)
+                );
+            }
+            return true;
+        }
+
+        function atualizarBotaoLikert() {
+            document.getElementById('likert-next-btn').disabled = !secaoRespondida();
+        }
+
+        function likertNext() {
+            likertSecaoAtual++;
+            if (likertSecaoAtual < LIKERT_SECOES.length) {
+                renderizarSecaoLikert();
+                document.getElementById('likert-screen').scrollTop = 0;
+            } else {
+                // Todas as seções respondidas → tela final
+                document.getElementById('likert-screen').style.display = 'none';
+                const fim = document.getElementById('fim-screen');
+                fim.style.display = 'flex';
+                gsap.fromTo(fim, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: "power2.out" });
+                console.log("📊 Respostas Likert:", JSON.stringify(likertRespostas));
             }
         }
 

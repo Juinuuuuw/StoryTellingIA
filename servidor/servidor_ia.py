@@ -109,20 +109,43 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
 # GERAÇÃO DE CONTEÚDO (CONTRATADO PELO STATE MANAGER)
 # ============================================================
 
-def gerar_json_seguro(prompt, temperatura=0.75):
+def gerar_json_seguro(prompt, temperatura=0.75, max_tentativas=3):
+    conteudo = "{}"
+    for tentativa in range(max_tentativas):
+        try:
+            resposta = ollama.chat(
+                model=MODELO, 
+                messages=[{'role': 'user', 'content': prompt}], 
+                format='json',
+                options={'temperature': temperatura, 'num_predict': 2000},
+                keep_alive=0
+            )
+            conteudo = resposta.message.content.strip()
+            print(f"\n=== RESPOSTA JSON (Tentativa {tentativa+1}) ===\n{conteudo}\n=====================\n")
+            
+            dados = json.loads(conteudo)
+            historia = dados.get("historia", "")
+            
+            # Verificação de idioma (Heurística Simples)
+            text_lower = " " + historia.lower().replace(".", " ").replace(",", " ").replace("!", " ").replace("?", " ") + " "
+            en_words = [" the ", " and ", " with ", " then ", " he ", " she ", " it ", " was ", " his ", " her ", " to ", " of ", " in ", " but "]
+            pt_words = [" o ", " a ", " e ", " com ", " então ", " ele ", " ela ", " foi ", " seu ", " sua ", " para ", " que ", " um ", " uma ", " de ", " em ", " no ", " na ", " mas "]
+            
+            en_score = sum(text_lower.count(w) for w in en_words)
+            pt_score = sum(text_lower.count(w) for w in pt_words)
+            
+            if en_score > pt_score and en_score > 2: # Só repete se detectar um inglês claro
+                print(f"⚠️ ATENÇÃO: A IA gerou a história majoritariamente em INGLÊS (EN: {en_score}, PT: {pt_score}). Refazendo a geração...")
+                continue
+                
+            return dados
+        except Exception as e:
+            print(f"❌ Erro no JSON (Tentativa {tentativa+1}): {e}")
+            
+    # Fallback final se falhar em todas as tentativas
     try:
-        resposta = ollama.chat(
-            model=MODELO, 
-            messages=[{'role': 'user', 'content': prompt}], 
-            format='json',
-            options={'temperature': temperatura, 'num_predict': 2000},
-            keep_alive=0
-        )
-        conteudo = resposta.message.content.strip()
-        print(f"\n=== RESPOSTA JSON ===\n{conteudo}\n=====================\n")
         return json.loads(conteudo)
-    except Exception as e:
-        print(f"❌ Erro no JSON: {e}")
+    except:
         return {}
 
 def montar_prompt_narrativo(contexto, historico="", student_visual_fixo="",
@@ -187,124 +210,145 @@ def montar_prompt_narrativo(contexto, historico="", student_visual_fixo="",
     # --- RAG FACTS SECTION ---
     secao_rag = ""
     if fatos_rag:
-        secao_rag = f"""### HISTORICAL FACTS DATABASE (USE AS THE BACKBONE OF YOUR NARRATIVE) ###
-These are REAL, VERIFIED historical facts. Weave them naturally into the story.
-Do NOT fabricate events that contradict these. Use specific details (names, numbers, places).
+        secao_rag = f"""### BANCO DE FATOS HISTÓRICOS (USE COMO A ESPINHA DORSAL DA SUA NARRATIVA) ###
+Estes são fatos históricos REAIS e VERIFICADOS. Entrelace-os naturalmente na história.
+NÃO fabrique eventos que contradigam estes fatos. Use detalhes específicos (nomes, números, lugares).
 {fatos_rag}
 """
 
     # --- CANONICAL SCENE SECTION ---
     secao_canonica = ""
     if instrucao_canonica:
-        secao_canonica = f"""### ⚡ CANONICAL SCENE — HIGH PRIORITY MANDATORY INSTRUCTION ⚡ ###
+        secao_canonica = f"""### ⚡ CENA CANÔNICA — INSTRUÇÃO OBRIGATÓRIA DE ALTA PRIORIDADE ⚡ ###
 {instrucao_canonica}
 
-CANONICAL SCENE COHERENCE RULE (CRITICAL):
-- This scene MUST be shown through a complete, logical sequence of cause and effect.
-- Do NOT just mention the element (a sign, a machine, a phone call) in a single passing sentence.
-- Every sentence must flow naturally into the next. The canonical scene must MAKE SENSE in context.
-- If the scene involves an injustice (bathroom, coffee), show the full action: character walks, sees, reacts.
-- Do NOT combine canonical scene elements with unrelated plot points in the same sentence.
+REGRA DE COERÊNCIA DA CENA CANÔNICA (CRÍTICO):
+- Esta cena DEVE ser mostrada através de uma sequência completa e lógica de causa e efeito.
+- NÃO apenas mencione o elemento (uma placa, uma máquina, um telefonema) em uma única frase de passagem.
+- Cada frase deve fluir naturalmente para a próxima. A cena canônica deve FAZER SENTIDO no contexto.
+- Se a cena envolve uma injustiça (banheiro, café), mostre a ação completa: o personagem anda, vê, reage.
+- NÃO combine elementos da cena canônica com pontos de enredo não relacionados na mesma frase.
 """
 
     # --- PLAYER CHOICE SEED ---
     secao_escolha = ""
     if escolha_anterior:
         secao_escolha = f"""### AÇÃO DO JOGADOR — PONTO DE PARTIDA OBRIGATÓRIO ###
-O jogador escolheu: "{escolha_anterior}"
-CRÍTICO: A "historia" DEVE começar a partir desta ação. Mostre {contexto['student_name']} fazendo ou
-dizendo exatamente o que foi escolhido. Não resuma — dramatize.
-Exemplo: se o jogador escolheu 'Perguntar a Katherine sobre os problemas enfrentados',
-a historia deve começar com algo como:
-"{contexto['student_name']} respirou fundo e virou-se para Katherine. 'Katherine,' disse ele
-com cuidado, 'o que foi mais difícil para você aqui na NASA?' A cientista parou de escrever..."
-A escolha deve ser a PRIMEIRA ação visível na narrativa, não um contexto de fundo.
+O jogador ACABOU de escolher a seguinte ação: "{escolha_anterior}"
+CRÍTICO: A sua "historia" gerada DEVE ser a consequência direta e imediata desta escolha.
+Mostre {contexto['student_name']} executando essa ação (ou sofrendo as consequências dela) na primeira frase da história. Em seguida, avance o enredo para o próximo passo.
+NÃO repita cenas passadas. Crie uma cena ORIGINAL baseada EXCLUSIVAMENTE nesta escolha.
 """
 
     # --- HISTORY SECTION (ENRICHED) ---
     if not historico:
         intro_rule = (
-            f"- THIS IS THE FIRST SCENE. Drop the student directly into the world. "
-            f"Open with a specific sensory detail (a sound, a smell, a visual). "
-            f"Introduce the setting and character through what the student experiences, not narration."
+            f"- ESTA É A PRIMEIRA CENA. Jogue o estudante diretamente no mundo.\n"
+            f"- Comece com um detalhe sensorial específico (um som, um cheiro, um visual).\n"
+            f"- Apresente o ambiente e o personagem através do que o estudante vivencia, não através de uma narração seca."
         )
     else:
-        acao_label = f"'{escolha_anterior}'" if escolha_anterior else "a previous choice"
+        acao_label = f"'{escolha_anterior}'" if escolha_anterior else "uma escolha anterior"
         intro_rule = (
-            f"- THIS IS NOT THE FIRST SCENE. OBEY THESE ANTI-REPETITION RULES STRICTLY:\n"
-            f"  1. NEVER start with '[student] entrou' or any version of entering/walking into a room.\n"
-            f"  2. NEVER repeat the setting description (Katherine at her desk, the room, etc.) — reader knows.\n"
-            f"  3. NEVER use the phrase 'por décima sétima vez' or similar counters.\n"
-            f"  4. NEVER use the Q&A template: student asks 'você precisa de mais dados?' / Katherine says 'Sim, preciso'.\n"
-            f"  5. The scene MUST open IN MEDIAS RES — in the middle of the action chosen by the player: {acao_label}.\n"
-            f"  6. If the choice was a question, the scene STARTS with {contexto['student_name']} already asking it and Katherine's SPECIFIC, DETAILED response.\n"
-            f"  7. DO NOT repeat information already told in the History section."
+            f"- ESTA NÃO É A PRIMEIRA CENA. OBEDEÇA ESTAS REGRAS ANTI-REPETIÇÃO ESTRITAMENTE:\n"
+            f"  1. NUNCA comece com '[estudante] entrou' ou qualquer versão de entrar/caminhar para uma sala.\n"
+            f"  2. NUNCA repita a descrição do ambiente ({contexto.get('npc_principal', 'o personagem')} na mesa, a sala, etc) — o leitor já sabe.\n"
+            f"  3. NUNCA use a frase 'pela décima sétima vez' ou contadores similares.\n"
+            f"  4. NUNCA use o padrão de P&R: estudante pergunta 'você precisa de mais dados?' / {contexto.get('npc_principal', 'NPC')} diz 'Sim, preciso'.\n"
+            f"  5. A cena DEVE começar IN MEDIAS RES — no meio da ação escolhida pelo jogador: {acao_label}.\n"
+            f"  6. Se a escolha foi uma pergunta, a cena COMEÇA com {contexto['student_name']} já terminando de perguntar e a resposta ESPECÍFICA e DETALHADA de {contexto.get('npc_principal', 'the NPC')}.\n"
+            f"  7. NÃO repita informações já contadas nos Capítulos Anteriores."
         )
 
+    npc = contexto.get('npc_principal', 'o personagem')
+
     # --- BLACKLIST ---
-    blacklist = f"""### FORBIDDEN PHRASES AND PATTERNS — NEVER USE THESE ###
-Using any of these is a critical failure:
-- "[{contexto['student_name']}] inclina-se para frente" (or any variation of leaning)
-- "[{contexto['student_name']}] franze as sobrancelhas"
-- "[{contexto['student_name']}] observa atentamente" as a standalone sentence without action
-- "Que escolha interessante!" or "Boa escolha!"
-- "E agora?" or "O que faremos?" as standalone filler sentences
-- Repeating ANY action, observation, or setting detail from the previous chapter
-- Describing a character's internal thoughts WITHOUT any accompanying external action
-- Starting a sentence with "[{contexto['student_name']}] percebe que..."
-- Ending any sentence with "...e sorri" without context
-- Generic options like "Continuar" or "Explorar" — options MUST be specific actions
+    blacklist = f"""### FRASES E PADRÕES PROIBIDOS NO CAMPO "historia" — NUNCA USE ESTES ###
+ATENÇÃO: Estas regras se aplicam EXCLUSIVAMENTE ao campo "historia" (texto em PT-BR).
+Os campos técnicos de imagem (acao, cenario, emocao) NÃO são afetados por estas regras.
+Usar qualquer um destes padrões no "historia" é uma falha crítica:
+
+❌ CLICHÊS DE REAÇÃO FÍSICA (proibido em qualquer variação):
+- "[personagem] ergueu os olhos do papel"
+- "[personagem] levantou os olhos"
+- "[personagem] ergueu a cabeça"
+- "[personagem] olhando com uma expressão intensa"
+- "[personagem] com uma expressão séria/pensativa/concentrada" como frase solta
+- "[personagem] inclina-se para frente" ou qualquer variação de inclinar
+- "[personagem] franze as sobrancelhas"
+- "[personagem] apertou os lábios"
+- "[personagem] respirou fundo" (como gesto vazio sem consequência narrativa)
+- "[personagem] sorriu levemente" como encerramento de frase
+- "[personagem] observa atentamente" como frase solta sem ação física real
+- "[personagem] percebe que..."
+- "[personagem] sentiu que..."
+- "[{contexto['student_name']}] ficou impressionado/a"
+
+❌ CLICHÊS DE DIÁLOGO:
+- "Que escolha interessante!" ou "Boa escolha!"
+- "E agora?" ou "O que faremos?" como perguntas vazias
+- Qualquer variação de "{npc} disse, sua voz [adjetivo] e [adjetivo]" — ex: "sua voz calma e inspiradora", "sua voz firme e medida"
+- Encerrar falas com "...disse ele/ela, sua voz se elevando em excitação"
+- Opções genéricas como "Continuar" ou "Explorar" — 'opcoes' DEVEM ser ações físicas e específicas
+
+❌ OUTROS PADRÕES PROIBIDOS:
+- Repetir QUALQUER ação ou detalhe de cenário do capítulo anterior
+- Descrever pensamentos internos de um personagem SEM nenhuma ação externa acompanhando
+- Terminar qualquer frase com "...e sorri" sem contexto claro
+
+✅ SUBSTITUA estes clichês por: ações concretas, detalhes sensoriais do ambiente, fatos históricos específicos, ou consequências diretas da escolha do jogador.
 """
 
     prompt = f"""[SYSTEM: BILINGUAL STORYBOARD ENGINE — NARRATIVE QUALITY MODE]
-Role: Professional Screenwriter, Director & Portuguese Narrator.
-Style: Studio Ghibli / Pixar — emotionally resonant, visually specific, historically grounded.
-Output: Valid JSON only.
+Papel: Roteirista Profissional, Diretor de Cinema e Narrador Brasileiro.
+Estilo: Studio Ghibli / Pixar — emocionalmente ressonante, visualmente específico, fundamentado historicamente.
+Formato de Saída: APENAS JSON Válido.
 
-⚠️⚠️⚠️ ABSOLUTE LANGUAGE LAW ⚠️⚠️⚠️
-The "historia" field MUST be written 100% in BRAZILIAN PORTUGUESE (PT-BR).
-Writing "historia" in English is a FATAL ERROR that will BREAK the entire system.
-Before outputting, verify: is every single sentence in "historia" in Portuguese? If not, rewrite.
-The ONLY fields allowed in English are: acao, camera, emocao, cenario, descricao_visual.
+⚠️⚠️⚠️ LEI ABSOLUTA DE IDIOMA ⚠️⚠️⚠️
+Os campos "historia" e "opcoes" DEVEM ser escritos 100% em PORTUGUÊS BRASILEIRO (PT-BR).
+Escrever "historia" ou "opcoes" em Inglês é uma FALHA CRÍTICA que QUEBRARÁ todo o sistema.
+CRÍTICO: Se você pensar na história em Inglês internamente, você DEVE traduzi-la para um PT-BR perfeito antes de preencher o campo "historia".
+Antes de gerar a saída, verifique: cada uma das frases em "historia" está em Português? Se não, reescreva.
+Os ÚNICOS campos permitidos em Inglês são os técnicos de imagem: acao, camera, emocao, cenario, descricao_visual.
 ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
 
-### NARRATIVE ACT ###
+### ATO NARRATIVO ###
 {ato_info['nome']}
 {ato_info['instrucao']}
 
 {secao_escolha}
 {secao_rag}
 {secao_canonica}
-### CHARACTER PROTOCOL ###
-- The Student ({contexto['student_name']}) is the PROTAGONIST and is a CHILD (8-12 years old).
+### PROTOCOLO DOS PERSONAGENS ###
+- O Estudante ({contexto['student_name']}) é o PROTAGONISTA e é uma CRIANÇA (8-12 anos de idade).
 - {genero_instrucao}
-- CRITICAL PERSPECTIVE RULE: ALWAYS write the story ("historia") in the THIRD PERSON. Refer to {contexto['student_name']} by name. Never use "Você" or "Eu".
-- {contexto['student_name']} is PHYSICALLY PRESENT in the historical scene as an assistant, researcher, or engineer.
-- NPCs must interact directly with {contexto['student_name']} — give them specific dialogue and mannerisms.
-- CRITICAL: {contexto['student_name']} (CHILD) and {contexto.get('npc_principal')} (ADULT) must have distinct visual descriptions.
+- REGRA DE PERSPECTIVA CRÍTICA: SEMPRE escreva a "historia" em TERCEIRA PESSOA. Refira-se a {contexto['student_name']} pelo nome. Nunca use "Você" ou "Eu".
+- {contexto['student_name']} está FISICAMENTE PRESENTE na cena histórica como um assistente, pesquisador ou engenheiro aprendiz.
+- NPCs devem interagir DIRETAMENTE com {contexto['student_name']} — dê a eles diálogos específicos e trejeitos.
+- CRÍTICO: {contexto['student_name']} (CRIANÇA) e {contexto.get('npc_principal')} (ADULTO) devem ter aparências visuais totalmente diferentes.
 {npc_visual_instruction}
 
-### NARRATION RULES ###
-- The story MUST be a rich, immersive paragraph (4-6 sentences) describing atmosphere AND action.
-- Use specific sensory details: what the student SEES, HEARS, SMELLS, FEELS.
-- Include at least ONE piece of specific historical detail (a name, a number, a place, a machine).
-- NPCs must have at least ONE line of direct dialogue (in PT-BR).
-- {intro_rule}
-- Do NOT summarize — show, do not tell.
+### REGRAS DE NARRAÇÃO ###
+- A história DEVE ser um parágrafo rico e imersivo (4-6 frases) descrevendo atmosfera E ação.
+- Use detalhes sensoriais específicos: o que o estudante VÊ, OUVE, CHEIRA, SENTE.
+- Inclua pelo menos UM detalhe histórico específico (um nome real, número, lugar ou máquina).
+- NPCs DEVEM ter pelo menos UMA linha de diálogo direto (em PT-BR).
+{intro_rule}
+- NÃO resuma os acontecimentos — mostre através de ações e reações (Show, don't tell).
 
-### STUDENT VISUAL ###
+### VISUAL DO ESTUDANTE ###
 {student_visual_instruction}
 
 {scenery_instruction}
 
 {blacklist}
-### JSON SCHEMA & LANGUAGE RULES (STRICT ENFORCEMENT) ###
-Return ONLY a JSON object matching this exact schema:
+### REGRAS DE IDIOMA E JSON SCHEMA (APLICAÇÃO ESTRITA) ###
+Retorne APENAS um objeto JSON combinando perfeitamente com este schema:
 {{
   "historia": "string ⚠️ EM PORTUGUÊS BRASILEIRO (PT-BR) OBRIGATÓRIO ⚠️ — Parágrafo rico e imersivo (4-6 frases) em TERCEIRA PESSOA. Deve incluir: detalhes sensoriais específicos, pelo menos UMA fala direta do NPC, UM fato histórico real. Conte a história SOBRE {contexto['student_name']}. SE o jogador fez uma escolha (ver seção AÇÃO DO JOGADOR), a primeira frase DEVE mostrar essa escolha acontecendo.",
   "opcoes": [
-    "string (PT-BR) — SPECIFIC ACTION 1. A concrete, descriptive action or dialogue choice directly tied to THIS scene (e.g., 'Ajudar Turing a ajustar os rotores da Bombe' or 'Perguntar a Katherine sobre os calculos que ela verificou'). NEVER generic words.",
-    "string (PT-BR) — SPECIFIC ACTION 2. A completely different concrete action with different consequences."
+    "string (PT-BR) — AÇÃO ESPECÍFICA 1 em português. Ex: 'Ajudar Turing a ajustar os rotores da Bombe'. NUNCA palavras genéricas.",
+    "string (PT-BR) — AÇÃO ESPECÍFICA 2 em português com consequências diferentes."
   ],
   "personagens": [
     {{
@@ -333,16 +377,16 @@ Return ONLY a JSON object matching this exact schema:
 - For student microcenas: personagens: ["{contexto['student_name']}"]
 - For NPC microcenas: personagens: ["{contexto.get('npc_principal', 'NPC')}"]
 
-### CURRENT STORY TASK ###
-Student: {contexto['student_name']}
-Theme: {contexto['theme']}
-Step: {contexto['current_step']} (Chapter {contexto.get('step_index', 0) + 1} of {contexto.get('total_steps', 6)})
-Historical Context: {contexto['historical_facts']}
-Goal: {contexto['goal']}
-Emotion: {contexto['emotion']}
-Must Happen: {contexto['must_happen']}
-Forbidden: {contexto['cannot_happen']}
-History: {historico}
+### TAREFA DA HISTÓRIA ATUAL (CURRENT STORY TASK) ###
+Estudante: {contexto['student_name']}
+Tema: {contexto['theme']}
+Passo Atual: {contexto['current_step']} (Capítulo {contexto.get('step_index', 0) + 1} de {contexto.get('total_steps', 6)})
+Contexto Histórico: {contexto['historical_facts']}
+Objetivo da Cena: {contexto['goal']}
+Emoção Principal: {contexto['emotion']}
+Obrigatório Acontecer: {contexto['must_happen']}
+Proibido Acontecer: {contexto['cannot_happen']}
+Histórico: {historico}
 
 [CRITICAL: TECHNICAL METADATA MUST BE IN ENGLISH.]
 [CRITICAL: GENERATE EXACTLY 4 MICROCENAS. MAX 1 CHARACTER PER MICROCENA.]
@@ -554,14 +598,46 @@ def escolher():
     ctx = manager.get_current_context(sid)
     if not ctx: return jsonify({'status': 'sucesso', 'tem_opcoes': False, 'historia_original': "Fim da jornada!"})
 
-    # Monta histórico enriquecido
+    # Monta histórico enriquecido (otimizado para não viciar a IA com textos velhos)
     historico_texto = ""
     if state["history"]:
-        historico_texto = "### PREVIOUS CHAPTERS (FOR CONTINUITY — DO NOT REPEAT THESE EVENTS) ###\n"
+        historico_texto = "### RESUMO DA JORNADA ATÉ AGORA (NÃO REPITA ESTES EVENTOS) ###\n"
+
+        # Extrai frases e diálogos marcantes de TODAS as cenas passadas para bloquear repetição
+        frases_usadas = []
         for h in state["history"]:
-            ato_label = f"Act {h.get('ato', '?')}"
-            historico_texto += f"- [{ato_label}, step '{h['step']}', emotion: {h.get('emotion', 'unknown')}]: {h.get('narrative', '')}\n"
-            historico_texto += f"  → Player chose to: '{h['choice']}'\n"
+            narrative = h.get("narrative", "")
+            # Captura trechos de diálogos (entre aspas simples ou duplas)
+            import re
+            dialogos = re.findall(r"[\"\'](.*?)[\"\']", narrative)
+            for d in dialogos:
+                if len(d) > 10:  # ignora palavras curtas
+                    frases_usadas.append(f'"{d.strip()}"')
+            # Captura as primeiras 8 palavras de cada frase (padrões de abertura)
+            sentences = re.split(r'[.!?]', narrative)
+            for s in sentences[:3]:
+                words = s.strip().split()
+                if len(words) >= 5:
+                    frases_usadas.append(f'"{" ".join(words[:7])}..."')
+
+        for i, h in enumerate(state["history"]):
+            ato_label = f"Ato {h.get('ato', '?')} ({h['step']})"
+            if i == len(state["history"]) - 1:
+                # Última cena: envia apenas 1 frase de resumo (não o texto completo)
+                narrative = h.get("narrative", "")
+                sentences = [s.strip() for s in re.split(r'[.!?]', narrative) if s.strip()]
+                resumo = sentences[0] + "." if sentences else narrative[:120]
+                historico_texto += f"- {ato_label} [ÚLTIMA CENA — RESUMO]: {resumo}\n"
+                historico_texto += f"  → Decisão do jogador a ser executada AGORA: '{h['choice']}'\n"
+            else:
+                historico_texto += f"- {ato_label} [CENA PASSADA]: O jogador decidiu '{h['choice']}'\n"
+
+        # Injeta o bloqueio explícito de frases e diálogos já usados
+        if frases_usadas:
+            historico_texto += "\n⛔ BLOQUEIO ABSOLUTO DE REPETIÇÃO — NUNCA USE ESTAS FRASES, DIÁLOGOS OU INÍCIOS DE FRASE:\n"
+            for frase in frases_usadas[:15]:  # limita para não explodir o contexto
+                historico_texto += f"  - {frase}\n"
+            historico_texto += "Usar qualquer uma destas frases ou conceitos já explorados é uma FALHA CRÍTICA. Avance a história com elementos 100% novos.\n"
 
     # RAG + Cena Canônica
     skill = ctx.get("skill", state["student"].get("focus_skill", ""))
@@ -685,33 +761,33 @@ def montar_prompt_quiz(student_name, historico):
 Role: Educational Quiz Designer.
 Output: Valid JSON only.
 
-You just narrated a historical story to a student named {student_name}.
-Based on the story events described below, generate EXACTLY 3 multiple-choice questions in BRAZILIAN PORTUGUESE (PT-BR).
+Você acabou de narrar uma história histórica para um aluno chamado {student_name}.
+Com base nos acontecimentos da história descritos abaixo, gere EXATAMENTE 5 perguntas de múltipla escolha em PORTUGUÊS BRASILEIRO (PT-BR).
 
-### STORY SUMMARY ###
+### RESUMO DA HISTÓRIA ###
 {resumo_historia}
 
-### QUIZ RULES ###
-1. Each question must be directly based on a REAL fact mentioned in the story above.
-2. Each question must have EXACTLY 4 options.
-3. One option must be "Não me lembro." (always the LAST option, index 3).
-4. One option must be the correct answer.
-5. Two options must be plausible but incorrect distractors.
-6. Questions must be clear, short, and appropriate for children (8-12 years old).
-7. Spread questions across different moments of the story (beginning, middle, end).
-8. The "resposta_correta" field must be the INDEX (0, 1, 2, or 3) of the correct option in the "opcoes" array.
-9. "Não me lembro." must ALWAYS be at index 3.
+### REGRAS DO QUIZ ###
+1. Cada pergunta deve ser baseada diretamente em um FATO REAL mencionado na história acima.
+2. Cada pergunta deve ter EXATAMENTE 4 opções.
+3. Uma opção deve ser "Não me lembro." (sempre a ÚLTIMA opção, índice 3).
+4. Uma opção deve ser a resposta correta.
+5. Duas opções devem ser distratores plausíveis, mas incorretos.
+6. As perguntas devem ser claras, curtas e adequadas para crianças (8-12 anos).
+7. Distribua as perguntas entre os diferentes momentos da história (começo, meio, fim).
+8. O campo "resposta_correta" deve ser o ÍNDICE (0, 1, 2 ou 3) da opção correta no array "opcoes".
+9. "Não me lembro." deve estar SEMPRE no índice 3.
 
 ### JSON SCHEMA ###
-Return ONLY a JSON object:
+Retorne APENAS um objeto JSON:
 {{
   "perguntas": [
     {{
-      "pergunta": "string — A question in PT-BR about a specific fact from the story",
+      "pergunta": "string — Uma pergunta em PT-BR sobre um fato específico da história",
       "opcoes": [
-        "string — Correct answer OR distractor",
-        "string — Distractor",
-        "string — Distractor",
+        "string — Resposta correta OU distrator",
+        "string — Distrator",
+        "string — Distrator",
         "Não me lembro."
       ],
       "resposta_correta": 0,
@@ -720,7 +796,7 @@ Return ONLY a JSON object:
   ]
 }}
 
-CRITICAL: Generate EXACTLY 3 perguntas. All text in PT-BR. "Não me lembro." must be the last option (index 3) in every question.
+CRÍTICO: Gere EXATAMENTE 5 perguntas. Todo o texto em PT-BR. "Não me lembro." deve ser sempre a última opção (índice 3) em cada pergunta.
 """
     return prompt
 

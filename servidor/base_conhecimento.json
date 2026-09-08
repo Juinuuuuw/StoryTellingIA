@@ -123,56 +123,5 @@
       "tags": ["maca", "Apple", "simbolo", "legado", "ironia historica"],
       "fato": "A maca ao lado do corpo de Alan Turing nunca foi testada para veneno. Mas a imagem ficou gravada na historia: um genio que deu a humanidade o conceito do computador moderno, encontrado morto com uma maca mordida. Steve Jobs disse que gostaria que o logo da Apple fosse uma homenagem a ele — mas que nao foi. O simbolo permanece, independente da intencao."
     }
-  ],
-
-  "steve_jobs": [
-    {
-      "id": "sj_001",
-      "steps": ["projeto_purple"],
-      "tags": ["Project Purple", "segredo", "iPhone", "NDA", "sigilo"],
-      "fato": "O Projeto Purple foi o codinome secreto do iPhone. Em 2005, Jobs convocou os melhores engenheiros da Apple em grupos pequenos e separados, e lhes disse: 'Vamos reinventar o telefone.' O projeto era tao secreto que as salas tinham cameras de seguranca e cada participante assinava um NDA especifico. Funcionarios saiam do trabalho exaustos sem poder dizer aos conjuges o motivo."
-    },
-    {
-      "id": "sj_002",
-      "steps": ["projeto_purple", "desafio_multitouch"],
-      "tags": ["aquario", "prototipo", "design", "perfeccionismo", "bolhas"],
-      "fato": "Durante uma reuniao interna, Jobs pegou um prototipo do iPhone e o jogou dentro de um aquario de vidro. Bolhas subiram a superficie. Jobs apontou para elas e disse: 'Tem ar dentro. Tem espaco. Se tem espaco, pode ser menor. Refacam.' Os engenheiros olharam uns para os outros. Jobs saiu da sala. Em um mes, o iPhone havia encolhido 20%."
-    },
-    {
-      "id": "sj_003",
-      "steps": ["desafio_multitouch"],
-      "tags": ["multi-touch", "caneta", "dedos", "Nokia", "Motorola", "inovacao"],
-      "fato": "Todos os smartphones antes do iPhone tinham teclado fisico ou caneta. Jobs detestava isso. 'Quem quer uma caneta? Ninguem quer carregar uma caneta. Nascemos com dez dedos perfeitos.' A Motorola e a Nokia riram quando ouviram que a Apple queria usar apenas os dedos. Jony Ive e a equipe passaram dois anos desenvolvendo o vidro especial que respondia ao toque com precisao cirurgica."
-    },
-    {
-      "id": "sj_004",
-      "steps": ["tres_em_um"],
-      "tags": ["iPod", "telefone", "internet", "tres produtos", "keynote reveal"],
-      "fato": "Jobs ensaiou durante semanas a revelacao do iPhone. Ele diria: 'Hoje vamos apresentar tres produtos revolucionarios.' Pausa. 'Um iPod com tela widescreen.' Aplauso. 'Um telefone revolucionario.' Aplauso. 'E um dispositivo de internet revolucionario.' Aplauso. Pausa longa. 'Esses nao sao tres dispositivos separados. E um unico dispositivo.' A plateia levou dez segundos para processar. Depois explodiu em aplausos."
-    },
-    {
-      "id": "sj_005",
-      "steps": ["preparacao_keynote"],
-      "tags": ["golden path", "demo", "falha", "roteiro", "memoria"],
-      "fato": "Tres dias antes do Macworld 2007, o iPhone mal funcionava. A memoria transbordava apos 20 minutos de uso. Jobs tinha um roteiro preciso — o 'golden path': uma sequencia exata de 12 acoes que o aparelho aguentava sem travar. Se desviasse um passo, a tela ficaria preta ao vivo, na frente de toda a imprensa mundial."
-    },
-    {
-      "id": "sj_006",
-      "steps": ["preparacao_keynote"],
-      "tags": ["Wi-Fi", "antena", "jornalistas", "infraestrutura", "preparacao"],
-      "fato": "A equipe de engenharia montou antenas direcionais especiais no palco do Macworld para garantir que o sinal Wi-Fi chegasse apenas ao iPhone de Jobs. Eles sabiam que centenas de jornalistas estariam com laptops e celulares conectados. Um Wi-Fi sobrecarregado seria o fim da demonstracao. Jobs sabia de cada detalhe tecnico — e exigiu que cada risco fosse eliminado antes do dia D."
-    },
-    {
-      "id": "sj_007",
-      "steps": ["ensaio_geral"],
-      "tags": ["tela preta", "ensaio", "falha", "calma", "pressao"],
-      "fato": "No ensaio geral, o iPhone de Jobs travou duas vezes. Tela preta. Os engenheiros correram para os bastidores suando frio. Jobs ficou parado no palco, olhando para a tela com calma calculada. Depois virou para a equipe e disse, muito quieto: 'Nao e uma opcao falhar amanha.' Naquela noite, ninguem no QG da Apple dormiu."
-    },
-    {
-      "id": "sj_008",
-      "steps": ["lancamento_iphone"],
-      "tags": ["Macworld 2007", "revolucao", "mundo", "historia", "mudanca"],
-      "fato": "Em 9 de janeiro de 2007, Jobs entrou no palco do Moscone Center com um sorriso de quem guardava o maior segredo do mundo. Ele comecou: 'A cada vez em quando, um produto revolucionario aparece e muda tudo.' A plateia estava em silencio. Quando ele revelou o iPhone completo, a sala explodiu em aplausos. Fora do evento, as acoes da Apple subiram 8% em uma hora."
-    }
   ]
 }

@@ -42,15 +42,6 @@ BLUEPRINTS = {
                 "must_happen": "Turing realizes: 'Uma única máquina para tudo!', choices about changing instructions or changing hardware"
             },
             {
-                "id": "problema_parada",
-                "npc_principal": "Alan Turing",
-                "goal": "Discuss the limits of computation through the Halting Problem.",
-                "historical_facts": "The Halting Problem proves that there is no general algorithm to determine if a program will eventually stop or run forever. This established that computers have fundamental limits and cannot solve every mathematical problem.",
-                "emotion": "philosophical",
-                "cannot_happen": "perfect computers that solve everything",
-                "must_happen": "Turing asks: 'Será que podemos saber se ela vai parar?', choices about waiting forever or logical proof"
-            },
-            {
                 "id": "enigma_bletchley",
                 "npc_principal": "Alan Turing",
                 "goal": "Introduce the Enigma codebreaking during WWII at Bletchley Park.",
@@ -115,65 +106,7 @@ BLUEPRINTS = {
             }
         ]
     },
-    "steve_jobs": {
-        "npc_global_visual": "1man, middle-aged, short salt-and-pepper hair, stubble beard, wearing a black turtleneck sweater and blue jeans, wire-rimmed glasses, intense expression",
-        "steps": [
-            {
-                "id": "projeto_purple",
-                "npc_principal": "Steve Jobs",
-                "goal": "Introduce the secret development of the iPhone at Apple (Project Purple).",
-                "historical_facts": "The iPhone development started in 2005. It was a high-stakes, top-secret project. Jobs wanted a device that combined a phone, an iPod, and a desktop-class internet browser, all controlled by a multi-touch screen.",
-                "emotion": "urgency",
-                "cannot_happen": "revealing the secret to the press, Android",
-                "must_happen": "Jobs says: 'Precisamos de algo revolucionário!', choices about the screen or the interface"
-            },
-            {
-                "id": "desafio_multitouch",
-                "npc_principal": "Steve Jobs",
-                "goal": "Solve the problem of the interface: ditching the stylus and keys for fingers.",
-                "historical_facts": "At the time, smartphones had physical keyboards or used styluses. Jobs insisted on multi-touch technology, allowing users to pinch to zoom and swipe, making the interaction feel more natural and direct.",
-                "emotion": "demanding",
-                "cannot_happen": "using a stylus, physical buttons",
-                "must_happen": "Jobs argues: 'Quem quer uma caneta?', choices about gestures or virtual keys"
-            },
-            {
-                "id": "tres_em_um",
-                "npc_principal": "Steve Jobs",
-                "goal": "Integrate the three distinct products into one seamless device.",
-                "historical_facts": "The genius of the iPhone was not just the hardware, but the OS X-based software. It integrated a wide-screen iPod with touch controls, a revolutionary mobile phone, and a breakthrough internet communicator.",
-                "emotion": "inspiration",
-                "cannot_happen": "separate devices, slow internet",
-                "must_happen": "Jobs repeats the mantra: 'Um iPod, um telefone...', choices about music or web browsing"
-            },
-            {
-                "id": "preparacao_keynote",
-                "npc_principal": "Steve Jobs",
-                "goal": "The final days before the 2007 Macworld Expo presentation.",
-                "historical_facts": "The first iPhone demo was very risky; the software was barely stable. Jobs rehearsed for weeks. During the actual keynote, he had to follow a specific path of actions to avoid crashing the device.",
-                "emotion": "perfectionism",
-                "cannot_happen": "the phone crashing during demo",
-                "must_happen": "Jobs checks the demo: 'Isso tem que ser perfeito!', choices about the order of features"
-            },
-            {
-                "id": "ensaio_geral",
-                "npc_principal": "Steve Jobs",
-                "goal": "The dress rehearsal right before stepping on stage.",
-                "historical_facts": "In the final rehearsal, the engineering team was sweating bullets because the iPhone's memory would easily overflow. Jobs had to trust the 'golden path' to not break the illusion of a finished product.",
-                "emotion": "anxious",
-                "cannot_happen": "revealing the bugs to the public",
-                "must_happen": "Jobs prepares to go on stage: 'Estamos prestes a fazer história.', choices about the backup phone or trusting the main one"
-            },
-            {
-                "id": "lancamento_iphone",
-                "npc_principal": "Steve Jobs",
-                "goal": "The successful launch and the start of the smartphone era.",
-                "historical_facts": "On January 9, 2007, Jobs introduced the iPhone. It didn't have an App Store at first, but it changed how the world consumes information and connects forever. It was 'magical'.",
-                "emotion": "pride",
-                "cannot_happen": "failure",
-                "must_happen": "The crowd cheers, Jobs smiles: 'Hoje a Apple reinventa o telefone', warm closure"
-            }
-        ]
-    },
+
     "katherine_johnson": {
         "npc_global_visual": "1woman, ebony skin, dark brown skin, short curly black hair, wearing a 1950s professional beige dress with a white collar, cat-eye glasses, intelligent expression",
         "steps": [
@@ -204,15 +137,7 @@ BLUEPRINTS = {
                 "cannot_happen": "the computer being trusted blindly",
                 "must_happen": "The call comes in: 'O Glenn quer você!', choices about checking the IBM output or starting from scratch"
             },
-            {
-                "id": "missao_apollo",
-                "npc_principal": "Katherine Johnson",
-                "goal": "Working on the complex trajectories for the Apollo 11 moon landing.",
-                "historical_facts": "Katherine calculated the trajectory for the 1969 Apollo 11 mission to the Moon. She also worked on the backup navigation charts that helped astronauts return safely if electronic systems failed. Her work was vital to the Moon landing.",
-                "emotion": "awe",
-                "cannot_happen": "failing the calculation",
-                "must_happen": "Katherine looks at the moon: 'Estamos indo para lá', choices about the lunar orbit or the return path"
-            },
+
             {
                 "id": "apollo_13_resgate",
                 "npc_principal": "Katherine Johnson",

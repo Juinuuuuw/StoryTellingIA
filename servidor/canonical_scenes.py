@@ -122,60 +122,6 @@ CENAS_CANONICAS = {
                 "Write this with the weight of three lives pressing down on every single calculation."
             )
         }
-    ],
-
-    "steve_jobs": [
-        {
-            "id": "aquario_prototipo",
-            "step_ideal": "projeto_purple",
-            "instrucao_prompt": (
-                "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
-                "Jobs picks up a prototype iPhone and, without warning, drops it into a large fish tank on his desk. "
-                "Bubbles rise to the surface. He points at them and says: "
-                "'Air. There is air inside. If there is air, there is space. If there is space, it can be smaller. Do it again.' "
-                "He walks out of the room without looking back. "
-                "The student and the engineers stare at the phone slowly sinking through the water. "
-                "Write this as a lesson in obsessive perfectionism — slightly absurd, slightly terrifying, completely effective."
-            )
-        },
-        {
-            "id": "golden_path_ensaio",
-            "step_ideal": "preparacao_keynote",
-            "instrucao_prompt": (
-                "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
-                "Jobs shows the student a laminated sheet of paper — the 'golden path'. "
-                "Twelve specific actions in a precise order. 'If I follow this exact sequence, it will not crash. "
-                "One step off that path and the screen goes black — in front of the entire world.' "
-                "They rehearse it together. Jobs goes through it ten times without a single deviation. "
-                "Every. Single. Time. Perfect. "
-                "Write this scene as quiet, focused intensity — the pressure is enormous but Jobs seems almost calm."
-            )
-        },
-        {
-            "id": "tres_produtos_reveal",
-            "step_ideal": "tres_em_um",
-            "instrucao_prompt": (
-                "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
-                "Jobs rehearses the reveal sequence with the student: 'An iPod with a widescreen.' Pause. "
-                "'A revolutionary phone.' Pause. 'And a breakthrough internet communicator.' Pause. "
-                "He looks at the student. 'Now — how many products did I just describe?' "
-                "The student says three. Jobs smiles slowly: 'Wrong. It is one.' "
-                "Write this as the moment the student understands the genius of simplicity — "
-                "not just what the device does, but how Jobs tells its story."
-            )
-        },
-        {
-            "id": "tela_preta_ensaio",
-            "step_ideal": "ensaio_geral",
-            "instrucao_prompt": (
-                "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
-                "During the final rehearsal, the iPhone screen goes black. Total silence in the room. "
-                "Jobs stares at the dark screen for a long moment. He does not yell. "
-                "He turns to the engineering team and says, very quietly, almost gently: 'Fix it. Tonight.' "
-                "Then he turns back to the dark screen and murmurs, almost to himself: 'This is going to be perfect.' "
-                "The student watches the engineers scatter. Write this as the calm before the storm."
-            )
-        }
     ]
 }
 
