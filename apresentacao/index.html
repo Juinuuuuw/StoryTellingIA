@@ -344,7 +344,7 @@
             justify-content: center;
             align-items: center;
             padding: 40px;
-            overflow-y: auto;
+            overflow: hidden;
         }
 
         .likert-box {
@@ -355,7 +355,14 @@
             max-width: 960px;
             width: 100%;
             box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent) rgba(255,255,255,0.05);
         }
+        .likert-box::-webkit-scrollbar { width: 6px; }
+        .likert-box::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 3px; }
+        .likert-box::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
 
         .likert-section-title {
             font-family: 'Playfair Display', serif;
@@ -1522,7 +1529,7 @@
             likertSecaoAtual++;
             if (likertSecaoAtual < LIKERT_SECOES.length) {
                 renderizarSecaoLikert();
-                document.getElementById('likert-screen').scrollTop = 0;
+                document.querySelector('.likert-box').scrollTop = 0;
             } else {
                 // Todas as seções respondidas → tela final
                 document.getElementById('likert-screen').style.display = 'none';

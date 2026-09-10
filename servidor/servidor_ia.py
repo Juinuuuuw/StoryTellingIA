@@ -60,10 +60,55 @@ NEGATIVE_CHAR_ISOLADO = "3d, cgi, render, photorealistic, realistic, lowres, bad
 ESTILO_FUNDO = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed scenery, cel shading, empty scene, background art, environmental concept art, cinematic wide shot"
 NEGATIVE_FUNDO = "3d, cgi, render, photorealistic, realistic, lowres, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, people, person, character, human, man, woman, child, boy, girl, figure, silhouette"
 
+def _acao_para_keywords(acao: str, student_name: str, npc_name: str) -> str:
+    """
+    Converte uma frase de ação narrativa em keywords visuais compactas para o gerador de imagens.
+    Remove referências a personagens pelo nome (o gerador não entende "Mario observes X").
+    Exemplos:
+      "Mario observes the Bombe rotors" → "observing, focused gaze, mechanical rotors"
+      "Alan Turing explains the Universal Machine" → "explaining, gesturing, chalkboard with equations"
+    """
+    import re
+    # Remove o nome dos personagens da ação (case-insensitive)
+    for nome in [student_name, npc_name]:
+        if nome:
+            acao = re.sub(re.escape(nome), '', acao, flags=re.IGNORECASE)
+
+    # Limpa artigos e preposições iniciais comuns + espaços duplicados
+    acao = re.sub(r'\b(the|a|an|of|with|and|to|at|in|on|by|for|from|while)\b', ' ', acao, flags=re.IGNORECASE)
+    acao = re.sub(r'\s{2,}', ' ', acao).strip(' ,')
+
+    # Converte para gerúndio-like keywords: "adjusts rotors" → "adjusting rotors"
+    # Substitui verbos simples no presente pelo gerúndio onde possível
+    verb_map = {
+        r'\badjusts?\b': 'adjusting', r'\bexplains?\b': 'explaining',
+        r'\bobserves?\b': 'observing', r'\blooks?\b': 'looking intently',
+        r'\bworks?\b': 'working', r'\bexamines?\b': 'examining closely',
+        r'\bsmiles?\b': 'smiling', r'\bpoints?\b': 'pointing',
+        r'\bwrites?\b': 'writing', r'\breads?\b': 'reading',
+        r'\bstands?\b': 'standing', r'\bsits?\b': 'sitting',
+        r'\bholds?\b': 'holding', r'\breaches?\b': 'reaching',
+        r'\bturns?\b': 'turning', r'\bpushes?\b': 'pushing',
+        r'\bpulls?\b': 'pulling', r'\bpoints?\b': 'pointing',
+        r'\blistens?\b': 'listening attentively', r'\bthinks?\b': 'thinking, hand on chin',
+        r'\bgestures?\b': 'gesturing expressively',
+    }
+    for pattern, replacement in verb_map.items():
+        acao = re.sub(pattern, replacement, acao, flags=re.IGNORECASE)
+
+    # Trunca para evitar prompts gigantes
+    tokens = acao.split()
+    if len(tokens) > 10:
+        tokens = tokens[:10]
+    result = ' '.join(tokens).strip(' ,')
+    return result if result else 'standing, neutral pose'
+
+
 def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, npc_principal):
     """
-    Gera 3 prompts distintos (Storyboard Completo).
+    Gera 4 prompts distintos (Storyboard Completo).
     Cada prompt é uma cena COMPLETA (fundo + personagens interagindo) para manter a qualidade e consistência.
+    REGRA: máximo 1 personagem por quadro (o gerador não consegue 2 personagens bem).
     """
     while len(microcenas_raw) < 4:
         microcenas_raw.append(microcenas_raw[-1].copy())
@@ -80,30 +125,36 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
 
     for i, cena in enumerate(microcenas_raw[:4]):
         personagens_presentes = cena.get('personagens', [])
-        
-        # Monta a descrição física apenas dos personagens que estão na cena
+
+        # REGRA CRÍTICA: máximo 1 personagem por quadro
+        if len(personagens_presentes) > 1:
+            personagens_presentes = personagens_presentes[:1]
+
+        # Monta a descrição física apenas do personagem presente
         desc_personagens = []
         for p_nome in personagens_presentes:
             if p_nome.lower() == student_name.lower():
                 desc_personagens.append(f"1child, {student_desc}")
             elif p_nome.lower() == npc_principal.lower():
                 desc_personagens.append(f"1man, {npc_desc}")
-        
+
         char_prompt = ", ".join(desc_personagens) if desc_personagens else "no humans, scenery focus"
-        
-        acao = cena.get('acao', 'standing')
-        emocao = cena.get('emocao', 'neutral')
-        cenario = cena.get('cenario', 'detailed background')
-        camera = cena.get('camera', 'medium shot')
+
+        acao_raw  = cena.get('acao', 'standing')
+        acao      = _acao_para_keywords(acao_raw, student_name, npc_principal)
+        emocao    = cena.get('emocao', 'neutral')
+        cenario   = cena.get('cenario', 'detailed background')
+        camera    = cena.get('camera', 'medium shot')
 
         prompt_completo = (
             f"masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed, cel shading, "
             f"{char_prompt}, {acao}, {emocao} expression, {cenario}, {camera}, cinematic lighting"
         )
         prompts.append(prompt_completo)
-        textos.append(acao)
+        textos.append(acao_raw)
 
     return prompts, textos
+
 
 # ============================================================
 # GERAÇÃO DE CONTEÚDO (CONTRATADO PELO STATE MANAGER)
