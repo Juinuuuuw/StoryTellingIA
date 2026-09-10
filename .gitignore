@@ -3,3 +3,4 @@ __pycache__/
 historias/estados/*.json
 historias_geradas/
 Thumbs.db
+__pycache__/

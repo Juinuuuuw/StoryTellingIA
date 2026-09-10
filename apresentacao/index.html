@@ -750,7 +750,7 @@
     </div>
 
     <script>
-        const SERVER_IP = window.location.hostname || "192.168.16.69";
+        const SERVER_IP = window.location.hostname || "127.0.0.1";
         const API_URL = `http://${SERVER_IP}:5000`;
         const ROBOT_URL = "http://localhost:8080";
 
@@ -957,6 +957,13 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ session_id: dados.session_id })
                     }).catch(() => {});
+                    
+                    await fetch(`${API_URL}/publicar_cena`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(dados)
+                    }).catch(() => {});
+
                     // Esconde o cadastro e inicia o polling
                     document.getElementById('cadastro-screen').style.display = 'none';
                     document.getElementById('story-panel').style.display = 'block';
@@ -1077,12 +1084,27 @@
                         btn.style.color = '#000';
                         
                         try {
-                            await fetch(`${API_URL}/enviar_escolha`, {
+                            await fetch(`${API_URL}/definir_pensando`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ escolha_idx: idx, escolha_texto: opt })
+                                body: JSON.stringify({ frase: "Processando sua escolha..." })
                             });
                             hideModal();
+                            
+                            const resp = await fetch(`${API_URL}/escolher`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ session_id: lastSessionId, escolha_idx: idx, escolha_texto: opt })
+                            });
+                            const dados = await resp.json();
+                            
+                            if (dados && dados.status === 'sucesso') {
+                                await fetch(`${API_URL}/publicar_cena`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(dados)
+                                });
+                            }
                         } catch(e) {
                             console.error(e);
                         }
@@ -1150,7 +1172,8 @@
                 // ── Quiz: finalizado ──
                 if (data.status === "quiz_fim") {
                     const resultado = data.dados ? data.dados.resultado : null;
-                    if (document.getElementById('quiz-fim-screen').style.display !== 'flex') {
+                    if (!window.quizFinalizado) {
+                        window.quizFinalizado = true;
                         showQuizFim(resultado);
                     }
                     return;

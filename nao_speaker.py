@@ -18,7 +18,7 @@ try:
 except ImportError:
     QI_DISPONIVEL = False
 
-SERVER_URL = "http://192.168.16.69:5000/visualizador/cena_atual"
+SERVER_URL = "http://127.0.0.1:5000/visualizador/cena_atual"
 NAO_IP     = "169.254.22.3  "
 NAO_PORT   = 9559
 
