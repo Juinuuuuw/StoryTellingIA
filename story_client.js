@@ -70,10 +70,8 @@ async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negati
             override_settings: { CLIP_stop_at_last_layers: 2 }
         };
         // ADetailer (YOLOv8) para melhorar os rostos
-        payload.alwayson_scripts["ADetailer"] = {
+        payload.alwayson_scripts["adetailer"] = {
             args: [
-                true, // Ativa o ADetailer
-                false, // skip img2img? false
                 {
                     "ad_model": "face_yolov8n.pt",
                     "ad_prompt": promptAtual, 
