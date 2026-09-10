@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 import ollama
 from datetime import datetime
@@ -580,6 +580,9 @@ def iniciar():
     sid = manager.create_session(nome, skill, tema)
     ctx = manager.get_current_context(sid)
 
+    # Persiste o início da sessão de história no banco
+    quiz_manager.criar_sessao_historia(sid, nome, tema, skill, genero)
+
     # Salva o gênero no estado para persistência
     state = manager.load_state(sid)
     state["student"]["genero"] = genero
@@ -624,6 +627,18 @@ def iniciar():
 
     proc = processar_cena(cena_raw, personagens, sid, 1, student_name=nome, npc_principal=ctx.get("npc_principal", ""))
 
+    # Salva a cena 1 no banco
+    quiz_manager.salvar_cena(
+        session_id=sid,
+        ordem=0,
+        step_id=ctx.get('current_step', ''),
+        ato=ctx.get('ato', 1),
+        npc_principal=ctx.get('npc_principal', ''),
+        narrativa=cena_raw.get('historia', ''),
+        opcoes=proc.get('opcoes', [])
+    )
+
+
     return jsonify({
         'session_id': sid, 'status': 'sucesso', 'node_id': ctx['current_step'],
         'historia_original': proc['historia'],
@@ -637,6 +652,7 @@ def iniciar():
         'opcoes': proc['opcoes'], 'tem_opcoes': True
     })
 
+
 @app.route('/escolher', methods=['POST'])
 def escolher():
     dados = request.json
@@ -646,7 +662,12 @@ def escolher():
     state = manager.advance_state(sid, escolha)
     if not state: return jsonify({'status': 'erro'}), 400
 
+    # Registra a escolha do aluno na cena anterior
+    idx_anterior = state['current_step_idx'] - 1  # advance_state já incrementou
+    quiz_manager.registrar_escolha(sid, idx_anterior, escolha)
+
     ctx = manager.get_current_context(sid)
+
     if not ctx: return jsonify({'status': 'sucesso', 'tem_opcoes': False, 'historia_original': "Fim da jornada!"})
 
     # Monta histórico enriquecido (otimizado para não viciar a IA com textos velhos)
@@ -733,6 +754,17 @@ def escolher():
 
     num_cena = state["current_step_idx"] + 1
     proc = processar_cena(cena_raw, personagens, sid, num_cena, student_name=state["student"]["name"], npc_principal=ctx.get("npc_principal", ""))
+
+    # Salva a nova cena no banco
+    quiz_manager.salvar_cena(
+        session_id=sid,
+        ordem=state['current_step_idx'],
+        step_id=ctx.get('current_step', ''),
+        ato=ctx.get('ato', 2),
+        npc_principal=ctx.get('npc_principal', ''),
+        narrativa=cena_raw.get('historia', ''),
+        opcoes=proc.get('opcoes', [])
+    )
 
     return jsonify({
         'session_id': sid, 'status': 'sucesso', 'node_id': ctx['current_step'],
@@ -989,6 +1021,45 @@ def ver_resultados():
         return jsonify(resultado)
     return jsonify(quiz_manager.get_resultado_geral())
 
+
+@app.route('/dashboard')
+def dashboard():
+    """Serve o dashboard HTML de resultados do quiz."""
+    pasta_apresentacao = os.path.join(RAIZ_PROJETO, "apresentacao")
+    return send_from_directory(pasta_apresentacao, "dashboard.html")
+
+
+@app.route('/historia_sessao', methods=['GET'])
+def historia_sessao():
+    """Retorna detalhes completos de uma sessão de história (cenas + escolhas)."""
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return jsonify(quiz_manager.get_historias_geral())
+    dados = quiz_manager.get_historia_completa(session_id)
+    if not dados:
+        return jsonify({'status': 'erro', 'msg': 'Sessão não encontrada'}), 404
+    return jsonify(dados)
+
+
+@app.route('/exportar_excel', methods=['GET'])
+def exportar_excel():
+    """Gera e faz download de um arquivo Excel com todos os resultados do quiz."""
+    import tempfile
+    nome_arquivo = f"quiz_resultados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    caminho = os.path.join(tempfile.gettempdir(), nome_arquivo)
+    try:
+        quiz_manager.exportar_excel_geral(caminho)
+        return send_file(
+            caminho,
+            as_attachment=True,
+            download_name=nome_arquivo,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except ImportError as e:
+        return jsonify({"status": "erro", "msg": str(e)}), 500
+    except Exception as e:
+        print(f"❌ Erro ao exportar Excel: {e}")
+        return jsonify({"status": "erro", "msg": str(e)}), 500
 
 
 # Fila de sessões que o daemon (story_client.js) precisa processar

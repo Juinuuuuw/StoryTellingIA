@@ -43,6 +43,34 @@ def init_db():
             FOREIGN KEY (session_id) REFERENCES sessoes_quiz(session_id),
             FOREIGN KEY (pergunta_id) REFERENCES perguntas_quiz(id)
         );
+
+        CREATE TABLE IF NOT EXISTS sessoes_historia (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL UNIQUE,
+            nome_aluno TEXT NOT NULL,
+            tema TEXT NOT NULL,
+            skill TEXT NOT NULL,
+            genero TEXT DEFAULT 'Masculino',
+            data_inicio TEXT NOT NULL,
+            data_fim TEXT,
+            total_cenas INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'em_andamento'
+        );
+
+        CREATE TABLE IF NOT EXISTS cenas_historia (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            ordem INTEGER NOT NULL,
+            step_id TEXT NOT NULL,
+            ato INTEGER DEFAULT 1,
+            npc_principal TEXT,
+            narrativa TEXT NOT NULL,
+            opcoes TEXT NOT NULL,
+            escolha_feita TEXT,
+            timestamp_cena TEXT NOT NULL,
+            timestamp_escolha TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessoes_historia(session_id)
+        );
     """)
     con.commit()
     con.close()
@@ -225,3 +253,357 @@ def get_resultado_geral():
         }
     finally:
         con.close()
+
+
+def exportar_excel_geral(caminho_arquivo):
+    """
+    Gera um arquivo .xlsx focado no estudo do quiz pós-sessão, com 4 abas:
+    - 'Resumo Sessoes': uma linha por sessão com desempenho geral
+    - 'Quiz Detalhado': FOCO PRINCIPAL — uma linha por resposta com texto completo das opções,
+      resposta escolhida, se acertou, se desistiu, e o ato da história relacionado
+    - 'Por Aluno': desempenho agregado por aluno (para análise entre sessões)
+    - 'Historia': cenas e escolhas feitas durante a narrativa (contexto)
+    """
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        raise ImportError("openpyxl não instalado. Execute: pip install openpyxl")
+
+    AZUL_HEADER  = "1F3864"
+    VERDE_HEADER = "1E5C3A"
+    ROXO_HEADER  = "3D1A5C"
+    CINZA_HEADER = "3C3C3C"
+    COR_CORRETA  = "C6EFCE"  # verde claro
+    COR_ERRADA   = "FFCCCC"  # vermelho claro
+    COR_DESIST   = "FFEB9C"  # amarelo claro
+
+    def estilizar_header(ws, headers, cor_hex):
+        ws.append(headers)
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = Font(bold=True, color="FFFFFF", size=11)
+            cell.fill = PatternFill(start_color=cor_hex, end_color=cor_hex, fill_type="solid")
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.row_dimensions[1].height = 30
+
+    def auto_width(ws, max_col_width=70):
+        for col in ws.columns:
+            vals = [str(cell.value or "") for cell in col]
+            w = max(len(v) for v in vals) if vals else 10
+            ws.column_dimensions[get_column_letter(col[0].column)].width = max(10, min(w + 2, max_col_width))
+
+    def colorir_linha(ws, row_num, cor_hex):
+        for cell in ws[row_num]:
+            cell.fill = PatternFill(start_color=cor_hex, end_color=cor_hex, fill_type="solid")
+
+    wb = openpyxl.Workbook()
+    LETRAS = ["A", "B", "C", "D"]
+
+    con = sqlite3.connect(DB_PATH)
+    try:
+        # ══════════════════════════════════════════════════════
+        # ABA 1 — RESUMO SESSÕES
+        # ══════════════════════════════════════════════════════
+        ws1 = wb.active
+        ws1.title = "Resumo Sessoes"
+        h1 = ["Sessao ID", "Aluno", "Tema", "Skill", "Data/Hora", "Total Perguntas",
+              "Acertos", "Erros", "Desistencias", "% Acerto", "Situacao"]
+        estilizar_header(ws1, h1, AZUL_HEADER)
+
+        sessoes = con.execute("""
+            SELECT sq.session_id, sq.nome_aluno, sq.tema, sq.skill, sq.data_hora,
+                   sq.total_perguntas, sq.acertos
+            FROM sessoes_quiz sq
+            ORDER BY sq.data_hora DESC
+        """).fetchall()
+
+        for s in sessoes:
+            sid, aluno, tema, skill, dt, total, acertos = s
+            # Conta desistências
+            desist = con.execute("""
+                SELECT COUNT(*) FROM respostas_quiz
+                WHERE session_id = ? AND deu_up = 1
+            """, (sid,)).fetchone()[0]
+            erros = total - acertos - desist
+            pct = round((acertos / total) * 100) if total > 0 else 0
+            situacao = "Excelente" if pct >= 80 else ("Satisfatorio" if pct >= 60 else ("Regular" if pct >= 40 else "Abaixo do esperado"))
+            row_num = ws1.max_row + 1
+            ws1.append([sid, aluno, tema, skill, dt, total, acertos, max(0,erros), desist, pct, situacao])
+            # Cor por desempenho
+            if pct >= 80:
+                colorir_linha(ws1, row_num, COR_CORRETA)
+            elif pct < 40:
+                colorir_linha(ws1, row_num, COR_ERRADA)
+
+        auto_width(ws1)
+
+        # ══════════════════════════════════════════════════════
+        # ABA 2 — QUIZ DETALHADO (FOCO DO ESTUDO)
+        # ══════════════════════════════════════════════════════
+        ws2 = wb.create_sheet("Quiz Detalhado")
+        h2 = [
+            "Aluno", "Tema", "Skill", "Data/Hora Sessao",
+            "N Pergunta", "Ato Referencia", "Texto da Pergunta",
+            "Opcao A", "Opcao B", "Opcao C", "Opcao D (Nao Lembro)",
+            "Resposta Correta (letra)", "Resposta Correta (texto)",
+            "Resposta do Aluno (letra)", "Resposta do Aluno (texto)",
+            "Acertou", "Desistiu", "Hora da Resposta"
+        ]
+        estilizar_header(ws2, h2, VERDE_HEADER)
+
+        rows = con.execute("""
+            SELECT sq.nome_aluno, sq.tema, sq.skill, sq.data_hora,
+                   pq.ordem, pq.ato_referencia, pq.pergunta, pq.opcoes, pq.resposta_correta,
+                   rq.resposta_dada, rq.correta, rq.deu_up, rq.timestamp
+            FROM sessoes_quiz sq
+            JOIN perguntas_quiz pq ON sq.session_id = pq.session_id
+            LEFT JOIN respostas_quiz rq ON pq.id = rq.pergunta_id
+            ORDER BY sq.data_hora DESC, pq.ordem ASC
+        """).fetchall()
+
+        for r in rows:
+            aluno, tema, skill, dt_sessao, ordem, ato, pergunta, opcoes_json, resp_correta_idx, resp_dada_idx, correta, deu_up, ts_resp = r
+            try:
+                opcoes = json.loads(opcoes_json)
+            except:
+                opcoes = []
+
+            opc_a    = opcoes[0] if len(opcoes) > 0 else ""
+            opc_b    = opcoes[1] if len(opcoes) > 1 else ""
+            opc_c    = opcoes[2] if len(opcoes) > 2 else ""
+            opc_d    = opcoes[3] if len(opcoes) > 3 else "Nao me lembro"
+
+            correta_letra = LETRAS[resp_correta_idx] if resp_correta_idx is not None and 0 <= resp_correta_idx < 4 else "-"
+            correta_texto = opcoes[resp_correta_idx] if resp_correta_idx is not None and 0 <= resp_correta_idx < len(opcoes) else "-"
+
+            dada_letra    = LETRAS[resp_dada_idx] if resp_dada_idx is not None and 0 <= resp_dada_idx < 4 else "(nao respondeu)"
+            dada_texto    = opcoes[resp_dada_idx] if resp_dada_idx is not None and 0 <= resp_dada_idx < len(opcoes) else "(nao respondeu)"
+
+            acertou_str  = "Sim" if correta else "Nao"
+            desistiu_str = "Sim" if deu_up else "Nao"
+
+            row_num = ws2.max_row + 1
+            ws2.append([
+                aluno, tema, skill, dt_sessao,
+                ordem + 1, ato, pergunta,
+                opc_a, opc_b, opc_c, opc_d,
+                correta_letra, correta_texto,
+                dada_letra, dada_texto,
+                acertou_str, desistiu_str, ts_resp or ""
+            ])
+
+            # Cor por resultado
+            if deu_up:
+                colorir_linha(ws2, row_num, COR_DESIST)
+            elif correta:
+                colorir_linha(ws2, row_num, COR_CORRETA)
+            elif resp_dada_idx is not None:
+                colorir_linha(ws2, row_num, COR_ERRADA)
+
+        auto_width(ws2)
+
+        # ══════════════════════════════════════════════════════
+        # ABA 3 — RESUMO POR ALUNO (AGREGADO)
+        # ══════════════════════════════════════════════════════
+        ws3 = wb.create_sheet("Por Aluno")
+        h3 = ["Aluno", "Sessoes", "Total Perguntas", "Acertos", "Desistencias",
+              "% Acerto Geral", "Melhor Sessao (%)", "Pior Sessao (%)", "Temas Visitados"]
+        estilizar_header(ws3, h3, ROXO_HEADER)
+
+        alunos_agg = con.execute("""
+            SELECT nome_aluno,
+                   COUNT(DISTINCT session_id) as sessoes,
+                   SUM(total_perguntas) as total_q,
+                   SUM(acertos) as total_a,
+                   MAX(ROUND(CAST(acertos AS FLOAT)/NULLIF(total_perguntas,0)*100)) as melhor,
+                   MIN(ROUND(CAST(acertos AS FLOAT)/NULLIF(total_perguntas,0)*100)) as pior,
+                   GROUP_CONCAT(DISTINCT tema) as temas
+            FROM sessoes_quiz
+            GROUP BY nome_aluno
+            ORDER BY nome_aluno
+        """).fetchall()
+
+        for a in alunos_agg:
+            aluno, sessoes, total_q, total_a, melhor, pior, temas_str = a
+            desist_total = con.execute("""
+                SELECT COUNT(*) FROM respostas_quiz rq
+                JOIN sessoes_quiz sq ON rq.session_id = sq.session_id
+                WHERE sq.nome_aluno = ? AND rq.deu_up = 1
+            """, (aluno,)).fetchone()[0]
+            pct_geral = round((total_a / total_q) * 100) if total_q else 0
+            row_num = ws3.max_row + 1
+            ws3.append([aluno, sessoes, total_q, total_a, desist_total,
+                        pct_geral, melhor or 0, pior or 0, temas_str or ""])
+            if pct_geral >= 80:
+                colorir_linha(ws3, row_num, COR_CORRETA)
+            elif pct_geral < 40:
+                colorir_linha(ws3, row_num, COR_ERRADA)
+
+        auto_width(ws3)
+
+        # ══════════════════════════════════════════════════════
+        # ABA 4 — HISTORIA (CONTEXTO)
+        # ══════════════════════════════════════════════════════
+        ws4 = wb.create_sheet("Historia")
+        h4 = ["Aluno", "Skill", "Tema", "Inicio", "Fim", "Status",
+              "Cena N", "Ato", "Step", "NPC", "Narrativa (resumo)", "Opcoes", "Escolha Feita"]
+        estilizar_header(ws4, h4, CINZA_HEADER)
+
+        cenas = con.execute("""
+            SELECT sh.nome_aluno, sh.skill, sh.tema, sh.data_inicio, sh.data_fim, sh.status,
+                   ch.ordem, ch.ato, ch.step_id, ch.npc_principal,
+                   ch.narrativa, ch.opcoes, ch.escolha_feita
+            FROM sessoes_historia sh
+            JOIN cenas_historia ch ON sh.session_id = ch.session_id
+            ORDER BY sh.data_inicio DESC, ch.ordem ASC
+        """).fetchall()
+
+        for c in cenas:
+            aluno, skill, tema, inicio, fim, status, ordem, ato, step_id, npc, narrativa, opcoes_json, escolha = c
+            try:
+                opcoes_lista = json.loads(opcoes_json)
+                opcoes_str = " | ".join(opcoes_lista)
+            except:
+                opcoes_str = opcoes_json or ""
+            narrativa_resumo = (narrativa or "")[:300] + ("..." if len(narrativa or "") > 300 else "")
+            ws4.append([aluno, skill, tema, inicio, fim, status,
+                        ordem + 1, ato, step_id, npc, narrativa_resumo, opcoes_str, escolha or "(aguardando)"])
+
+        auto_width(ws4, max_col_width=80)
+
+    finally:
+        con.close()
+
+    wb.save(caminho_arquivo)
+    print(f"📊 Excel exportado para: {caminho_arquivo}")
+
+
+def criar_sessao_historia(session_id, nome_aluno, tema, skill, genero='Masculino'):
+    """Registra o início de uma sessão de história."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        con.execute("""
+            INSERT OR IGNORE INTO sessoes_historia
+                (session_id, nome_aluno, tema, skill, genero, data_inicio)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (session_id, nome_aluno, tema, skill, genero, datetime.now().isoformat()))
+        con.commit()
+        print(f"📖 Sessão de história criada: {session_id} | {nome_aluno}")
+    finally:
+        con.close()
+
+
+def salvar_cena(session_id, ordem, step_id, ato, npc_principal, narrativa, opcoes):
+    """
+    Salva uma cena gerada pela IA.
+    Retorna o id do registro criado.
+    """
+    con = sqlite3.connect(DB_PATH)
+    try:
+        cur = con.execute("""
+            INSERT INTO cenas_historia
+                (session_id, ordem, step_id, ato, npc_principal, narrativa, opcoes, timestamp_cena)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            session_id, ordem, step_id, ato, npc_principal,
+            narrativa,
+            json.dumps(opcoes, ensure_ascii=False),
+            datetime.now().isoformat()
+        ))
+        cena_id = cur.lastrowid
+        con.execute("""
+            UPDATE sessoes_historia SET total_cenas = total_cenas + 1 WHERE session_id = ?
+        """, (session_id,))
+        con.commit()
+        print(f"🎬 Cena {ordem} salva (step: {step_id}) | sessão {session_id}")
+        return cena_id
+    finally:
+        con.close()
+
+
+def registrar_escolha(session_id, ordem_cena, escolha_texto):
+    """Registra a escolha que o aluno fez em uma cena específica."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        con.execute("""
+            UPDATE cenas_historia
+            SET escolha_feita = ?, timestamp_escolha = ?
+            WHERE session_id = ? AND ordem = ?
+        """, (escolha_texto, datetime.now().isoformat(), session_id, ordem_cena))
+        con.commit()
+        print(f"✅ Escolha registrada na cena {ordem_cena}: '{escolha_texto}'")
+    finally:
+        con.close()
+
+
+def finalizar_sessao_historia(session_id):
+    """Marca a sessão de história como concluída."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        con.execute("""
+            UPDATE sessoes_historia SET status = 'concluida', data_fim = ? WHERE session_id = ?
+        """, (datetime.now().isoformat(), session_id))
+        con.commit()
+        print(f"🏁 Sessão de história finalizada: {session_id}")
+    finally:
+        con.close()
+
+
+def get_historia_completa(session_id):
+    """Retorna a sessão de história com todas as cenas e escolhas."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        row = con.execute("""
+            SELECT session_id, nome_aluno, tema, skill, genero, data_inicio, data_fim, total_cenas, status
+            FROM sessoes_historia WHERE session_id = ?
+        """, (session_id,)).fetchone()
+        if not row:
+            return None
+
+        cenas_rows = con.execute("""
+            SELECT id, ordem, step_id, ato, npc_principal, narrativa, opcoes, escolha_feita,
+                   timestamp_cena, timestamp_escolha
+            FROM cenas_historia WHERE session_id = ? ORDER BY ordem ASC
+        """, (session_id,)).fetchall()
+
+        cenas = []
+        for c in cenas_rows:
+            try:
+                opcoes = json.loads(c[6])
+            except:
+                opcoes = []
+            cenas.append({
+                'id': c[0], 'ordem': c[1], 'step_id': c[2], 'ato': c[3],
+                'npc_principal': c[4], 'narrativa': c[5],
+                'opcoes': opcoes, 'escolha_feita': c[7],
+                'timestamp_cena': c[8], 'timestamp_escolha': c[9]
+            })
+
+        return {
+            'session_id': row[0], 'nome_aluno': row[1], 'tema': row[2],
+            'skill': row[3], 'genero': row[4], 'data_inicio': row[5],
+            'data_fim': row[6], 'total_cenas': row[7], 'status': row[8],
+            'cenas': cenas
+        }
+    finally:
+        con.close()
+
+
+def get_historias_geral():
+    """Lista todas as sessões de história em resumo."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        rows = con.execute("""
+            SELECT session_id, nome_aluno, tema, skill, genero, data_inicio, data_fim, total_cenas, status
+            FROM sessoes_historia ORDER BY data_inicio DESC
+        """).fetchall()
+        return [{
+            'session_id': r[0], 'nome_aluno': r[1], 'tema': r[2],
+            'skill': r[3], 'genero': r[4], 'data_inicio': r[5],
+            'data_fim': r[6], 'total_cenas': r[7], 'status': r[8]
+        } for r in rows]
+    finally:
+        con.close()
+

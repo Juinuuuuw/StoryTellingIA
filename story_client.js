@@ -69,18 +69,7 @@ async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negati
             alwayson_scripts: {},
             override_settings: { CLIP_stop_at_last_layers: 2 }
         };
-        // ADetailer (YOLOv8) para melhorar os rostos
-        payload.alwayson_scripts["adetailer"] = {
-            args: [
-                {
-                    "ad_model": "face_yolov8n.pt",
-                    "ad_prompt": promptAtual, 
-                    "ad_negative_prompt": negativePrompt || "",
-                    "ad_confidence": 0.3,
-                    "ad_denoising_strength": 0.4
-                }
-            ]
-        };
+
 
         if (base64Referencia) {
             payload.alwayson_scripts["controlnet"] = {

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Sparkles, Settings, User } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, Settings, User, BarChart3 } from 'lucide-react';
 import { PosterPreview } from './components/PosterPreview';
+import { QuizDashboard } from './components/QuizDashboard';
 
 function App() {
   const [campaign, setCampaign] = useState('Combate ao Bullying');
   const [schoolName, setSchoolName] = useState('Escola Caminho do Saber');
+  const [showDashboard, setShowDashboard] = useState(false);
   
   const [studentName, setStudentName] = useState('Maria Clara');
   const [studentInput, setStudentInput] = useState('Eu acho que a gente tem que chamar quem tá sozinho pra brincar com a gente, assim ninguém fica triste no recreio.');
@@ -27,13 +29,29 @@ function App() {
     }, 2000);
   };
 
+  if (showDashboard) {
+    return <QuizDashboard onVoltar={() => setShowDashboard(false)} />;
+  }
+
   return (
     <div className="app-container">
       {/* Left Panel: Configuration & Input */}
       <div className="panel">
         <div className="header">
-          <h1>EduCanvas Framework 🚀</h1>
-          <p>Configure a campanha e simule a interação da criança.</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h1>EduCanvas Framework 🚀</h1>
+              <p>Configure a campanha e simule a interação da criança.</p>
+            </div>
+            <button
+              className="btn"
+              style={{ background: '#EEF2FF', color: '#4F46E5', fontSize: '0.8rem', padding: '0.5rem 0.9rem', flexShrink: 0 }}
+              onClick={() => setShowDashboard(true)}
+            >
+              <BarChart3 size={15} />
+              Dashboard Quiz
+            </button>
+          </div>
         </div>
 
         <div style={{ padding: '1.5rem', background: '#F3F4F6', borderRadius: '8px' }}>
