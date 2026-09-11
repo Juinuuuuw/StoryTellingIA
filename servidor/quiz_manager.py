@@ -984,7 +984,7 @@ def get_historias_geral():
 # PERSISTÊNCIA DO QUESTIONÁRIO LIKERT (ESTUDO PÓS-SESSÃO)
 # ─────────────────────────────────────────────────────────────
 
-def salvar_likert(session_id, secoes, respostas):
+def salvar_likert(session_id, secoes, respostas, pre_id=None):
     """Salva as respostas do questionário Likert pós-sessão."""
     con = sqlite3.connect(DB_PATH)
     try:
@@ -1001,9 +1001,9 @@ def salvar_likert(session_id, secoes, respostas):
                         val = respostas[ref]
                         texto = perg.get('texto', '')
                         con.execute("""
-                            INSERT INTO respostas_likert (session_id, secao_id, secao_nome, pergunta_ref, pergunta_texto, resposta, timestamp)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (session_id, s_id, s_nome, ref, texto, val, now))
+                            INSERT INTO respostas_likert (session_id, secao_id, secao_nome, pergunta_ref, pergunta_texto, resposta, timestamp, pre_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (session_id, s_id, s_nome, ref, texto, val, now, pre_id))
             
             elif secao.get('tipo') == 'grid':
                 for g_idx, grupo in enumerate(secao.get('grupos', [])):
@@ -1014,9 +1014,9 @@ def salvar_likert(session_id, secoes, respostas):
                             val = respostas[ref]
                             texto = f'{subt} - {linha}'
                             con.execute("""
-                                INSERT INTO respostas_likert (session_id, secao_id, secao_nome, pergunta_ref, pergunta_texto, resposta, timestamp)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """, (session_id, s_id, s_nome, ref, texto, val, now))
+                                INSERT INTO respostas_likert (session_id, secao_id, secao_nome, pergunta_ref, pergunta_texto, resposta, timestamp, pre_id)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (session_id, s_id, s_nome, ref, texto, val, now, pre_id))
                             
         con.commit()
         print(f'📊 Questionário Likert salvo para a sessão {session_id}')
@@ -1030,21 +1030,26 @@ def get_likert_geral():
     try:
         rows = con.execute('''
             SELECT sq.session_id, sq.nome_aluno, sq.tema, sq.data_hora,
-                   rl.secao_nome, rl.pergunta_texto, rl.resposta, rl.timestamp
+                   rl.secao_nome, rl.pergunta_texto, rl.resposta, rl.timestamp, rl.pre_id
             FROM respostas_likert rl
-            JOIN sessoes_quiz sq ON sq.session_id = rl.session_id
-            ORDER BY sq.data_hora DESC, rl.timestamp ASC
+            LEFT JOIN sessoes_quiz sq ON sq.session_id = rl.session_id
+            ORDER BY rl.timestamp DESC
         ''').fetchall()
         
         sessoes = {}
         for r in rows:
-            sid, aluno, tema, dt, secao, perg, resp, ts = r
-            if sid not in sessoes:
-                sessoes[sid] = {
-                    'session_id': sid, 'nome_aluno': aluno, 'tema': tema, 'data_hora': dt,
+            sid, aluno, tema, dt, secao, perg, resp, ts, pre_id = r
+            # Como a sessão de história pode não ter entrado em sessoes_quiz (depende do fluxo),
+            # garantimos que apareça algo mesmo sem session_id
+            sid_key = sid if sid else f"pos_{pre_id}_{ts}"
+            
+            if sid_key not in sessoes:
+                sessoes[sid_key] = {
+                    'session_id': sid_key, 'nome_aluno': aluno or 'Participante', 'tema': tema or '-', 'data_hora': dt or ts,
+                    'pre_id': pre_id,
                     'respostas': []
                 }
-            sessoes[sid]['respostas'].append({
+            sessoes[sid_key]['respostas'].append({
                 'secao': secao, 'pergunta': perg, 'resposta': resp, 'timestamp': ts
             })
             

@@ -1452,8 +1452,7 @@
 
             // Após 4 segundos, transiciona para o questionário Likert
             setTimeout(() => {
-                fimScreen.style.display = 'none';
-                iniciarLikert();
+                window.location.href = `/pos_questionario?pre_id=${lastPreId || ''}&session_id=${lastSessionId || ''}`;
             }, 4000);
         }
 

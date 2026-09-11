@@ -249,7 +249,7 @@
 <!-- ===== ABA LIKERT ===== -->
 <div class="section" id="sec-likert">
   <div class="toolbar">
-    <input type="text" id="l-fa" placeholder="&#128269; Filtrar aluno..." oninput="renderLT()"/>
+    <input type="text" id="l-fa" placeholder="&#128269; Filtrar aluno ou ID..." oninput="renderLT()"/>
     <button class="btn btn-ghost" onclick="document.getElementById('l-fa').value='';renderLT()">&#10005; Limpar</button>
     <div class="spacer"></div>
     <span class="last-updated" id="l-cnt"></span>
@@ -258,7 +258,7 @@
     <div class="table-header"><strong id="l-tt">Pesquisa Pós-Sessão (Likert)</strong><span class="last-updated" id="l-lu"></span></div>
     <div style="overflow-x:auto">
       <table><thead><tr>
-        <th>Aluno</th><th>Tema</th><th>Data/Hora</th>
+        <th>ID (Pré)</th><th>Aluno</th><th>Tema</th><th>Data/Hora</th>
       </tr></thead><tbody id="l-tb"></tbody></table>
       <div id="l-emp" class="empty" style="display:none">Nenhuma pesquisa registrada ainda.</div>
     </div>
@@ -463,7 +463,7 @@ function uiL(){
 
 function renderLT(){
   const fa=document.getElementById('l-fa').value.toLowerCase();
-  const res = dL.filter(x => !fa || x.nome_aluno.toLowerCase().includes(fa));
+  const res = dL.filter(x => !fa || x.nome_aluno.toLowerCase().includes(fa) || (x.pre_id && x.pre_id.toLowerCase().includes(fa)));
   document.getElementById('l-tt').textContent='Pesquisas ('+res.length+')';
   document.getElementById('l-cnt').textContent=res.length+' pesquisa(s)';
   document.getElementById('l-emp').style.display=res.length?'none':'block';
@@ -472,13 +472,14 @@ function renderLT(){
   tb.innerHTML = res.map(s => {
     const ex = lExp === s.session_id;
     return `<tr onclick="lTog('${s.session_id}')">
+      <td><strong><span style="color:var(--accent);">${s.pre_id || 'N/A'}</span></strong></td>
       <td><strong>${s.nome_aluno}</strong></td>
       <td><span class="badge badge-blue">${s.tema}</span></td>
       <td style="color:var(--muted);font-size:.82rem">${fmt(s.data_hora)}</td>
-    </tr>${ex ? `<tr class="detail-row"><td colspan="3"><div class="detail-panel" id="ld-${s.session_id}"></div></td></tr>` : ''}`;
+    </tr>${ex ? `<tr class="detail-row"><td colspan="4"><div class="detail-panel" id="ld-${s.session_id}"></div></td></tr>` : ''}`;
   }).join('');
   
-  if (lExp) rLD(lExp);
+  if(lExp) rLD(lExp);
 }
 
 function lTog(sid){

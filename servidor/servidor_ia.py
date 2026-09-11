@@ -1044,17 +1044,21 @@ def historia_sessao():
 
 @app.route('/salvar_likert', methods=['POST'])
 def salvar_likert():
-    dados = request.json
-    session_id = dados.get('session_id')
-    respostas = dados.get('respostas', {})
-    secoes = dados.get('secoes', [])
-    
-    if not session_id:
-        return jsonify({"status": "erro", "msg": "session_id não informado"}), 400
-        
     try:
-        quiz_manager.salvar_likert(session_id, secoes, respostas)
-        return jsonify({"status": "sucesso"})
+        dados = request.json
+        session_id = dados.get('session_id') or 'pos_avulso'
+        secoes = dados.get('secoes', [])
+        respostas = dados.get('respostas', {})
+        pre_id = dados.get('pre_id')
+        
+        quiz_manager.salvar_likert(session_id, secoes, respostas, pre_id)
+        
+        # Se veio um pre_id, atualiza o status dele para pos_respondido
+        if pre_id:
+            quiz_manager.atualizar_status_pre(pre_id, 'pos_respondido', session_id if session_id != 'pos_avulso' else None)
+            quiz_manager.registrar_metrica_tempo(pre_id, 'pos_questionario', 'fim')
+            
+        return jsonify({"status": "sucesso"}), 200
     except Exception as e:
         print("Erro ao salvar Likert:", e)
         return jsonify({"status": "erro", "msg": str(e)}), 500
@@ -1126,10 +1130,13 @@ def daemon_poll():
 # PRÉ-QUESTIONÁRIO — ENDPOINTS
 # ============================================================
 
-@app.route('/pre_questionario')
-def serve_pre_questionario():
-    """Serve a página HTML do pré-questionário."""
-    return send_from_directory(PASTA_APRESENTACAO, "pre_questionario.html")
+@app.route('/pre_questionario', methods=['GET'])
+def pre_questionario_page():
+    return send_from_directory(PASTA_APRESENTACAO, 'pre_questionario.html')
+
+@app.route('/pos_questionario', methods=['GET'])
+def pos_questionario_page():
+    return send_from_directory(PASTA_APRESENTACAO, 'pos_questionario.html')
 
 
 @app.route('/salvar_pre_questionario', methods=['POST'])

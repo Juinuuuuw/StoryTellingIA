@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pós-Questionário - Estudo NAO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --glass-bg: rgba(15, 15, 20, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --text-glow: 0 0 10px rgba(255,255,255,0.3);
+      --accent: #d4af37; /* Cinematic Gold */
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; min-height: 100%; background: #000; font-family: 'Montserrat', sans-serif; color: #fff; }
+    body::before { content: ""; position: fixed; inset: 0; background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.85) 110%); z-index: -1; pointer-events: none; }
+    .container { width: 90%; max-width: 900px; margin: 60px auto; background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 40px 50px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .top-header { text-align: center; margin-bottom: 40px; }
+    .top-header h1 { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--accent); margin-bottom: 8px; }
+    .top-header p { font-size: 0.9rem; letter-spacing: 2px; color: rgba(255,255,255,0.4); text-transform: uppercase; }
+    
+    #step-identificacao { display: block; animation: fadeIn 0.5s ease; }
+    #form-container { display: none; } /* Mostrar após ID */
+
+    .progress-wrap { margin-bottom: 30px; }
+    .progress-label { font-family: 'Montserrat', sans-serif; font-size: 0.8rem; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-bottom: 12px; text-align: center; }
+    .progress-bar-bg { height: 2px; background: rgba(255,255,255,0.1); width: 100%; }
+    .progress-bar-fill { height: 100%; background: var(--accent); transition: width 0.4s ease; box-shadow: 0 0 10px var(--accent); }
+    .section-card { display: none; animation: fadeIn 0.5s ease; }
+    .section-card.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .section-desc { font-size: 0.95rem; color: rgba(255,255,255,0.6); margin-bottom: 40px; line-height: 1.6; text-align: center; }
+    .question-block { margin-bottom: 40px; }
+    .question-label { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #f4f4f4; margin-bottom: 20px; line-height: 1.4; }
+    .req { color: var(--accent); }
+    .text-input { width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 30px; padding: 18px 24px; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 1.2rem; font-weight: 600; text-align: center; outline: none; transition: border-color 0.3s; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px; display: block; margin: 0 auto 24px auto; }
+    .text-input:focus { border-color: var(--accent); }
+    
+    .likert-scale { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .likert-label-text { font-family: 'Montserrat', sans-serif; font-size: 0.8rem; color: rgba(255,255,255,0.5); min-width: 100px; }
+    .likert-label-text.right { text-align: right; }
+    .likert-buttons { display: flex; gap: 10px; flex: 1; justify-content: center; }
+    .likert-btn { width: 52px; height: 52px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); background: transparent; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.25s ease; }
+    .likert-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
+    .likert-btn.selected { background: var(--accent); border-color: var(--accent); color: #000; transform: scale(1.1); }
+
+    .nao-section-title { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 40px 0 20px; text-align: center; }
+    .nao-grid-wrapper { width: 100%; overflow-x: auto; margin-bottom: 20px; }
+    .nao-grid { width: 100%; border-collapse: collapse; font-family: 'Montserrat', sans-serif; }
+    .nao-grid th { color: var(--accent); font-size: 0.9rem; padding: 10px 8px; text-align: center; }
+    .nao-grid td { padding: 12px 8px; text-align: center; color: #f4f4f4; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 0.95rem; }
+    .nao-grid td:first-child { text-align: left; padding-left: 0; }
+    .grid-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); background: transparent; color: #fff; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; }
+    .grid-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .grid-btn.selected { background: var(--accent); border-color: var(--accent); color: #000; }
+
+    .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 50px; }
+    .btn-primary { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 14px 40px; font-size: 0.9rem; font-family: 'Montserrat', sans-serif; letter-spacing: 3px; font-weight: 600; cursor: pointer; border-radius: 30px; transition: all 0.3s ease; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent); }
+    .btn-primary:disabled { opacity: 0.35; cursor: default; }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,0.5); border: none; padding: 14px 20px; font-size: 0.9rem; font-family: 'Montserrat', sans-serif; letter-spacing: 2px; cursor: pointer; transition: color 0.3s; }
+    .btn-ghost:hover { color: #fff; }
+
+    #tela-fim { display: none; flex-direction: column; align-items: center; text-align: center; padding: 60px 40px; max-width: 600px; margin: 80px auto; }
+    .fim-icon { font-size: 5rem; margin-bottom: 20px; }
+    .fim-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; color: var(--accent); margin-bottom: 16px; }
+    .fim-desc { font-family: 'Montserrat', sans-serif; font-size: 1rem; color: rgba(255,255,255,0.65); margin-bottom: 40px; line-height: 1.6; }
+
+    .spinner-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 20px; }
+    .spinner-overlay.active { display: flex; }
+    .spinner { width: 50px; height: 50px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-text { font-family: 'Montserrat', sans-serif; color: rgba(255,255,255,0.7); letter-spacing: 3px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+<!-- ETAPA DE IDENTIFICAÇÃO -->
+<div class="container" id="step-identificacao">
+  <div class="top-header">
+    <h1>Pós-Questionário</h1>
+    <p>Avaliação da Experiência</p>
+  </div>
+  <div style="text-align:center; margin-bottom: 30px;">
+    <div style="font-family:'Montserrat'; font-size:0.8rem; letter-spacing:3px; color:rgba(255,255,255,0.4); text-transform:uppercase; margin-bottom:12px;">Identificação</div>
+    <div style="font-size:1rem; color:#f4f4f4; margin-bottom: 20px;">Por favor, informe seu código de participante para iniciar.</div>
+  </div>
+  <input id="input-preid" class="text-input" type="text" placeholder="Código (ex: Q1)" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase(); document.getElementById('btn-iniciar').disabled = !/^Q\d+$/.test(this.value);" onkeydown="if(event.key==='Enter') validarEIniciar()">
+  <div style="text-align:center;">
+    <button class="btn-primary" id="btn-iniciar" onclick="validarEIniciar()" disabled>COMEÇAR AVALIAÇÃO →</button>
+  </div>
+</div>
+
+<!-- FORMULÁRIO -->
+<div class="container" id="form-container">
+  <div class="top-header">
+    <h1 id="sec-title-h1">Imersão Narrativa</h1>
+    <p>Participante: <strong id="lbl-part-id" style="color:var(--accent);">--</strong></p>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label" id="prog-label">Seção 1 de 8</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:12%"></div></div>
+  </div>
+
+  <!-- SECTIONS -->
+
+  <div class="section-card active" id="sec-1">
+    <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
+
+    <div class="question-block">
+      <div class="question-label">Consegui imaginar facilmente os acontecimentos apresentados na história. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s0_q0"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">Enquanto ouvia a história, deixei de prestar atenção, por alguns momentos, no que estava ao meu redor. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s0_q1"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">Fiquei mentalmente envolvido(a) com a história. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s0_q2"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">A história despertou alguma reação emocional em mim. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s0_q3"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <div></div>
+      <button class="btn-primary" id="btn-sec1" onclick="irPara(2)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card " id="sec-2">
+    <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
+
+    <div class="question-block">
+      <div class="question-label">A experiência prendeu minha atenção. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s1_q0"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">Gostei de acompanhar a experiência. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s1_q1"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">Fiquei curioso(a) para saber o que aconteceria em seguida. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s1_q2"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-ghost" onclick="irPara(1)">&larr; VOLTAR</button>
+      <button class="btn-primary" id="btn-sec2" onclick="irPara(3)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card " id="sec-3">
+    <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
+
+    <div class="question-block">
+      <div class="question-label">Consegui compreender claramente o que o NAO dizia. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s2_q0"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">Os movimentos e gestos do NAO combinaram com a história. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s2_q1"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">A troca de falas com o NAO ocorreu de forma fluida. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s2_q2"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-ghost" onclick="irPara(2)">&larr; VOLTAR</button>
+      <button class="btn-primary" id="btn-sec3" onclick="irPara(4)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card " id="sec-4">
+    <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
+
+    <div class="question-block">
+      <div class="question-label">As imagens ajudaram a compreender e imaginar os acontecimentos da história. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s3_q0"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">As imagens tornaram a experiência mais envolvente. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s3_q1"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-ghost" onclick="irPara(3)">&larr; VOLTAR</button>
+      <button class="btn-primary" id="btn-sec4" onclick="irPara(5)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card " id="sec-5">
+    <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
+
+    <div class="question-block">
+      <div class="question-label">Senti que a história considerou o que aconteceu durante minha interação com o NAO. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s4_q0"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">Tive a impressão de que minhas respostas ou ações influenciaram a experiência. <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Discordo totalmente</span>
+        <div class="likert-buttons" id="btns_s4_q1"></div>
+        <span class="likert-label-text right">Concordo totalmente</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-ghost" onclick="irPara(4)">&larr; VOLTAR</button>
+      <button class="btn-primary" id="btn-sec5" onclick="irPara(6)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card " id="sec-6">
+    <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
+
+    <div class="question-block">
+      <div class="question-label">Na sua percepção, a história estava pronta antes da sessão ou foi gerada ou adaptada durante a interação? <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Certeza que já estava pronta</span>
+        <div class="likert-buttons" id="btns_s5_q0"></div>
+        <span class="likert-label-text right">Certeza que foi gerada/adaptada</span>
+      </div>
+    </div>
+
+    <div class="question-block">
+      <div class="question-label">Na sua percepção, as imagens estavam prontas antes da sessão ou foram geradas durante a interação? <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Certeza que já estavam prontas</span>
+        <div class="likert-buttons" id="btns_s5_q1"></div>
+        <span class="likert-label-text right">Certeza que foram geradas</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-ghost" onclick="irPara(5)">&larr; VOLTAR</button>
+      <button class="btn-primary" id="btn-sec6" onclick="irPara(7)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card " id="sec-7">
+    <div class="section-desc">Agora, considerando toda a experiência que você acabou de realizar com o NAO, indique sua impressão sobre ele.</div>
+
+    <div class="nao-section-title">Antropomorfismo</div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g0"></tbody></table></div>
+
+    <div class="nao-section-title">Animacidade</div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g1"></tbody></table></div>
+
+    <div class="nao-section-title">Simpatia</div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g2"></tbody></table></div>
+
+    <div class="nao-section-title">Inteligência Percebida</div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g3"></tbody></table></div>
+
+    <div class="nao-section-title">Segurança Percebida</div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g4"></tbody></table></div>
+
+    <div class="nav-row">
+      <button class="btn-ghost" onclick="irPara(6)">&larr; VOLTAR</button>
+      <button class="btn-primary" id="btn-sec7" onclick="irPara(8)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card " id="sec-8">
+    <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
+
+    <div class="question-block">
+      <div class="question-label">Considerando suas expectativas antes da sessão, como você avalia a experiência realizada? <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Muito abaixo do que eu esperava</span>
+        <div class="likert-buttons" id="btns_s7_q0"></div>
+        <span class="likert-label-text right">Muito acima do que eu esperava</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-ghost" onclick="irPara(7)">&larr; VOLTAR</button>
+      <button class="btn-primary" id="btn-sec8" onclick="enviarFormulario()" disabled>FINALIZAR &amp; ENVIAR &rarr;</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="tela-fim">
+  <div class="fim-icon">⭐</div>
+  <div class="fim-title">Obrigado pela participação!</div>
+  <div class="fim-desc">Suas respostas foram registradas com sucesso e o estudo foi concluído.</div>
+</div>
+
+<div class="spinner-overlay" id="spinner">
+  <div class="spinner"></div>
+  <div class="spinner-text">PROCESSANDO...</div>
+</div>
+
+<script>
+const API = window.location.origin;
+const respostas = {};
+let secaoAtual = 1;
+const totalSecoes = 8;
+let preId = null;
+
+// Extracted from original script to dynamically populate structures
+const LIKERT_SECOES_DEF = [{'titulo': 'Imersão Narrativa', 'tipo': 'escala', 'perguntas': [{'texto': 'Consegui imaginar facilmente os acontecimentos apresentados na história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Enquanto ouvia a história, deixei de prestar atenção, por alguns momentos, no que estava ao meu redor.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Fiquei mentalmente envolvido(a) com a história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'A história despertou alguma reação emocional em mim.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Engajamento com a Experiência', 'tipo': 'escala', 'perguntas': [{'texto': 'A experiência prendeu minha atenção.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Gostei de acompanhar a experiência.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Fiquei curioso(a) para saber o que aconteceria em seguida.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Interação com o NAO', 'tipo': 'escala', 'perguntas': [{'texto': 'Consegui compreender claramente o que o NAO dizia.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Os movimentos e gestos do NAO combinaram com a história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'A troca de falas com o NAO ocorreu de forma fluida.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Contribuição das Imagens', 'tipo': 'escala', 'perguntas': [{'texto': 'As imagens ajudaram a compreender e imaginar os acontecimentos da história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'As imagens tornaram a experiência mais envolvente.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Personalização e Adaptação Percebida', 'tipo': 'escala', 'perguntas': [{'texto': 'Senti que a história considerou o que aconteceu durante minha interação com o NAO.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Tive a impressão de que minhas respostas ou ações influenciaram a experiência.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Percepção da Geração Dinâmica', 'tipo': 'escala', 'perguntas': [{'texto': 'Na sua percepção, a história estava pronta antes da sessão ou foi gerada ou adaptada durante a interação?', 'labelEsq': 'Certeza que já estava pronta', 'labelDir': 'Certeza que foi gerada/adaptada'}, {'texto': 'Na sua percepção, as imagens estavam prontas antes da sessão ou foram geradas durante a interação?', 'labelEsq': 'Certeza que já estavam prontas', 'labelDir': 'Certeza que foram geradas'}]}, {'titulo': 'Percepção do NAO Após a Interação', 'desc': 'Agora, considerando toda a experiência que você acabou de realizar com o NAO, indique sua impressão sobre ele.', 'tipo': 'grid', 'grupos': [{'subtitulo': 'Antropomorfismo', 'linhas': ['Falso / Natural', 'Com aspecto mecânico / Com aspecto humano', 'Inconsciente / Consciente', 'Artificial / Realista', 'Move-se com rigidez / Move-se com fluidez']}, {'subtitulo': 'Animacidade', 'linhas': ['Morto / Com vida', 'Parado / Enérgico', 'Artificial / Realista', 'Estático / Interativo', 'Apático / Participativo']}, {'subtitulo': 'Simpatia', 'linhas': ['Não gosto / Gosto', 'Hostil / Amigável', 'Antipático / Gentil', 'Desagradável / Agradável', 'Horrível / Simpático']}, {'subtitulo': 'Inteligência Percebida', 'linhas': ['Incompetente / Competente', 'Ignorante / Sabedor', 'Irresponsável / Responsável', 'Pouco inteligente / Inteligente', 'Insensato / Sensato']}, {'subtitulo': 'Segurança Percebida', 'linhas': ['Ansioso / Descontraído', 'Calmo / Agitado', 'Sereno / Surpreendido']}]}, {'titulo': 'Expectativa e Experiência', 'tipo': 'escala', 'perguntas': [{'texto': 'Considerando suas expectativas antes da sessão, como você avalia a experiência realizada?', 'labelEsq': 'Muito abaixo do que eu esperava', 'labelDir': 'Muito acima do que eu esperava'}]}];
+
+async function validarEIniciar() {
+    const val = document.getElementById('input-preid').value.trim().toUpperCase();
+    if (!/^Q\d+$/.test(val)) return;
+    
+    document.getElementById('spinner').classList.add('active');
+    try {
+        const resp = await fetch(`${API}/pre_questionario_dados?pre_id=${val}`);
+        document.getElementById('spinner').classList.remove('active');
+        if (resp.ok) {
+            preId = val;
+            document.getElementById('step-identificacao').style.display = 'none';
+            document.getElementById('form-container').style.display = 'block';
+            document.getElementById('lbl-part-id').innerText = preId;
+            atualizarUI();
+            inicializarPerguntas();
+        } else {
+            alert('Código não encontrado. Tente novamente.');
+        }
+    } catch(e) {
+        document.getElementById('spinner').classList.remove('active');
+        alert('Erro ao validar.');
+    }
+}
+
+function inicializarPerguntas() {
+    LIKERT_SECOES_DEF.forEach((sec, sIdx) => {
+        if (sec.tipo === 'escala') {
+            sec.perguntas.forEach((p, pIdx) => {
+                const chave = `s${sIdx}_q${pIdx}`;
+                inicializarLikert(`btns_${chave}`, chave);
+            });
+        } else if (sec.tipo === 'grid') {
+            sec.grupos.forEach((g, gIdx) => {
+                const tbody = document.getElementById(`grid_${sIdx}_g${gIdx}`);
+                if(tbody) {
+                    g.linhas.forEach((linha, lIdx) => {
+                        const chave = `s${sIdx}_g${gIdx}_l${lIdx}`;
+                        const tr = document.createElement('tr');
+                        let tds = `<td>${linha}</td>`;
+                        for (let v=1; v<=5; v++) {
+                            tds += `<td><button class="grid-btn" id="grid_${chave}_${v}" data-chave="${chave}" data-val="${v}">${v}</button></td>`;
+                        }
+                        tr.innerHTML = tds;
+                        tbody.appendChild(tr);
+                    });
+                }
+            });
+        }
+    });
+    
+    document.querySelectorAll('.grid-btn').forEach(btn => {
+        btn.addEventListener('click', () => selecionarGrid(btn.dataset.chave, parseInt(btn.dataset.val)));
+    });
+}
+
+function inicializarLikert(cid, chave) {
+  const c = document.getElementById(cid);
+  if (!c) return;
+  let html = '';
+  for (let v = 1; v <= 5; v++) {
+    html += `<button class="likert-btn" data-chave="${chave}" data-val="${v}">${v}</button>`;
+  }
+  c.innerHTML = html;
+  c.querySelectorAll('.likert-btn').forEach(btn => {
+    btn.addEventListener('click', () => selecionarLikert(btn.dataset.chave, parseInt(btn.dataset.val), btn));
+  });
+}
+
+function selecionarLikert(chave, valor, btn) {
+  respostas[chave] = valor;
+  btn.closest('.likert-buttons').querySelectorAll('.likert-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  validarSecaoAtual();
+}
+
+function selecionarGrid(chave, valor) {
+  respostas[chave] = valor;
+  for (let v = 1; v <= 5; v++) {
+    const b = document.getElementById(`grid_${chave}_${v}`);
+    if (b) b.classList.toggle('selected', v === valor);
+  }
+  validarSecaoAtual();
+}
+
+function validarSecaoAtual() {
+  const secIdx = secaoAtual - 1;
+  const sec = LIKERT_SECOES_DEF[secIdx];
+  let ok = true;
+  if (sec.tipo === 'escala') {
+      sec.perguntas.forEach((_, pIdx) => {
+          if (respostas[`s${secIdx}_q${pIdx}`] === undefined) ok = false;
+      });
+  } else if (sec.tipo === 'grid') {
+      sec.grupos.forEach((g, gIdx) => {
+          g.linhas.forEach((_, lIdx) => {
+              if (respostas[`s${secIdx}_g${gIdx}_l${lIdx}`] === undefined) ok = false;
+          });
+      });
+  }
+  const btn = document.getElementById(`btn-sec${secaoAtual}`);
+  if (btn) btn.disabled = !ok;
+}
+
+function atualizarUI() {
+  const pct = Math.round((secaoAtual / totalSecoes) * 100);
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = 'Seção ' + secaoAtual + ' de ' + totalSecoes;
+  document.getElementById('sec-title-h1').textContent = LIKERT_SECOES_DEF[secaoAtual-1].titulo;
+  validarSecaoAtual();
+}
+
+function irPara(n) {
+  document.getElementById('sec-' + secaoAtual).classList.remove('active');
+  secaoAtual = n;
+  document.getElementById('sec-' + n).classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  atualizarUI();
+}
+
+async function enviarFormulario() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionId = urlParams.get('session_id') || 'pos_avulso';
+  
+  const payload = {
+    session_id: sessionId,
+    pre_id: preId,
+    secoes: LIKERT_SECOES_DEF,
+    respostas: respostas
+  };
+  
+  document.getElementById('spinner').classList.add('active');
+  try {
+    const resp = await fetch(API + '/salvar_likert', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const dados = await resp.json();
+    document.getElementById('spinner').classList.remove('active');
+    if (dados.status === 'sucesso') {
+      document.getElementById('form-container').style.display = 'none';
+      document.getElementById('tela-fim').style.display = 'flex';
+    } else {
+      alert('Erro ao enviar: ' + (dados.msg || 'Tente novamente.'));
+    }
+  } catch(e) {
+    document.getElementById('spinner').classList.remove('active');
+    alert('Erro de conexão.');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pIdUrl = urlParams.get('pre_id');
+    if (pIdUrl) {
+        document.getElementById('input-preid').value = pIdUrl;
+        validarEIniciar();
+    }
+});
+</script>
+</body>
+</html>
