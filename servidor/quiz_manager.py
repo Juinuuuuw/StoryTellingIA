@@ -1060,6 +1060,39 @@ def get_likert_geral():
 
 def exportar_excel_analista(filepath):
     """Gera um arquivo Excel unificado (uma linha por participante) para análise de dados."""
+    try:
+        import openpyxl
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        raise ImportError("openpyxl não instalado. Execute: pip install openpyxl")
+
+    def estilizar_header(ws, headers, cor_hex):
+        ws.append(headers)
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = Font(bold=True, color="FFFFFF", size=11)
+            cell.fill = PatternFill(start_color=cor_hex, end_color=cor_hex, fill_type="solid")
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.row_dimensions[1].height = 30
+
+    def auto_width(ws, max_col_width=70):
+        for col in ws.columns:
+            max_length = 0
+            column_letter = get_column_letter(col[0].column)
+            for cell in col:
+                try:
+                    if cell.value:
+                        lines = str(cell.value).split('\n')
+                        for line in lines:
+                            if len(line) > max_length:
+                                max_length = len(line)
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, max_col_width)
+            ws.column_dimensions[column_letter].width = adjusted_width
+
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
     try:
