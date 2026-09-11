@@ -927,8 +927,7 @@ def finalizar_sessao():
         tema = state["student"].get("theme", "")
         skill = state["student"].get("focus_skill", "")
 
-        print(f"
-🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] — Aluno: {student_name}")
+        print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] — Aluno: {student_name}")
 
         prompt_quiz = montar_prompt_quiz(student_name, historico)
         quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
@@ -950,55 +949,13 @@ def finalizar_sessao():
 
         # Persiste no banco SQLite
         quiz_manager.criar_sessao_quiz(sid, student_name, tema, skill)
-        ids = quiz_manager.salvar_perguntas(sid, perguntas)
+        quiz_manager.salvar_perguntas(sid, perguntas)
         
         print(f"✅ Quiz gerado e salvo em background para a sessão {sid}")
 
     threading.Thread(target=gerar_silencioso).start()
 
-    return jsonify({"status": "ok", "msg": "História encerrada. Quiz gerado no backend."}), 404
-
-    # Sinaliza ao frontend que a história terminou, sem iniciar o quiz na tela
-    SESSAO_ATIVA["status"] = "historia_fim"
-    SESSAO_ATIVA["session_id"] = sid
-    SESSAO_ATIVA["quiz_perguntas"] = []
-    SESSAO_ATIVA["quiz_ids"] = []
-    SESSAO_ATIVA["quiz_idx_atual"] = 0
-
-    def gerar_silencioso():
-        historico = state.get("history", [])
-        student_name = state["student"]["name"]
-        tema = state["student"].get("theme", "")
-        skill = state["student"].get("focus_skill", "")
-
-        print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] — Aluno: {student_name}")
-
-        prompt_quiz = montar_prompt_quiz(student_name, historico)
-        quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
-        perguntas = quiz_raw.get("perguntas", [])
-
-        if not perguntas:
-            print("⚠️ Falha ao gerar perguntas do quiz.")
-            return
-
-            # Garante exatamente 3 distractors + "Não me lembro." no final
-            while len(opcoes_sem_nao) < 3:
-                opcoes_sem_nao.append("Não disponível")
-            p["opcoes"] = opcoes_sem_nao[:3] + ["Não me lembro."]
-
-        # Persiste no banco SQLite
-        quiz_manager.criar_sessao_quiz(sid, student_name, tema, skill)
-        ids = quiz_manager.salvar_perguntas(sid, perguntas)
-
-        SESSAO_ATIVA["quiz_perguntas"] = perguntas
-        SESSAO_ATIVA["quiz_ids"] = ids
-        SESSAO_ATIVA["quiz_idx_atual"] = 0
-
-        publicar_proxima_pergunta_quiz()
-
-    threading.Thread(target=gerar_e_publicar, daemon=True).start()
-    return jsonify({"status": "ok", "msg": "Quiz sendo gerado..."})
-
+    return jsonify({"status": "ok", "msg": "História encerrada. Quiz gerado no backend."})
 
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
