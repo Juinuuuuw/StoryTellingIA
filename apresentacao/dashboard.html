@@ -101,7 +101,8 @@
 
 <div class="tabs">
   <button class="tab active" onclick="trocarAba(this,'quiz')">&#127919; Quiz</button>
-  <button class="tab" onclick="trocarAba(this,'historia')">&#128214; Hist&oacute;rias</button>
+  <button class="tab" onclick="trocarAba(this,'historia')">&#128214; Histórias</button>
+  <button class="tab" onclick="trocarAba(this,'likert')">&#128221; Pesquisa</button>
   <button class="tab" onclick="trocarAba(this,'live')">&#128308; Ao Vivo</button>
 </div>
 
@@ -174,6 +175,26 @@
         <th onclick="hSort('status')" style="text-align:center">Status</th>
       </tr></thead><tbody id="h-tb"></tbody></table>
       <div id="h-emp" class="empty" style="display:none">Nenhuma hist&oacute;ria registrada ainda. Inicie uma sess&atilde;o para ver os dados aqui.</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== ABA LIKERT ===== -->
+<div class="section" id="sec-likert">
+  <div class="toolbar">
+    <input type="text" id="l-fa" placeholder="&#128269; Filtrar aluno..." oninput="renderLT()"/>
+    <button class="btn btn-ghost" onclick="document.getElementById('l-fa').value='';renderLT()">&#10005; Limpar</button>
+    <div class="spacer"></div>
+    <span class="last-updated" id="l-cnt"></span>
+  </div>
+  <div class="table-card">
+    <div class="table-header"><strong id="l-tt">Pesquisa Pós-Sessão (Likert)</strong><span class="last-updated" id="l-lu"></span></div>
+    <div style="overflow-x:auto">
+      <table><thead><tr>
+        <th>Aluno</th><th>Tema</th><th>Data/Hora</th>
+      </tr></thead><tbody id="l-tb"></tbody></table>
+      <div id="l-emp" class="empty" style="display:none">Nenhuma pesquisa registrada ainda.</div>
     </div>
   </div>
 </div>
@@ -287,6 +308,79 @@ function rQD(sid){
 }
 function limparQ(){['q-fa','q-ft','q-fd','q-fa2'].forEach(id=>{const e=document.getElementById(id);e.tagName==='SELECT'?e.value='':e.value=''});renderQT()}
 
+
+let dL=[];
+let lExp=null;
+let cL={};
+
+async function fL_pesquisa(){
+  try{
+    const r=await fetch(API+'/likert_resultados');
+    if(!r.ok)return;
+    dL=await r.json();
+    uiL();
+  }catch(e){}
+}
+
+function uiL(){
+  const t=new Date().toLocaleTimeString('pt-BR');
+  document.getElementById('l-lu').textContent=t;
+  renderLT();
+}
+
+function renderLT(){
+  const fa=document.getElementById('l-fa').value.toLowerCase();
+  const res = dL.filter(x => !fa || x.nome_aluno.toLowerCase().includes(fa));
+  document.getElementById('l-tt').textContent='Pesquisas ('+res.length+')';
+  document.getElementById('l-cnt').textContent=res.length+' pesquisa(s)';
+  document.getElementById('l-emp').style.display=res.length?'none':'block';
+  
+  const tb = document.getElementById('l-tb');
+  tb.innerHTML = res.map(s => {
+    const ex = lExp === s.session_id;
+    return `<tr onclick="lTog('${s.session_id}')">
+      <td><strong>${s.nome_aluno}</strong></td>
+      <td><span class="badge badge-blue">${s.tema}</span></td>
+      <td style="color:var(--muted);font-size:.82rem">${fmt(s.data_hora)}</td>
+    </tr>${ex ? `<tr class="detail-row"><td colspan="3"><div class="detail-panel" id="ld-${s.session_id}"></div></td></tr>` : ''}`;
+  }).join('');
+  
+  if (lExp) rLD(lExp);
+}
+
+function lTog(sid){
+  lExp = lExp === sid ? null : sid;
+  renderLT();
+}
+
+function rLD(sid){
+  const el=document.getElementById('ld-'+sid);
+  if(!el)return;
+  const d = dL.find(x => x.session_id === sid);
+  if(!d)return;
+  
+  let html = `<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap"><strong>${d.nome_aluno}</strong><span style="color:var(--muted);font-size:.8rem">${fmt(d.data_hora)}</span></div>`;
+  
+  const agrupado = {};
+  d.respostas.forEach(r => {
+    if(!agrupado[r.secao]) agrupado[r.secao] = [];
+    agrupado[r.secao].push(r);
+  });
+  
+  Object.keys(agrupado).forEach(sec => {
+    html += `<div style="margin-top:1rem;background:white;padding:1rem;border-radius:8px;border:1px solid #E2E8F0;">
+      <h4 style="margin-bottom:10px;color:var(--primary);font-size:.9rem">${sec}</h4>
+      <table style="width:100%;font-size:.8rem;"><tbody>`;
+    agrupado[sec].forEach(p => {
+      let cor = p.resposta >= 4 ? '#10B981' : (p.resposta <= 2 ? '#EF4444' : '#F59E0B');
+      html += `<tr><td style="padding:4px 0">${p.pergunta}</td><td style="width:40px;text-align:right"><strong style="color:${cor}">${p.resposta}</strong></td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+  });
+  
+  el.innerHTML = html;
+}
+
 // HISTORIA
 function uiH(){
   const t=new Date().toLocaleTimeString('pt-BR');
@@ -358,7 +452,7 @@ function renderLive(d){
 async function exportarExcel(){try{const r=await fetch(API+'/exportar_excel');if(!r.ok){const e=await r.json();alert('Erro: '+e.msg);return}const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='storytelling_'+new Date().toISOString().slice(0,10)+'.xlsx';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url)}catch(e){alert('Erro: '+e.message)}}
 
 async function poll(){
-  await Promise.all([fQ(),fH(),fL()]);
+  await Promise.all([fQ(),fH(),fL(),fL_pesquisa()]);
   if(qExp){delete cQ[qExp];const el=document.getElementById('qd-'+qExp);if(el)await fQD(qExp)}
   if(hExp){delete cH[hExp];const el=document.getElementById('hd-'+hExp);if(el)await fHD(hExp)}
 }

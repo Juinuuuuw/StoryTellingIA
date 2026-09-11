@@ -71,6 +71,17 @@ def init_db():
             timestamp_escolha TEXT,
             FOREIGN KEY (session_id) REFERENCES sessoes_historia(session_id)
         );
+
+        CREATE TABLE IF NOT EXISTS respostas_likert (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            secao_id INTEGER NOT NULL,
+            secao_nome TEXT NOT NULL,
+            pergunta_ref TEXT NOT NULL,
+            pergunta_texto TEXT NOT NULL,
+            resposta INTEGER NOT NULL,
+            timestamp TEXT NOT NULL
+        );
     """)
     con.commit()
     con.close()
@@ -472,8 +483,28 @@ def exportar_excel_geral(caminho_arquivo):
                         ordem + 1, ato, step_id, npc, narrativa_resumo, opcoes_str, escolha or "(aguardando)"])
 
         auto_width(ws4, max_col_width=80)
+        # ══════════════════════════════════════════════════════
+        # ABA 5 — QUESTIONÁRIO LIKERT (ESTUDO PÓS-SESSÃO)
+        # ══════════════════════════════════════════════════════
+        ws5 = wb.create_sheet("Likert Pos")
+        h5 = ["Sessao", "Aluno", "Tema", "Skill", "Secao", "Nome da Secao", "Ref", "Pergunta/Enunciado", "Resposta (1-5)", "Hora da Resposta"]
+        estilizar_header(ws5, h5, "8B0000")
+
+        likert_rows = con.execute('''
+            SELECT sq.session_id, sq.nome_aluno, sq.tema, sq.skill,
+                   rl.secao_id, rl.secao_nome, rl.pergunta_ref, rl.pergunta_texto, rl.resposta, rl.timestamp
+            FROM respostas_likert rl
+            JOIN sessoes_quiz sq ON sq.session_id = rl.session_id
+            ORDER BY sq.data_hora DESC, rl.secao_id ASC, rl.id ASC
+        ''').fetchall()
+
+        for r in likert_rows:
+            ws5.append([r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9]])
+            
+        auto_width(ws5, max_col_width=100)
 
     finally:
+
         con.close()
 
     wb.save(caminho_arquivo)
@@ -607,3 +638,76 @@ def get_historias_geral():
     finally:
         con.close()
 
+
+
+# ─────────────────────────────────────────────────────────────
+# PERSISTÊNCIA DO QUESTIONÁRIO LIKERT (ESTUDO PÓS-SESSÃO)
+# ─────────────────────────────────────────────────────────────
+
+def salvar_likert(session_id, secoes, respostas):
+    """Salva as respostas do questionário Likert pós-sessão."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        now = datetime.now().isoformat()
+        
+        for s_idx, secao in enumerate(secoes):
+            s_id = s_idx + 1
+            s_nome = secao.get('titulo', f'Secao {s_id}')
+            
+            if secao.get('tipo') == 'escala':
+                for q_idx, perg in enumerate(secao.get('perguntas', [])):
+                    ref = f's{s_idx}_q{q_idx}'
+                    if ref in respostas:
+                        val = respostas[ref]
+                        texto = perg.get('texto', '')
+                        con.execute("""
+                            INSERT INTO respostas_likert (session_id, secao_id, secao_nome, pergunta_ref, pergunta_texto, resposta, timestamp)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (session_id, s_id, s_nome, ref, texto, val, now))
+            
+            elif secao.get('tipo') == 'grid':
+                for g_idx, grupo in enumerate(secao.get('grupos', [])):
+                    subt = grupo.get('subtitulo', '')
+                    for l_idx, linha in enumerate(grupo.get('linhas', [])):
+                        ref = f's{s_idx}_g{g_idx}_l{l_idx}'
+                        if ref in respostas:
+                            val = respostas[ref]
+                            texto = f'{subt} - {linha}'
+                            con.execute("""
+                                INSERT INTO respostas_likert (session_id, secao_id, secao_nome, pergunta_ref, pergunta_texto, resposta, timestamp)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """, (session_id, s_id, s_nome, ref, texto, val, now))
+                            
+        con.commit()
+        print(f'📊 Questionário Likert salvo para a sessão {session_id}')
+    finally:
+        con.close()
+
+
+def get_likert_geral():
+    """Retorna todos os dados do Likert para o Dashboard."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        rows = con.execute('''
+            SELECT sq.session_id, sq.nome_aluno, sq.tema, sq.data_hora,
+                   rl.secao_nome, rl.pergunta_texto, rl.resposta, rl.timestamp
+            FROM respostas_likert rl
+            JOIN sessoes_quiz sq ON sq.session_id = rl.session_id
+            ORDER BY sq.data_hora DESC, rl.timestamp ASC
+        ''').fetchall()
+        
+        sessoes = {}
+        for r in rows:
+            sid, aluno, tema, dt, secao, perg, resp, ts = r
+            if sid not in sessoes:
+                sessoes[sid] = {
+                    'session_id': sid, 'nome_aluno': aluno, 'tema': tema, 'data_hora': dt,
+                    'respostas': []
+                }
+            sessoes[sid]['respostas'].append({
+                'secao': secao, 'pergunta': perg, 'resposta': resp, 'timestamp': ts
+            })
+            
+        return list(sessoes.values())
+    finally:
+        con.close()

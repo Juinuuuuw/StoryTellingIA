@@ -1041,6 +1041,34 @@ def historia_sessao():
     return jsonify(dados)
 
 
+
+@app.route('/salvar_likert', methods=['POST'])
+def salvar_likert():
+    dados = request.json
+    session_id = dados.get('session_id')
+    respostas = dados.get('respostas', {})
+    secoes = dados.get('secoes', [])
+    
+    if not session_id:
+        return jsonify({"status": "erro", "msg": "session_id não informado"}), 400
+        
+    try:
+        quiz_manager.salvar_likert(session_id, secoes, respostas)
+        return jsonify({"status": "sucesso"})
+    except Exception as e:
+        print("Erro ao salvar Likert:", e)
+        return jsonify({"status": "erro", "msg": str(e)}), 500
+
+
+
+@app.route('/likert_resultados', methods=['GET'])
+def likert_resultados():
+    try:
+        dados = quiz_manager.get_likert_geral()
+        return jsonify(dados)
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
 @app.route('/exportar_excel', methods=['GET'])
 def exportar_excel():
     """Gera e faz download de um arquivo Excel com todos os resultados do quiz."""
