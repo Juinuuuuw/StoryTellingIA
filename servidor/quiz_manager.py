@@ -1192,11 +1192,14 @@ def exportar_excel_analista(filepath):
                     row_data['Skill'] = s_hist['skill']
                     row_data['Total Cenas'] = s_hist['total_cenas']
                 
-                s_quiz = con.execute("SELECT total_perguntas, acertos, percentual FROM sessoes_quiz WHERE session_id = ?", (session_id,)).fetchone()
+                s_quiz = con.execute("SELECT total_perguntas, acertos FROM sessoes_quiz WHERE session_id = ?", (session_id,)).fetchone()
                 if s_quiz:
                     row_data['Perguntas Respondidas'] = s_quiz['total_perguntas']
                     row_data['Acertos'] = s_quiz['acertos']
-                    row_data['% Aproveitamento'] = s_quiz['percentual']
+                    if s_quiz['total_perguntas'] > 0:
+                        row_data['% Aproveitamento'] = round((s_quiz['acertos'] / s_quiz['total_perguntas']) * 100, 2)
+                    else:
+                        row_data['% Aproveitamento'] = 0
             
             # Métricas de tempo adicionais
             tempos = con.execute("SELECT fase, duracao_seg FROM metricas_tempo WHERE pre_id = ?", (pre_id,)).fetchall()
