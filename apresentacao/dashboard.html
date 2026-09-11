@@ -83,6 +83,21 @@
     .empty{padding:3rem;text-align:center;color:var(--muted)}
     .last-updated{font-size:.75rem;color:var(--muted)}
     #loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:1rem}
+  .part-status{display:inline-block;padding:.25rem .7rem;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.04em}
+  .ps-aguardando{background:#FFF7ED;color:#D97706}
+  .ps-em_historia{background:#EEF2FF;color:#4F46E5}
+  .ps-historia_concluida{background:#ECFDF5;color:#059669}
+  .ps-pos_respondido{background:#F0FDF4;color:#16A34A;border:1px solid #86EFAC}
+  .ps-desistiu{background:#FEF2F2;color:#DC2626}
+  .ps-sem_estudo{background:#F9FAFB;color:#9CA3AF}
+  .fila-card{background:white;border-radius:12px;border:2px dashed #E2E8F0;padding:1rem 1.5rem;display:flex;align-items:center;gap:1rem;transition:all .2s}
+  .fila-card.aguardando{border-color:var(--amber);background:#FFFBEB}
+  .fila-card.em_historia{border-color:var(--primary);background:#EEF2FF}
+  .fila-card.pos_respondido{border-color:var(--green);background:#ECFDF5}
+  .fila-id{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .fila-label{font-size:.78rem;color:var(--muted);margin-top:2px}
+  .fila-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;margin-bottom:1.5rem}
+  .funil-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.75rem;margin-bottom:1.5rem}
     .spinner{width:44px;height:44px;border:4px solid #E5E7EB;border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
@@ -104,6 +119,7 @@
   <button class="tab" onclick="trocarAba(this,'historia')">&#128214; Histórias</button>
   <button class="tab" onclick="trocarAba(this,'likert')">&#128221; Pesquisa</button>
   <button class="tab" onclick="trocarAba(this,'live')">&#128308; Ao Vivo</button>
+  <button class="tab" onclick="trocarAba(this,'participantes')">&#128101; Participantes</button>
 </div>
 
 <div class="page">
@@ -207,6 +223,7 @@
       <span class="live-status-badge" id="lv-badge" style="background:#F3F4F6;color:#64748B">Aguardando...</span>
     </div>
     <div class="live-grid">
+      <div class="live-item"><div class="li-label">ID Participante</div><div class="li-val" id="lv-preid" style="color:var(--amber)">&#8212;</div></div>
       <div class="live-item"><div class="li-label">Aluno</div><div class="li-val" id="lv-al">&#8212;</div></div>
       <div class="live-item"><div class="li-label">Tema</div><div class="li-val" id="lv-te">&#8212;</div></div>
       <div class="live-item"><div class="li-label">Skill</div><div class="li-val" id="lv-sk">&#8212;</div></div>
@@ -218,6 +235,69 @@
   <div class="card" style="margin-top:1rem">
     <div class="card-title">&#128196; &Uacute;ltima cena / pergunta exibida</div>
     <div id="lv-cena" style="color:var(--muted);font-size:.875rem">Aguardando sess&atilde;o...</div>
+  </div>
+</div>
+
+
+<!-- ===== ABA PARTICIPANTES ===== -->
+<div class="section" id="sec-participantes">
+  <div class="toolbar">
+    <input type="text" id="p-fa" placeholder="&#128269; Filtrar por ID..." oninput="renderPT()"/>
+    <select id="p-fs" onchange="renderPT()">
+      <option value="">Todos os status</option>
+      <option value="aguardando_historia">Aguardando sess&#227;o</option>
+      <option value="em_historia">Em sess&#227;o</option>
+      <option value="historia_concluida">Hist&#243;ria conclu&#237;da</option>
+      <option value="pos_respondido">P&#243;s respondido</option>
+      <option value="desistiu">Desistiu</option>
+      <option value="sem_estudo">Sem estudo</option>
+    </select>
+    <button class="btn btn-ghost" onclick="limparP()">&#10005; Limpar</button>
+    <div class="spacer"></div>
+    <span class="last-updated" id="p-cnt"></span>
+  </div>
+
+  <!-- Funil de participação -->
+  <div class="funil-grid">
+    <div class="stat-card">
+      <div class="label">Responderam Pr&#233;</div>
+      <div class="value" id="p-total-pre">&#8212;</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Fizeram Hist&#243;ria</div>
+      <div class="value" style="color:var(--primary)" id="p-total-hist">&#8212;</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Responderam P&#243;s</div>
+      <div class="value" style="color:var(--green)" id="p-total-pos">&#8212;</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Desistiram</div>
+      <div class="value" style="color:var(--red)" id="p-total-des">&#8212;</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Aguardando</div>
+      <div class="value" style="color:var(--amber)" id="p-aguardando">&#8212;</div>
+    </div>
+  </div>
+
+  <!-- Fila de espera (aguardando_historia) -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">&#128338; Fila de espera &mdash; Prontos para iniciar a sess&#227;o</div>
+    <div id="fila-cards" class="fila-grid">
+      <div style="color:var(--muted);font-size:.875rem">Nenhum participante aguardando.</div>
+    </div>
+  </div>
+
+  <!-- Tabela completa -->
+  <div class="table-card">
+    <div class="table-header"><strong id="p-tt">Participantes</strong><span class="last-updated" id="p-lu"></span></div>
+    <div style="overflow-x:auto">
+      <table><thead><tr>
+        <th>ID</th><th>Data/Hora</th><th>Status</th><th>Session ID</th>
+      </tr></thead><tbody id="p-tb"></tbody></table>
+      <div id="p-emp" class="empty" style="display:none">Nenhum participante encontrado.</div>
+    </div>
   </div>
 </div>
 
@@ -434,6 +514,10 @@ function renderLive(d){
   const bg=document.getElementById('lv-badge');bg.textContent=m.l;bg.style.background=m.b;bg.style.color=m.c;
   document.getElementById('lv-st').textContent=m.l;
   const sid=d.session_id;
+  // Show pre_id if available
+  const preEntry=(dP||[]).find(p=>p.session_id===sid);
+  if(preEntry){document.getElementById('lv-preid').textContent=preEntry.pre_id;}
+  else{document.getElementById('lv-preid').textContent='—';}
   if(sid){
     const qs=(dQ?.sessoes||[]).find(x=>x.session_id===sid);
     if(qs){document.getElementById('lv-al').textContent=qs.nome_aluno;document.getElementById('lv-te').textContent=qs.tema;document.getElementById('lv-sk').textContent=qs.skill;document.getElementById('lv-ac').textContent=qs.acertos+'/'+qs.total_perguntas}
@@ -451,8 +535,83 @@ function renderLive(d){
 
 async function exportarExcel(){try{const r=await fetch(API+'/exportar_excel');if(!r.ok){const e=await r.json();alert('Erro: '+e.msg);return}const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='storytelling_'+new Date().toISOString().slice(0,10)+'.xlsx';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url)}catch(e){alert('Erro: '+e.message)}}
 
+let dP=[], dPStats={};
+let pSK='data_hora', pSA=false;
+
+async function fP(){
+  try{
+    const [r1,r2]=await Promise.all([fetch(API+'/fila_participantes'),fetch(API+'/estatisticas_participacao')]);
+    if(r1.ok)dP=await r1.json();
+    if(r2.ok)dPStats=await r2.json();
+    uiP();
+  }catch(e){}
+}
+
+function uiP(){
+  const t=new Date().toLocaleTimeString('pt-BR');
+  document.getElementById('p-lu').textContent=t;
+  document.getElementById('p-total-pre').textContent=dPStats.total_pre||0;
+  document.getElementById('p-total-hist').textContent=dPStats.total_historia||0;
+  document.getElementById('p-total-pos').textContent=dPStats.total_pos||0;
+  document.getElementById('p-total-des').textContent=dPStats.total_desistiu||0;
+  document.getElementById('p-aguardando').textContent=dPStats.aguardando_historia||0;
+  renderFilaEspera();
+  renderPT();
+}
+
+function renderFilaEspera(){
+  const aguardando=(dP||[]).filter(p=>p.status==='aguardando_historia');
+  const el=document.getElementById('fila-cards');
+  if(!aguardando.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:.875rem">Nenhum participante aguardando.</div>';
+    return;
+  }
+  el.innerHTML=aguardando.map(p=>`
+    <div class="fila-card aguardando">
+      <div>
+        <div class="fila-id" style="color:var(--amber)">${p.pre_id}</div>
+        <div class="fila-label">Aguardando sess\u00e3o</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:2px">${fmt(p.data_hora)}</div>
+      </div>
+    </div>`).join('');
+}
+
+const STATUS_LABELS={
+  'aguardando_historia':'Aguardando sess\u00e3o',
+  'em_historia':'Em sess\u00e3o',
+  'historia_concluida':'Hist\u00f3ria conclu\u00edda',
+  'pos_respondido':'P\u00f3s respondido',
+  'desistiu':'Desistiu',
+  'sem_estudo':'Sem estudo'
+};
+
+function renderPT(){
+  const fa=document.getElementById('p-fa').value.toLowerCase();
+  const fs=document.getElementById('p-fs').value;
+  const res=(dP||[]).filter(p=>{
+    if(fa&&!p.pre_id.toLowerCase().includes(fa))return false;
+    if(fs&&p.status!==fs)return false;
+    return true;
+  });
+  document.getElementById('p-tt').textContent='Participantes ('+res.length+')';
+  document.getElementById('p-cnt').textContent=res.length+' participante(s)';
+  document.getElementById('p-emp').style.display=res.length?'none':'block';
+  const tb=document.getElementById('p-tb');
+  tb.innerHTML=res.map(p=>{
+    const sc='ps-'+p.status;
+    const sl=STATUS_LABELS[p.status]||p.status;
+    return`<tr>
+      <td><strong style="font-size:1rem">${p.pre_id}</strong></td>
+      <td style="color:var(--muted);font-size:.82rem">${fmt(p.data_hora)}</td>
+      <td><span class="part-status ${sc}">${sl}</span></td>
+      <td style="color:var(--muted);font-size:.78rem">${p.session_id||'&mdash;'}</td>
+    </tr>`;
+  }).join('');
+}
+function limparP(){['p-fa','p-fs'].forEach(id=>{document.getElementById(id).value=''});renderPT();}
+
 async function poll(){
-  await Promise.all([fQ(),fH(),fL(),fL_pesquisa()]);
+  await Promise.all([fQ(),fH(),fL(),fL_pesquisa(),fP()]);
   if(qExp){delete cQ[qExp];const el=document.getElementById('qd-'+qExp);if(el)await fQD(qExp)}
   if(hExp){delete cH[hExp];const el=document.getElementById('hd-'+hExp);if(el)await fHD(hExp)}
 }

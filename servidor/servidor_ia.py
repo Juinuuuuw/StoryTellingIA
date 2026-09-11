@@ -1122,5 +1122,93 @@ def daemon_poll():
     return jsonify({"status": "vazio"})
 
 
+# ============================================================
+# PRÉ-QUESTIONÁRIO — ENDPOINTS
+# ============================================================
+
+@app.route('/pre_questionario')
+def serve_pre_questionario():
+    """Serve a página HTML do pré-questionário."""
+    return send_from_directory(PASTA_APRESENTACAO, "pre_questionario.html")
+
+
+@app.route('/salvar_pre_questionario', methods=['POST'])
+def salvar_pre_questionario_route():
+    """Recebe e salva as respostas do pré-questionário. Retorna o pre_id gerado."""
+    dados = request.json
+    if not dados:
+        return jsonify({"status": "erro", "msg": "Dados não enviados"}), 400
+    try:
+        pre_id = quiz_manager.salvar_pre_questionario(dados)
+        # Registra métrica de tempo do pré-questionário
+        tempo = dados.get("tempo_resposta_seg", 0)
+        from datetime import datetime as _dt
+        fim_iso = _dt.now().isoformat()
+        quiz_manager.registrar_metrica_tempo(pre_id, "pre_quest", fim_iso, fim_iso, tempo)
+        return jsonify({"status": "sucesso", "pre_id": pre_id})
+    except Exception as e:
+        print(f"❌ Erro ao salvar pré-questionário: {e}")
+        return jsonify({"status": "erro", "msg": str(e)}), 500
+
+
+@app.route('/atualizar_status_pre', methods=['POST'])
+def atualizar_status_pre_route():
+    """Atualiza o status de um participante (usado pelas páginas de sessão e pós-quest)."""
+    dados = request.json
+    pre_id = dados.get("pre_id")
+    novo_status = dados.get("status")
+    session_id = dados.get("session_id")
+    if not pre_id or not novo_status:
+        return jsonify({"status": "erro", "msg": "pre_id e status são obrigatórios"}), 400
+    try:
+        quiz_manager.atualizar_status_pre(pre_id, novo_status, session_id)
+        # Registra métricas de tempo por fase
+        from datetime import datetime as _dt
+        agora = _dt.now().isoformat()
+        if novo_status == "em_historia":
+            quiz_manager.registrar_metrica_tempo(pre_id, "historia", agora)
+        elif novo_status == "historia_concluida":
+            quiz_manager.registrar_metrica_tempo(pre_id, "historia", agora, agora)
+        elif novo_status == "pos_respondido":
+            quiz_manager.registrar_metrica_tempo(pre_id, "pos_quest", agora, agora)
+        return jsonify({"status": "sucesso"})
+    except Exception as e:
+        print(f"❌ Erro ao atualizar status: {e}")
+        return jsonify({"status": "erro", "msg": str(e)}), 500
+
+
+@app.route('/pre_questionario_dados', methods=['GET'])
+def get_pre_questionario_route():
+    """Retorna os dados de um pré-questionário pelo pre_id."""
+    pre_id = request.args.get("pre_id")
+    if not pre_id:
+        return jsonify({"status": "erro", "msg": "pre_id é obrigatório"}), 400
+    dados = quiz_manager.get_pre_questionario(pre_id)
+    if not dados:
+        return jsonify({"status": "erro", "msg": "Participante não encontrado"}), 404
+    return jsonify(dados)
+
+
+@app.route('/fila_participantes', methods=['GET'])
+def fila_participantes():
+    """Retorna a lista de participantes para o dashboard."""
+    try:
+        fila = quiz_manager.get_fila_pre_questionarios()
+        return jsonify(fila)
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route('/estatisticas_participacao', methods=['GET'])
+def estatisticas_participacao():
+    """Retorna métricas agregadas de participação."""
+    try:
+        stats = quiz_manager.get_estatisticas_participacao()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+

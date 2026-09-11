@@ -82,10 +82,246 @@ def init_db():
             resposta INTEGER NOT NULL,
             timestamp TEXT NOT NULL
         );
+
+        -- ── PRÉ-QUESTIONÁRIO ─────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS pre_questionarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pre_id TEXT NOT NULL UNIQUE,
+            data_hora TEXT NOT NULL,
+            tempo_resposta_seg INTEGER DEFAULT 0,
+            idade INTEGER,
+            area_formacao TEXT,
+            contato_robos TEXT,
+            frequencia_ia TEXT,
+            conhecimento_historia_pre INTEGER,
+            ja_ouviu_marco_pre TEXT,
+            conhecimento_turing_pre INTEGER,
+            ja_ouviu_marco_historico TEXT,
+            percepcao_nao TEXT,
+            expectativa_experiencia TEXT,
+            status TEXT DEFAULT 'aguardando_historia',
+            session_id TEXT
+        );
+
+        -- ── MÉTRICAS DE TEMPO POR FASE ────────────────────────────────
+        CREATE TABLE IF NOT EXISTS metricas_tempo (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pre_id TEXT NOT NULL,
+            fase TEXT NOT NULL,
+            inicio TEXT NOT NULL,
+            fim TEXT,
+            duracao_seg INTEGER
+        );
     """)
     con.commit()
     con.close()
-    print("✅ Quiz DB inicializado.")
+    print("[OK] Quiz DB inicializado.")
+
+
+# ─────────────────────────────────────────────────────────────
+# PRÉ-QUESTIONÁRIO
+# ─────────────────────────────────────────────────────────────
+
+def _proximo_pre_id():
+    """Gera o próximo ID sequencial (Q1, Q2, ...) de forma thread-safe."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        row = con.execute("SELECT COUNT(*) FROM pre_questionarios").fetchone()
+        next_num = (row[0] or 0) + 1
+        return f"Q{next_num}"
+    finally:
+        con.close()
+
+
+def salvar_pre_questionario(dados: dict) -> str:
+    """Salva as respostas do pré-questionário. Retorna o pre_id gerado (ex: 'Q1')."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        pre_id = _proximo_pre_id()
+        percepcao_json = json.dumps(dados.get("percepcao_nao", {}), ensure_ascii=False)
+        con.execute("""
+            INSERT INTO pre_questionarios
+                (pre_id, data_hora, tempo_resposta_seg,
+                 idade, area_formacao, contato_robos, frequencia_ia,
+                 conhecimento_historia_pre, ja_ouviu_marco_pre,
+                 conhecimento_turing_pre, ja_ouviu_marco_historico,
+                 percepcao_nao, expectativa_experiencia, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'aguardando_historia')
+        """, (
+            pre_id,
+            datetime.now().isoformat(),
+            dados.get("tempo_resposta_seg", 0),
+            dados.get("idade"),
+            dados.get("area_formacao"),
+            dados.get("contato_robos"),
+            dados.get("frequencia_ia"),
+            dados.get("conhecimento_historia_pre"),
+            dados.get("ja_ouviu_marco_pre"),
+            dados.get("conhecimento_turing_pre"),
+            dados.get("ja_ouviu_marco_historico"),
+            percepcao_json,
+            dados.get("expectativa_experiencia"),
+        ))
+        con.commit()
+        print(f"[OK] Pre-questionario salvo: {pre_id}")
+        return pre_id
+    finally:
+        con.close()
+
+
+def atualizar_status_pre(pre_id: str, novo_status: str, session_id: str = None):
+    """Atualiza o status e/ou session_id de um participante."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        if session_id:
+            con.execute(
+                "UPDATE pre_questionarios SET status=?, session_id=? WHERE pre_id=?",
+                (novo_status, session_id, pre_id)
+            )
+        else:
+            con.execute(
+                "UPDATE pre_questionarios SET status=? WHERE pre_id=?",
+                (novo_status, pre_id)
+            )
+        con.commit()
+        print(f"[UPDATE] Status do participante {pre_id} -> {novo_status}")
+    finally:
+        con.close()
+
+
+def get_pre_questionario(pre_id: str):
+    """Retorna os dados de um pré-questionário pelo pre_id."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        row = con.execute("""
+            SELECT pre_id, data_hora, tempo_resposta_seg,
+                   idade, area_formacao, contato_robos, frequencia_ia,
+                   conhecimento_historia_pre, ja_ouviu_marco_pre,
+                   conhecimento_turing_pre, ja_ouviu_marco_historico,
+                   percepcao_nao, expectativa_experiencia, status, session_id
+            FROM pre_questionarios WHERE pre_id=?
+        """, (pre_id,)).fetchone()
+        if not row:
+            return None
+        percepcao = {}
+        try:
+            percepcao = json.loads(row[11]) if row[11] else {}
+        except Exception:
+            pass
+        return {
+            "pre_id": row[0], "data_hora": row[1],
+            "tempo_resposta_seg": row[2], "idade": row[3],
+            "area_formacao": row[4], "contato_robos": row[5],
+            "frequencia_ia": row[6], "conhecimento_historia_pre": row[7],
+            "ja_ouviu_marco_pre": row[8], "conhecimento_turing_pre": row[9],
+            "ja_ouviu_marco_historico": row[10], "percepcao_nao": percepcao,
+            "expectativa_experiencia": row[12], "status": row[13],
+            "session_id": row[14],
+        }
+    finally:
+        con.close()
+
+
+def get_fila_pre_questionarios():
+    """Retorna lista de todos os participantes para o dashboard."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        rows = con.execute("""
+            SELECT pre_id, data_hora, status, session_id
+            FROM pre_questionarios
+            ORDER BY data_hora DESC
+        """).fetchall()
+        return [
+            {"pre_id": r[0], "data_hora": r[1], "status": r[2], "session_id": r[3]}
+            for r in rows
+        ]
+    finally:
+        con.close()
+
+
+def get_todos_pre_questionarios():
+    """Retorna todos os pré-questionários para exportação."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        rows = con.execute("""
+            SELECT pre_id, data_hora, tempo_resposta_seg,
+                   idade, area_formacao, contato_robos, frequencia_ia,
+                   conhecimento_historia_pre, ja_ouviu_marco_pre,
+                   conhecimento_turing_pre, ja_ouviu_marco_historico,
+                   percepcao_nao, expectativa_experiencia, status, session_id
+            FROM pre_questionarios ORDER BY data_hora ASC
+        """).fetchall()
+        result = []
+        for row in rows:
+            percepcao = {}
+            try:
+                percepcao = json.loads(row[11]) if row[11] else {}
+            except Exception:
+                pass
+            result.append({
+                "pre_id": row[0], "data_hora": row[1],
+                "tempo_resposta_seg": row[2], "idade": row[3],
+                "area_formacao": row[4], "contato_robos": row[5],
+                "frequencia_ia": row[6], "conhecimento_historia_pre": row[7],
+                "ja_ouviu_marco_pre": row[8], "conhecimento_turing_pre": row[9],
+                "ja_ouviu_marco_historico": row[10], "percepcao_nao": percepcao,
+                "expectativa_experiencia": row[12], "status": row[13],
+                "session_id": row[14],
+            })
+        return result
+    finally:
+        con.close()
+
+
+def get_estatisticas_participacao():
+    """Retorna métricas agregadas de participação para o dashboard."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        total_pre = con.execute("SELECT COUNT(*) FROM pre_questionarios").fetchone()[0]
+        total_historia = con.execute(
+            "SELECT COUNT(*) FROM pre_questionarios WHERE status IN ('em_historia','historia_concluida','pos_respondido')"
+        ).fetchone()[0]
+        total_pos = con.execute(
+            "SELECT COUNT(*) FROM pre_questionarios WHERE status='pos_respondido'"
+        ).fetchone()[0]
+        total_desistiu = con.execute(
+            "SELECT COUNT(*) FROM pre_questionarios WHERE status='desistiu'"
+        ).fetchone()[0]
+        aguardando = con.execute(
+            "SELECT COUNT(*) FROM pre_questionarios WHERE status='aguardando_historia'"
+        ).fetchone()[0]
+        return {
+            "total_pre": total_pre,
+            "total_historia": total_historia,
+            "total_pos": total_pos,
+            "total_desistiu": total_desistiu,
+            "aguardando_historia": aguardando,
+        }
+    finally:
+        con.close()
+
+
+def registrar_metrica_tempo(pre_id: str, fase: str, inicio: str, fim: str = None, duracao_seg: int = None):
+    """Registra ou atualiza uma métrica de tempo para uma fase específica."""
+    con = sqlite3.connect(DB_PATH)
+    try:
+        existing = con.execute(
+            "SELECT id FROM metricas_tempo WHERE pre_id=? AND fase=?",
+            (pre_id, fase)
+        ).fetchone()
+        if existing:
+            con.execute(
+                "UPDATE metricas_tempo SET fim=?, duracao_seg=? WHERE pre_id=? AND fase=?",
+                (fim, duracao_seg, pre_id, fase)
+            )
+        else:
+            con.execute(
+                "INSERT INTO metricas_tempo (pre_id, fase, inicio, fim, duracao_seg) VALUES (?, ?, ?, ?, ?)",
+                (pre_id, fase, inicio, fim, duracao_seg)
+            )
+        con.commit()
+    finally:
+        con.close()
 
 
 def criar_sessao_quiz(session_id, nome_aluno, tema, skill):
@@ -503,12 +739,116 @@ def exportar_excel_geral(caminho_arquivo):
             
         auto_width(ws5, max_col_width=100)
 
-    finally:
+        # ══════════════════════════════════════════════════════
+        # ABA 6 — PRÉ-QUESTIONÁRIO
+        # ══════════════════════════════════════════════════════
+        ws6 = wb.create_sheet("Pre Quest")
+        h6 = [
+            "ID (pre_id)", "Data/Hora", "Tempo Resposta (seg)",
+            "Idade", "Area de Formacao/Atuacao",
+            "Contato Anterior com Robos Sociais", "Frequencia uso IA Generativa",
+            "Conhecimento Historia Comp. Pre (1-5)", "Ja ouviu falar de marco historico Pre",
+            "Conhecimento Alan Turing Pre (1-5)", "Ja ouviu falar de marco historico (2)",
+            # Percepção NAO — Antropomorfismo
+            "NAO: Falso/Natural", "NAO: Mecanico/Humano", "NAO: Inconsciente/Consciente",
+            "NAO: Artificial/Realista (Antrop)", "NAO: Move rigidez/fluidez",
+            # Animacidade
+            "NAO: Morto/Com vida", "NAO: Parado/Energico", "NAO: Artificial/Realista (Anim)",
+            "NAO: Estatico/Interativo", "NAO: Apatico/Participativo",
+            # Simpatia
+            "NAO: Nao gosto/Gosto", "NAO: Hostil/Amigavel", "NAO: Antipatico/Gentil",
+            "NAO: Desagradavel/Agradavel", "NAO: Horrivel/Simpatico",
+            # Inteligência
+            "NAO: Incompetente/Competente", "NAO: Ignorante/Sabedor",
+            "NAO: Pouco inteligente/Inteligente", "NAO: Insensato/Sensato",
+            # Segurança
+            "NAO: Ansioso/Descontraido", "NAO: Calmo/Agitado", "NAO: Sereno/Surpreendido",
+            # Expectativa e status
+            "Expectativa sobre a experiencia",
+            "Status Participacao", "Session ID Vinculado"
+        ]
+        estilizar_header(ws6, h6, "1A5276")
 
+        pre_rows = con.execute("""
+            SELECT pre_id, data_hora, tempo_resposta_seg,
+                   idade, area_formacao, contato_robos, frequencia_ia,
+                   conhecimento_historia_pre, ja_ouviu_marco_pre,
+                   conhecimento_turing_pre, ja_ouviu_marco_historico,
+                   percepcao_nao, expectativa_experiencia, status, session_id
+            FROM pre_questionarios ORDER BY data_hora ASC
+        """).fetchall()
+
+        # Mapeamento das chaves de percepção do NAO para as colunas do Excel
+        # As chaves correspondem às seções e itens do questionário
+        PERCEPCAO_KEYS = [
+            # Antropomorfismo
+            "s0_g0_l0", "s0_g0_l1", "s0_g0_l2", "s0_g0_l3", "s0_g0_l4",
+            # Animacidade
+            "s0_g1_l0", "s0_g1_l1", "s0_g1_l2", "s0_g1_l3", "s0_g1_l4",
+            # Simpatia
+            "s0_g2_l0", "s0_g2_l1", "s0_g2_l2", "s0_g2_l3", "s0_g2_l4",
+            # Inteligência
+            "s0_g3_l0", "s0_g3_l1", "s0_g3_l2", "s0_g3_l3",
+            # Segurança
+            "s0_g4_l0", "s0_g4_l1", "s0_g4_l2",
+        ]
+
+        for r in pre_rows:
+            pre_id, dt, tempo, idade, area, contato, freq_ia, \
+            conhec_hist, marco_pre, conhec_turing, marco_hist, \
+            percepcao_json, expectativa, status_p, sid = r
+
+            percepcao = {}
+            try:
+                percepcao = json.loads(percepcao_json) if percepcao_json else {}
+            except Exception:
+                pass
+
+            percepcao_vals = [percepcao.get(k, "") for k in PERCEPCAO_KEYS]
+
+            row_data = [
+                pre_id, dt, tempo, idade, area, contato, freq_ia,
+                conhec_hist, marco_pre, conhec_turing, marco_hist,
+                *percepcao_vals,
+                expectativa, status_p, sid or ""
+            ]
+            ws6.append(row_data)
+
+        auto_width(ws6, max_col_width=50)
+
+        # ══════════════════════════════════════════════════════
+        # ABA 7 — FUNIL DE PARTICIPAÇÃO
+        # ══════════════════════════════════════════════════════
+        ws7 = wb.create_sheet("Participacao")
+        h7 = ["ID (pre_id)", "Data/Hora Pre Quest", "Status", "Session ID",
+              "Respondeu Pre", "Fez Historia", "Respondeu Pos", "Desistiu Sem Historia"]
+        estilizar_header(ws7, h7, "145A32")
+
+        for r in pre_rows:
+            pre_id, dt, _tempo = r[0], r[1], r[2]
+            status_p, sid = r[13], r[14]
+            respondeu_pre = "Sim"
+            fez_historia = "Sim" if status_p in ("em_historia", "historia_concluida", "pos_respondido") else "Nao"
+            respondeu_pos = "Sim" if status_p == "pos_respondido" else "Nao"
+            desistiu = "Sim" if status_p == "desistiu" else "Nao"
+            ws7.append([pre_id, dt, status_p, sid or "", respondeu_pre, fez_historia, respondeu_pos, desistiu])
+            # Colorir por status
+            row_num = ws7.max_row
+            if status_p == "pos_respondido":
+                colorir_linha(ws7, row_num, COR_CORRETA)
+            elif status_p == "desistiu":
+                colorir_linha(ws7, row_num, COR_ERRADA)
+            elif status_p == "aguardando_historia":
+                colorir_linha(ws7, row_num, COR_DESIST)
+
+        auto_width(ws7, max_col_width=50)
+
+    finally:
         con.close()
 
     wb.save(caminho_arquivo)
     print(f"📊 Excel exportado para: {caminho_arquivo}")
+
 
 
 def criar_sessao_historia(session_id, nome_aluno, tema, skill, genero='Masculino'):

@@ -761,11 +761,16 @@
         const API_URL = `http://${SERVER_IP}:5000`;
         const ROBOT_URL = "http://localhost:8080";
 
+        // Captura o pre_id da URL query string (?pre_id=Q1)
+        const _urlParams = new URLSearchParams(window.location.search);
+        let lastPreId = _urlParams.get('pre_id') || null;
+
         let lastSessionId = null;
         let lastHistoryText = null;
         let currentSequenceId = 0;
         let isModalLocallyOpen = false;
         let typeWriterTimeout = null;
+
 
         function typeWriterEffect(text, element) {
             if (typeWriterTimeout) clearTimeout(typeWriterTimeout);
@@ -958,6 +963,21 @@
                 });
                 const dados = await resp.json();
                 if (dados.status === 'sucesso') {
+                    lastSessionId = dados.session_id;
+
+                    // ─── Vincula pre_id ao session_id (se veio do pré-questionário) ───
+                    if (lastPreId) {
+                        fetch(`${API_URL}/atualizar_status_pre`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                pre_id: lastPreId,
+                                status: 'em_historia',
+                                session_id: lastSessionId
+                            })
+                        }).catch(() => {});
+                    }
+
                     // Sinaliza ao story_client (daemon) para iniciar a geração de imagens
                     fetch(`${API_URL}/iniciar_daemon`, {
                         method: 'POST',
@@ -984,6 +1004,7 @@
                 mostrarStep('step-aguardando');
             }
         }
+
 
         async function loadImageWithRetry(url, retries = 30) {
             return new Promise((resolve) => {
@@ -1547,8 +1568,22 @@
                         secoes: LIKERT_SECOES
                     })
                 }).catch(e => console.error("Erro ao salvar Likert:", e));
+
+                // ─── Atualiza status do participante para pos_respondido ───
+                if (lastPreId) {
+                    fetch(`${API_URL}/atualizar_status_pre`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            pre_id: lastPreId,
+                            status: 'pos_respondido',
+                            session_id: lastSessionId
+                        })
+                    }).catch(() => {});
+                }
             }
         }
+
 
         function pollStatus() {
             setInterval(checkActiveSession, 2000);

@@ -19,7 +19,7 @@ except ImportError:
     QI_DISPONIVEL = False
 
 SERVER_URL = "http://127.0.0.1:5000/visualizador/cena_atual"
-NAO_IP     = "169.254.22.3  "
+NAO_IP     = "172.16.60.28"
 NAO_PORT   = 9559
 
 # ============================================================
