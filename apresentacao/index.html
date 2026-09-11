@@ -634,8 +634,49 @@
             <div class="cadastro-titulo">Exploradores da História</div>
             <div class="cadastro-subtitulo">NAO · Experiência Interativa</div>
 
+            <!-- STEP 0: Código do Pré-Questionário -->
+            <div class="cadastro-step ativo" id="step-preid">
+                <div class="step-indicator">Identificação</div>
+                <label class="cadastro-label" style="text-align:center;">Você respondeu o questionário antes de começar?</label>
+                <div style="font-size:0.82rem;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:28px;line-height:1.6;">
+                    Se sim, informe o código que recebeu ao final (ex: <strong style="color:var(--accent);">Q1</strong>).<br>
+                    Assim sua participação ficará vinculada no estudo.
+                </div>
+
+                <!-- Opção A: Tenho o código -->
+                <div id="preid-com-codigo" style="margin-bottom:16px;">
+                    <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1, Q2...)"
+                        maxlength="10" autocomplete="off"
+                        style="text-transform:uppercase;letter-spacing:2px;font-size:1.1rem;font-weight:700;text-align:center;"
+                        oninput="this.value=this.value.toUpperCase();validarStepPreId()"
+                        onkeydown="if(event.key==='Enter') confirmarPreId()">
+                    <button class="cadastro-btn" id="btn-preid-confirmar" onclick="confirmarPreId()" disabled style="margin-top:12px;">
+                        CONFIRMAR CÓDIGO →
+                    </button>
+                </div>
+
+                <!-- Divisor -->
+                <div style="display:flex;align-items:center;gap:12px;margin:8px 0 16px;">
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                    <span style="font-size:.75rem;color:rgba(255,255,255,0.35);letter-spacing:1px;">OU</span>
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                </div>
+
+                <!-- Opção B: Sem código -->
+                <button class="cadastro-btn" onclick="prosseguirSemPreId()"
+                    style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:0.8rem;letter-spacing:1px;padding:14px;">
+                    JOGAR SEM PARTICIPAR DO ESTUDO
+                </button>
+
+                <!-- Badge de confirmação (oculto até confirmar) -->
+                <div id="preid-badge" style="display:none;margin-top:20px;text-align:center;">
+                    <div style="font-size:.78rem;color:rgba(255,255,255,0.5);margin-bottom:6px;">Participante identificado:</div>
+                    <div style="font-size:2rem;font-weight:700;letter-spacing:4px;color:var(--accent);" id="preid-badge-val"></div>
+                </div>
+            </div>
+
             <!-- STEP 1: Nome -->
-            <div class="cadastro-step ativo" id="step-nome">
+            <div class="cadastro-step" id="step-nome">
                 <div class="step-indicator">Passo 1 de 3</div>
                 <label class="cadastro-label">Qual é o do seu personagem?</label>
                 <input id="input-nome" type="text" placeholder="Digite seu nome aqui..." maxlength="30"
@@ -761,9 +802,16 @@
         const API_URL = `http://${SERVER_IP}:5000`;
         const ROBOT_URL = "http://localhost:8080";
 
-        // Captura o pre_id da URL query string (?pre_id=Q1)
+        // Captura o pre_id da URL query string (?pre_id=Q1) — funciona como fallback/atalho
         const _urlParams = new URLSearchParams(window.location.search);
         let lastPreId = _urlParams.get('pre_id') || null;
+
+        // Se o pre_id já veio pela URL, pula o step de identificação automaticamente
+        if (lastPreId) {
+            document.addEventListener('DOMContentLoaded', () => {
+                mostrarStep('step-nome');
+            });
+        }
 
         let lastSessionId = null;
         let lastHistoryText = null;
@@ -863,6 +911,59 @@
         function validarStepNome() {
             cadNome = document.getElementById('input-nome').value.trim();
             document.getElementById('btn-nome').disabled = cadNome.length < 2;
+        }
+
+        // ─── STEP PRÉ-ID ────────────────────────────────────────────────
+
+        function validarStepPreId() {
+            const val = document.getElementById('input-preid').value.trim();
+            // Aceita formato Qn (ex: Q1, Q12)
+            const ok = /^Q\d+$/i.test(val);
+            document.getElementById('btn-preid-confirmar').disabled = !ok;
+        }
+
+        async function confirmarPreId() {
+            const val = document.getElementById('input-preid').value.trim().toUpperCase();
+            if (!/^Q\d+$/.test(val)) return;
+
+            // Consulta o servidor para verificar se o ID existe
+            try {
+                const resp = await fetch(`${API_URL}/pre_questionario_dados?pre_id=${val}`);
+                if (resp.ok) {
+                    const dados = await resp.json();
+                    lastPreId = val;
+                    // Mostra badge de confirmação
+                    document.getElementById('preid-badge-val').textContent = val;
+                    document.getElementById('preid-badge').style.display = 'block';
+                    document.getElementById('btn-preid-confirmar').textContent = '✓ CONFIRMADO — CONTINUAR →';
+                    document.getElementById('btn-preid-confirmar').onclick = () => mostrarStep('step-nome');
+                    document.getElementById('btn-preid-confirmar').disabled = false;
+                    document.getElementById('btn-preid-confirmar').style.background = 'linear-gradient(135deg, #059669, #10B981)';
+                } else {
+                    // ID não encontrado
+                    document.getElementById('input-preid').style.border = '2px solid #EF4444';
+                    document.getElementById('input-preid').placeholder = 'Código não encontrado. Tente novamente.';
+                    document.getElementById('input-preid').value = '';
+                    document.getElementById('btn-preid-confirmar').disabled = true;
+                    setTimeout(() => {
+                        document.getElementById('input-preid').style.border = '';
+                        document.getElementById('input-preid').placeholder = 'Digite seu código (ex: Q1, Q2...)';
+                    }, 2500);
+                }
+            } catch(e) {
+                // Se o servidor não responder, aceita o código informado sem validar
+                lastPreId = val;
+                document.getElementById('preid-badge-val').textContent = val;
+                document.getElementById('preid-badge').style.display = 'block';
+                document.getElementById('btn-preid-confirmar').textContent = '✓ CONTINUAR →';
+                document.getElementById('btn-preid-confirmar').onclick = () => mostrarStep('step-nome');
+                document.getElementById('btn-preid-confirmar').disabled = false;
+            }
+        }
+
+        function prosseguirSemPreId() {
+            lastPreId = null;
+            mostrarStep('step-nome');
         }
 
         function avancarParaGenero() {
