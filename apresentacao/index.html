@@ -645,7 +645,7 @@
 
                 <!-- Opção A: Tenho o código -->
                 <div id="preid-com-codigo" style="margin-bottom:24px;">
-                    <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1, Q2...)"
+                    <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1)"
                         maxlength="10" autocomplete="off"
                         style="width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 30px; padding: 18px 24px; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 1.2rem; font-weight: 600; text-align: center; outline: none; transition: border-color 0.3s; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px;"
                         onfocus="this.style.borderColor='var(--accent)'"
@@ -950,7 +950,7 @@
                     document.getElementById('btn-preid-confirmar').disabled = true;
                     setTimeout(() => {
                         document.getElementById('input-preid').style.border = '';
-                        document.getElementById('input-preid').placeholder = 'Digite seu código (ex: Q1, Q2...)';
+                        document.getElementById('input-preid').placeholder = 'Digite seu código (ex: Q1)';
                     }, 2500);
                 }
             } catch(e) {

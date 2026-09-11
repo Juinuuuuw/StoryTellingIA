@@ -13,7 +13,7 @@ except ImportError:
     PARAMIKO_DISPONIVEL = False
 
 try:
-    import qi
+    import qi  # type: ignore
     QI_DISPONIVEL = True
 except ImportError:
     QI_DISPONIVEL = False
