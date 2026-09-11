@@ -637,7 +637,7 @@
             <!-- STEP 1: Nome -->
             <div class="cadastro-step ativo" id="step-nome">
                 <div class="step-indicator">Passo 1 de 3</div>
-                <label class="cadastro-label">Qual é o seu nome?</label>
+                <label class="cadastro-label">Qual é o do seu personagem?</label>
                 <input id="input-nome" type="text" placeholder="Digite seu nome aqui..." maxlength="30"
                     oninput="validarStepNome()" onkeydown="if(event.key==='Enter') avancarParaGenero()">
                 <button class="cadastro-btn" id="btn-nome" onclick="avancarParaGenero()" disabled>CONTINUAR →</button>
@@ -646,7 +646,7 @@
             <!-- STEP 2: Gênero + Jornada -->
             <div class="cadastro-step" id="step-jornada">
                 <div class="step-indicator">Passo 2 de 3</div>
-                <label class="cadastro-label">Qual é o seu gênero?</label>
+                <label class="cadastro-label">Qual é gênero do seu personagem?</label>
                 <div class="card-grid cols-2" style="margin-bottom:32px;">
                     <div class="card-opcao" id="card-masculino" onclick="selecionarGenero('Masculino')">
                         <div class="card-emoji">👦</div>
