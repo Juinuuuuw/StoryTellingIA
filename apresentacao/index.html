@@ -1286,27 +1286,29 @@
                     return;
                 }
 
-                // ── Quiz: pergunta atual ──
+                // ── Quiz: pergunta atual (Obsoleto, agora é no pós-questionário) ──
                 if (data.status === "quiz") {
-                    document.getElementById('loader').style.display = 'none';
-                    const quizData = data.dados;
-                    const perguntaId = quizData ? quizData.pergunta_id : null;
-                    const dadosPergunta = quizData ? quizData.dados : null;
-                    const numAtual = quizData ? quizData.num_atual : 1;
-                    const total = quizData ? quizData.total : 3;
-
-                    if (dadosPergunta && document.getElementById('quiz-question').innerText !== dadosPergunta.pergunta) {
-                        showQuizModal(data.session_id, perguntaId, dadosPergunta, numAtual, total);
-                    }
                     return;
                 }
 
-                // ── Quiz: finalizado ──
-                if (data.status === "quiz_fim") {
-                    const resultado = data.dados ? data.dados.resultado : null;
-                    if (!window.quizFinalizado) {
-                        window.quizFinalizado = true;
-                        showQuizFim(resultado);
+                // ── História Finalizada ──
+                if (data.status === "historia_fim" || data.status === "quiz_fim") {
+                    if (!window.historiaFinalizada) {
+                        window.historiaFinalizada = true;
+                        
+                        // Oculta loader e qualquer modal
+                        document.getElementById('loader').style.display = 'none';
+                        document.getElementById('quiz-modal').style.display = 'none';
+                        hideModal();
+                        
+                        // Mostra a tela de Fim de Sessão
+                        const fimScreen = document.getElementById('quiz-fim-screen');
+                        fimScreen.style.display = 'flex';
+                        gsap.fromTo(fimScreen, { opacity: 0 }, { opacity: 1, duration: 1, ease: "power2.out" });
+                        
+                        document.getElementById('quiz-fim-badge').innerText = `🏆`;
+                        document.getElementById('quiz-fim-titulo').innerText = "Obrigado por brincar!";
+                        document.getElementById('quiz-fim-subtitulo').innerText = "A história terminou. Você pode fechar esta tela e o seu pesquisador te guiará para a próxima etapa.";
                     }
                     return;
                 }

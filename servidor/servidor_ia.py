@@ -905,7 +905,7 @@ def publicar_proxima_pergunta_quiz():
 def finalizar_sessao():
     """
     Acionado pelo story_client.js ao fim da história.
-    Dispara a geração do quiz em background e atualiza o status para o frontend.
+    Dispara a geração do quiz em background silenciosamente.
     """
     dados = request.json
     sid = dados.get('session_id')
@@ -914,28 +914,28 @@ def finalizar_sessao():
     if not state:
         return jsonify({"status": "erro", "msg": "Sessão não encontrada"}), 404
 
-    # Sinaliza ao frontend que o quiz está sendo gerado (loading)
-    SESSAO_ATIVA["status"] = "quiz_gerando"
+    # Sinaliza ao frontend que a história terminou, sem iniciar o quiz na tela
+    SESSAO_ATIVA["status"] = "historia_fim"
     SESSAO_ATIVA["session_id"] = sid
     SESSAO_ATIVA["quiz_perguntas"] = []
     SESSAO_ATIVA["quiz_ids"] = []
     SESSAO_ATIVA["quiz_idx_atual"] = 0
 
-    def gerar_e_publicar():
+    def gerar_silencioso():
         historico = state.get("history", [])
         student_name = state["student"]["name"]
         tema = state["student"].get("theme", "")
         skill = state["student"].get("focus_skill", "")
 
-        print(f"\n🧠 Gerando quiz para sessão [{sid}] — Aluno: {student_name}")
+        print(f"
+🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] — Aluno: {student_name}")
 
         prompt_quiz = montar_prompt_quiz(student_name, historico)
         quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
         perguntas = quiz_raw.get("perguntas", [])
 
         if not perguntas:
-            print("❌ IA não gerou perguntas. Usando fallback vazio.")
-            SESSAO_ATIVA["status"] = "quiz_fim"
+            print("⚠️ Falha ao gerar perguntas do quiz.")
             return
 
         # Garante que "Não me lembro." está sempre na posição 3
@@ -943,6 +943,44 @@ def finalizar_sessao():
             opcoes = p.get("opcoes", [])
             # Remove "Não me lembro." se estiver em posição errada
             opcoes_sem_nao = [o for o in opcoes if o.strip().lower() != "não me lembro."]
+            # Garante exatamente 3 distractors + "Não me lembro." no final
+            while len(opcoes_sem_nao) < 3:
+                opcoes_sem_nao.append("Não disponível")
+            p["opcoes"] = opcoes_sem_nao[:3] + ["Não me lembro."]
+
+        # Persiste no banco SQLite
+        quiz_manager.criar_sessao_quiz(sid, student_name, tema, skill)
+        ids = quiz_manager.salvar_perguntas(sid, perguntas)
+        
+        print(f"✅ Quiz gerado e salvo em background para a sessão {sid}")
+
+    threading.Thread(target=gerar_silencioso).start()
+
+    return jsonify({"status": "ok", "msg": "História encerrada. Quiz gerado no backend."}), 404
+
+    # Sinaliza ao frontend que a história terminou, sem iniciar o quiz na tela
+    SESSAO_ATIVA["status"] = "historia_fim"
+    SESSAO_ATIVA["session_id"] = sid
+    SESSAO_ATIVA["quiz_perguntas"] = []
+    SESSAO_ATIVA["quiz_ids"] = []
+    SESSAO_ATIVA["quiz_idx_atual"] = 0
+
+    def gerar_silencioso():
+        historico = state.get("history", [])
+        student_name = state["student"]["name"]
+        tema = state["student"].get("theme", "")
+        skill = state["student"].get("focus_skill", "")
+
+        print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] — Aluno: {student_name}")
+
+        prompt_quiz = montar_prompt_quiz(student_name, historico)
+        quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
+        perguntas = quiz_raw.get("perguntas", [])
+
+        if not perguntas:
+            print("⚠️ Falha ao gerar perguntas do quiz.")
+            return
+
             # Garante exatamente 3 distractors + "Não me lembro." no final
             while len(opcoes_sem_nao) < 3:
                 opcoes_sem_nao.append("Não disponível")
@@ -1043,15 +1081,34 @@ def historia_sessao():
 
 
 @app.route('/salvar_likert', methods=['POST'])
-def salvar_likert():
+def salvar_likert_route():
+    dados = request.json
+    if not dados:
+        return jsonify({"status": "erro", "msg": "Dados não enviados"}), 400
     try:
-        dados = request.json
-        session_id = dados.get('session_id') or 'pos_avulso'
+        session_id = dados.get('session_id', 'pos_avulso')
         secoes = dados.get('secoes', [])
         respostas = dados.get('respostas', {})
         pre_id = dados.get('pre_id')
         
+        # 1) Salva o Likert normal
         quiz_manager.salvar_likert(session_id, secoes, respostas, pre_id)
+        
+        # 2) Verifica se há respostas de quiz no payload e salva
+        quiz_answers = {k: v for k, v in respostas.items() if k.startswith("quiz_")}
+        if quiz_answers and session_id != 'pos_avulso':
+            import sqlite3
+            con = sqlite3.connect(quiz_manager.DB_PATH)
+            con.row_factory = sqlite3.Row
+            try:
+                for q_key, resp_idx in quiz_answers.items():
+                    pergunta_id = int(q_key.replace("quiz_", ""))
+                    p_db = con.execute("SELECT resposta_correta FROM perguntas_quiz WHERE id = ?", (pergunta_id,)).fetchone()
+                    if p_db:
+                        correta = 1 if resp_idx == p_db['resposta_correta'] else 0
+                        quiz_manager.salvar_resposta(session_id, pergunta_id, resp_idx, correta, False)
+            finally:
+                con.close()
         
         # Se veio um pre_id, atualiza o status dele para pos_respondido
         if pre_id:
@@ -1060,7 +1117,7 @@ def salvar_likert():
             
         return jsonify({"status": "sucesso"}), 200
     except Exception as e:
-        print("Erro ao salvar Likert:", e)
+        print("Erro ao salvar Likert e Quiz Pós:", e)
         return jsonify({"status": "erro", "msg": str(e)}), 500
 
 
@@ -1156,6 +1213,50 @@ def pos_questionario_page():
     return send_from_directory(PASTA_APRESENTACAO, 'pos_questionario.html')
 
 
+@app.route('/obter_quiz_pos', methods=['GET'])
+def obter_quiz_pos():
+    pre_id = request.args.get('pre_id')
+    if not pre_id:
+        return jsonify({"status": "erro", "msg": "pre_id não fornecido"}), 400
+        
+    try:
+        # Busca a sessão mais recente desse pre_id
+        import sqlite3
+        con = sqlite3.connect(quiz_manager.DB_PATH)
+        con.row_factory = sqlite3.Row
+        pre_record = con.execute("SELECT session_id FROM pre_questionarios WHERE pre_id = ?", (pre_id,)).fetchone()
+        
+        if not pre_record or not pre_record['session_id']:
+            return jsonify({"status": "erro", "msg": "Nenhuma sessão encontrada para este pre_id"}), 404
+            
+        session_id = pre_record['session_id']
+        
+        # Pega as perguntas geradas
+        perguntas = con.execute("SELECT id, pergunta, opcoes FROM perguntas_quiz WHERE session_id = ? ORDER BY ordem ASC", (session_id,)).fetchall()
+        
+        if not perguntas:
+            return jsonify({"status": "pendente", "session_id": session_id})
+            
+        perguntas_lista = []
+        for p in perguntas:
+            try:
+                import json
+                opcoes = json.loads(p['opcoes'])
+            except:
+                opcoes = []
+            perguntas_lista.append({
+                "id": p['id'],
+                "pergunta": p['pergunta'],
+                "opcoes": opcoes
+            })
+            
+        return jsonify({"status": "ok", "session_id": session_id, "perguntas": perguntas_lista})
+    except Exception as e:
+        return jsonify({"status": "erro", "msg": str(e)}), 500
+    finally:
+        if 'con' in locals():
+            con.close()
+
 @app.route('/salvar_pre_questionario', methods=['POST'])
 def salvar_pre_questionario_route():
     """Recebe e salva as respostas do pré-questionário. Retorna o pre_id gerado."""
@@ -1193,8 +1294,10 @@ def atualizar_status_pre_route():
             quiz_manager.registrar_metrica_tempo(pre_id, "historia", agora)
         elif novo_status == "historia_concluida":
             quiz_manager.registrar_metrica_tempo(pre_id, "historia", agora, agora)
+        elif novo_status == "em_pos_questionario":
+            quiz_manager.registrar_metrica_tempo(pre_id, "pos_questionario", agora)
         elif novo_status == "pos_respondido":
-            quiz_manager.registrar_metrica_tempo(pre_id, "pos_quest", agora, agora)
+            quiz_manager.registrar_metrica_tempo(pre_id, "pos_questionario", agora, agora)
         return jsonify({"status": "sucesso"})
     except Exception as e:
         print(f"❌ Erro ao atualizar status: {e}")

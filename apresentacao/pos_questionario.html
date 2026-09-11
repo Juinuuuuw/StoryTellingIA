@@ -376,21 +376,89 @@ async function validarEIniciar() {
     document.getElementById('spinner').classList.add('active');
     try {
         const resp = await fetch(`${API}/pre_questionario_dados?pre_id=${val}`);
-        document.getElementById('spinner').classList.remove('active');
         if (resp.ok) {
             preId = val;
+            
+            // Busca as perguntas do quiz
+            document.getElementById('spinner-text').innerText = "Carregando Perguntas...";
+            let quizPronto = false;
+            let retries = 0;
+            while (!quizPronto && retries < 10) {
+                const rQuiz = await fetch(`${API}/obter_quiz_pos?pre_id=${preId}`);
+                if (rQuiz.ok) {
+                    const dataQuiz = await rQuiz.json();
+                    if (dataQuiz.status === 'ok') {
+                        sessionId = dataQuiz.session_id;
+                        window.quizPerguntas = dataQuiz.perguntas || [];
+                        quizPronto = true;
+                        renderizarQuiz();
+                    } else if (dataQuiz.status === 'pendente') {
+                        sessionId = dataQuiz.session_id;
+                        retries++;
+                        await new Promise(res => setTimeout(res, 2000));
+                    } else {
+                        quizPronto = true;
+                    }
+                } else {
+                    quizPronto = true;
+                }
+            }
+            
+            // Inicializa timer e status
+            try {
+                await fetch(API + '/atualizar_status_pre', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ pre_id: preId, status: 'em_pos_questionario' })
+                });
+            } catch(e) { console.error("Erro timer:", e); }
+            
+            document.getElementById('spinner').classList.remove('active');
+            
+            if (window.quizPerguntas && window.quizPerguntas.length > 0) {
+                if (!secoes.includes('quiz')) secoes.unshift('quiz');
+            }
+            
             document.getElementById('step-identificacao').style.display = 'none';
             document.getElementById('form-container').style.display = 'block';
             document.getElementById('lbl-part-id').innerText = preId;
             atualizarUI();
             inicializarPerguntas();
         } else {
+            document.getElementById('spinner').classList.remove('active');
             alert('Código não encontrado. Tente novamente.');
         }
     } catch(e) {
         document.getElementById('spinner').classList.remove('active');
         alert('Erro ao validar.');
     }
+}
+
+
+function renderizarQuiz() {
+    const container = document.getElementById('quiz-container');
+    if (!window.quizPerguntas || window.quizPerguntas.length === 0) return;
+    
+    let html = '';
+    window.quizPerguntas.forEach((q, i) => {
+        html += `
+        <div class="question-block">
+          <div class="question-label"><span class="req">*</span> ${i+1}. ${q.pergunta}</div>
+          <div style="display:flex; flex-direction:column; gap:10px; max-width:600px; margin: 0 auto;">`;
+        
+        q.opcoes.forEach((op, idx) => {
+            html += `
+            <label style="background:rgba(255,255,255,0.05); padding:15px; border-radius:10px; cursor:pointer; border:1px solid rgba(255,255,255,0.1); transition:all 0.2s; text-align:left;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='rgba(255,255,255,0.1)'">
+                <input type="radio" name="quiz_${q.id}" value="${idx}" style="margin-right:10px;" onchange="verificarPreenchimento()">
+                <span style="font-family:'Montserrat'; font-size:1rem; color:#f4f4f4;">${op}</span>
+            </label>`;
+        });
+        
+        html += `
+          </div>
+        </div>`;
+    });
+    container.innerHTML = html;
 }
 
 function inicializarPerguntas() {
