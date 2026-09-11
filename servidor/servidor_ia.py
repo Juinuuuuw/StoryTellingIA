@@ -1093,6 +1093,23 @@ def exportar_excel():
         print(f"❌ Erro ao exportar Excel: {e}")
         return jsonify({"status": "erro", "msg": str(e)}), 500
 
+@app.route('/exportar_analista', methods=['GET'])
+def exportar_analista():
+    import tempfile
+    nome_arquivo = f"dados_analista_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    caminho = os.path.join(tempfile.gettempdir(), nome_arquivo)
+    try:
+        quiz_manager.exportar_excel_analista(caminho)
+        return send_file(
+            caminho,
+            as_attachment=True,
+            download_name=nome_arquivo,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        print(f"❌ Erro ao exportar Excel Analista: {e}")
+        return jsonify({"status": "erro", "msg": str(e)}), 500
+
 
 # Fila de sessões que o daemon (story_client.js) precisa processar
 _daemon_queue = []

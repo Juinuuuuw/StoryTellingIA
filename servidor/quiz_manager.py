@@ -1056,3 +1056,143 @@ def get_likert_geral():
         return list(sessoes.values())
     finally:
         con.close()
+
+
+def exportar_excel_analista(filepath):
+    """Gera um arquivo Excel unificado (uma linha por participante) para análise de dados."""
+    con = sqlite3.connect(DB_PATH)
+    con.row_factory = sqlite3.Row
+    try:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Matriz Analista"
+        
+        # Obter todas as perguntas do Likert disponíveis para montar o cabeçalho dinâmico
+        likert_cols = []
+        todas_respostas_likert = con.execute("SELECT DISTINCT pergunta_ref, secao_nome, pergunta_texto FROM respostas_likert ORDER BY secao_id ASC, id ASC").fetchall()
+        for col in todas_respostas_likert:
+            col_name = f"Likert [{col['secao_nome']}] - {col['pergunta_texto']}"
+            if col_name not in likert_cols:
+                likert_cols.append(col_name)
+
+        # Cabeçalhos base
+        headers = [
+            'ID Absoluto (Pré)', 'Session ID (História)', 'Data Cadastro', 'Status',
+            'Idade', 'Área de Formação', 'Contato com Robôs', 'Frequência de IA',
+            'Conhec. História Computação (1-5)', 'Marco Citado (Pré)',
+            'Conhec. Alan Turing (1-5)', 'Marco Citado 2 (Pré)',
+            'Expectativa Experiência',
+            
+            # Médias NAO (Pré)
+            'Pré NAO: Antropomorfismo', 'Pré NAO: Animacidade', 'Pré NAO: Simpatia', 'Pré NAO: Inteligência', 'Pré NAO: Segurança',
+            
+            # Dados da Sessão Interativa
+            'Nome Aluno', 'Tema Jogado', 'Skill', 'Total Cenas',
+            'Perguntas Respondidas', 'Acertos', '% Aproveitamento',
+            
+            # Métricas de Tempo
+            'Tempo Pré-Questionário (s)', 'Tempo História (s)', 'Tempo Pós-Questionário (s)'
+        ]
+        
+        # Adiciona colunas do Likert ao final
+        headers.extend(likert_cols)
+        
+        estilizar_header(ws, headers, "1F4E78")
+
+        # Buscar todos os participantes (Pré-ID)
+        pre_rows = con.execute("SELECT * FROM pre_questionarios ORDER BY id ASC").fetchall()
+        
+        for p in pre_rows:
+            pre_id = p['pre_id']
+            session_id = p['session_id']
+            
+            # Médias NAO
+            medias_nao = { 'Antropomorfismo': '', 'Animacidade': '', 'Simpatia': '', 'Inteligência': '', 'Segurança': '' }
+            if p['percepcao_nao']:
+                try:
+                    import json
+                    percepcao = json.loads(p['percepcao_nao'])
+                    attr_names = list(medias_nao.keys())
+                    # Mapeando grupos para os atributos (0: Antropomorfismo, etc)
+                    # s0_g0_lX...
+                    for g_idx in range(5):
+                        soma = 0
+                        qtd = 0
+                        for l_idx in range(5):
+                            k = f"s0_g{g_idx}_l{l_idx}"
+                            if k in percepcao:
+                                soma += percepcao[k]
+                                qtd += 1
+                        if qtd > 0:
+                            medias_nao[attr_names[g_idx]] = round(soma / qtd, 2)
+                except:
+                    pass
+            
+            row_data = {
+                'ID Absoluto (Pré)': pre_id,
+                'Session ID (História)': session_id or '',
+                'Data Cadastro': p['data_hora'],
+                'Status': p['status'],
+                'Idade': p['idade'],
+                'Área de Formação': p['area_formacao'],
+                'Contato com Robôs': p['contato_robos'],
+                'Frequência de IA': p['frequencia_ia'],
+                'Conhec. História Computação (1-5)': p['conhecimento_historia_pre'],
+                'Marco Citado (Pré)': p['ja_ouviu_marco_pre'],
+                'Conhec. Alan Turing (1-5)': p['conhecimento_turing_pre'],
+                'Marco Citado 2 (Pré)': p['ja_ouviu_marco_historico'],
+                'Expectativa Experiência': p['expectativa_experiencia'],
+                
+                'Pré NAO: Antropomorfismo': medias_nao['Antropomorfismo'],
+                'Pré NAO: Animacidade': medias_nao['Animacidade'],
+                'Pré NAO: Simpatia': medias_nao['Simpatia'],
+                'Pré NAO: Inteligência': medias_nao['Inteligência'],
+                'Pré NAO: Segurança': medias_nao['Segurança'],
+                
+                'Nome Aluno': '', 'Tema Jogado': '', 'Skill': '', 'Total Cenas': 0,
+                'Perguntas Respondidas': 0, 'Acertos': 0, '% Aproveitamento': 0,
+                'Tempo Pré-Questionário (s)': p['tempo_resposta_seg'],
+                'Tempo História (s)': 0, 'Tempo Pós-Questionário (s)': 0
+            }
+            
+            # Dados da Sessão
+            if session_id:
+                s_hist = con.execute("SELECT nome_aluno, tema, skill, total_cenas FROM sessoes_historia WHERE session_id = ?", (session_id,)).fetchone()
+                if s_hist:
+                    row_data['Nome Aluno'] = s_hist['nome_aluno']
+                    row_data['Tema Jogado'] = s_hist['tema']
+                    row_data['Skill'] = s_hist['skill']
+                    row_data['Total Cenas'] = s_hist['total_cenas']
+                
+                s_quiz = con.execute("SELECT total_perguntas, acertos, percentual FROM sessoes_quiz WHERE session_id = ?", (session_id,)).fetchone()
+                if s_quiz:
+                    row_data['Perguntas Respondidas'] = s_quiz['total_perguntas']
+                    row_data['Acertos'] = s_quiz['acertos']
+                    row_data['% Aproveitamento'] = s_quiz['percentual']
+            
+            # Métricas de tempo adicionais
+            tempos = con.execute("SELECT fase, duracao_seg FROM metricas_tempo WHERE pre_id = ?", (pre_id,)).fetchall()
+            for t in tempos:
+                if t['fase'] == 'historia_interativa':
+                    row_data['Tempo História (s)'] = t['duracao_seg']
+                elif t['fase'] == 'pos_questionario':
+                    row_data['Tempo Pós-Questionário (s)'] = t['duracao_seg']
+                    
+            # Respostas Likert Pós
+            likert_answers = con.execute("SELECT secao_nome, pergunta_texto, resposta FROM respostas_likert WHERE pre_id = ?", (pre_id,)).fetchall()
+            likert_map = {}
+            for la in likert_answers:
+                col_name = f"Likert [{la['secao_nome']}] - {la['pergunta_texto']}"
+                likert_map[col_name] = la['resposta']
+                
+            for col in likert_cols:
+                row_data[col] = likert_map.get(col, '')
+                
+            # Adicionar a linha
+            row_vals = [row_data.get(h, '') for h in headers]
+            ws.append(row_vals)
+            
+        auto_width(ws, max_col_width=60)
+        wb.save(filepath)
+    finally:
+        con.close()

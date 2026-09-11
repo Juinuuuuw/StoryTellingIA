@@ -161,7 +161,8 @@
 <div class="topbar">
   <div><h1>&#128202; Dashboard &mdash; StoryTellingIA</h1><p id="lu-top">Aguardando dados...</p></div>
   <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-    <button class="btn btn-green" onclick="exportarExcel()">&#11015; Exportar Excel</button>
+    <button class="btn btn-green" onclick="exportarExcelAnalista()">&#11015; Exportar Completo (Analista)</button>
+    <button class="btn btn-green" onclick="exportarExcel()" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#fff;">&#11015; Tabelas (Separado)</button>
   </div>
 </div>
 
@@ -588,6 +589,8 @@ function renderLive(d){
 }
 
 async function exportarExcel(){try{const r=await fetch(API+'/exportar_excel');if(!r.ok){const e=await r.json();alert('Erro: '+e.msg);return}const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='storytelling_'+new Date().toISOString().slice(0,10)+'.xlsx';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url)}catch(e){alert('Erro: '+e.message)}}
+
+async function exportarExcelAnalista(){try{const r=await fetch(API+'/exportar_analista');if(!r.ok){const e=await r.json();alert('Erro: '+e.msg);return}const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='analise_completa_'+new Date().toISOString().slice(0,10)+'.xlsx';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url)}catch(e){alert('Erro: '+e.message)}}
 
 let dP=[], dPStats={};
 let pSK='data_hora', pSA=false;
