@@ -638,40 +638,43 @@
             <div class="cadastro-step ativo" id="step-preid">
                 <div class="step-indicator">Identificação</div>
                 <label class="cadastro-label" style="text-align:center;">Você respondeu o questionário antes de começar?</label>
-                <div style="font-size:0.82rem;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:28px;line-height:1.6;">
+                <div style="font-size:0.85rem;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:32px;line-height:1.6;">
                     Se sim, informe o código que recebeu ao final (ex: <strong style="color:var(--accent);">Q1</strong>).<br>
                     Assim sua participação ficará vinculada no estudo.
                 </div>
 
                 <!-- Opção A: Tenho o código -->
-                <div id="preid-com-codigo" style="margin-bottom:16px;">
+                <div id="preid-com-codigo" style="margin-bottom:24px;">
                     <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1, Q2...)"
                         maxlength="10" autocomplete="off"
-                        style="text-transform:uppercase;letter-spacing:2px;font-size:1.1rem;font-weight:700;text-align:center;"
+                        style="width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 30px; padding: 18px 24px; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 1.2rem; font-weight: 600; text-align: center; outline: none; transition: border-color 0.3s; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px;"
+                        onfocus="this.style.borderColor='var(--accent)'"
+                        onblur="this.style.borderColor='rgba(255,255,255,0.2)'"
                         oninput="this.value=this.value.toUpperCase();validarStepPreId()"
                         onkeydown="if(event.key==='Enter') confirmarPreId()">
-                    <button class="cadastro-btn" id="btn-preid-confirmar" onclick="confirmarPreId()" disabled style="margin-top:12px;">
+                    
+                    <button class="cadastro-btn" id="btn-preid-confirmar" onclick="confirmarPreId()" disabled style="width: 100%; max-width: 400px;">
                         CONFIRMAR CÓDIGO →
                     </button>
                 </div>
 
                 <!-- Divisor -->
-                <div style="display:flex;align-items:center;gap:12px;margin:8px 0 16px;">
+                <div style="display:flex;align-items:center;gap:16px;margin:24px auto; max-width: 400px;">
                     <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
-                    <span style="font-size:.75rem;color:rgba(255,255,255,0.35);letter-spacing:1px;">OU</span>
+                    <span style="font-family:'Montserrat', sans-serif; font-size:.7rem;color:rgba(255,255,255,0.3);letter-spacing:2px;">OU</span>
                     <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
                 </div>
 
                 <!-- Opção B: Sem código -->
                 <button class="cadastro-btn" onclick="prosseguirSemPreId()"
-                    style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:0.8rem;letter-spacing:1px;padding:14px;">
-                    JOGAR SEM PARTICIPAR DO ESTUDO
+                    style="width: 100%; max-width: 400px; background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:0.8rem;letter-spacing:2px;padding:16px;">
+                    JOGAR SEM PARTICIPAR
                 </button>
 
                 <!-- Badge de confirmação (oculto até confirmar) -->
-                <div id="preid-badge" style="display:none;margin-top:20px;text-align:center;">
-                    <div style="font-size:.78rem;color:rgba(255,255,255,0.5);margin-bottom:6px;">Participante identificado:</div>
-                    <div style="font-size:2rem;font-weight:700;letter-spacing:4px;color:var(--accent);" id="preid-badge-val"></div>
+                <div id="preid-badge" style="display:none;margin-top:24px;text-align:center;">
+                    <div style="font-size:.78rem;color:rgba(255,255,255,0.5);margin-bottom:8px; text-transform: uppercase; letter-spacing: 2px;">Participante identificado</div>
+                    <div style="font-size:2.5rem;font-weight:700;letter-spacing:6px;color:var(--accent); font-family: 'Playfair Display', serif;" id="preid-badge-val"></div>
                 </div>
             </div>
 
