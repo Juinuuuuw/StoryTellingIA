@@ -161,6 +161,7 @@
 <div class="topbar">
   <div><h1>&#128202; Dashboard &mdash; StoryTellingIA</h1><p id="lu-top">Aguardando dados...</p></div>
   <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <button class="btn" id="btnContinuarNao" onclick="forcarAvancoNao()" style="background:#4F46E5; border-color:#4F46E5; color: white;">&#9193; Continuar Cena</button>
     <button class="btn btn-green" onclick="exportarExcelAnalista()">&#11015; Exportar Completo (Analista)</button>
     <button class="btn btn-green" onclick="exportarExcel()" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#fff;">&#11015; Tabelas (Separado)</button>
   </div>
@@ -666,6 +667,27 @@ function renderPT(){
   }).join('');
 }
 function limparP(){['p-fa','p-fs'].forEach(id=>{document.getElementById(id).value=''});renderPT();}
+
+function forcarAvancoNao() {
+  const btn = document.getElementById('btnContinuarNao');
+  if(btn.disabled) return;
+  
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = "&#8987; Aguarde 5s...";
+  btn.style.opacity = "0.5";
+  btn.style.cursor = "not-allowed";
+  
+  fetch('http://127.0.0.1:5000/forcar_avanco', { method: 'POST' })
+    .catch(e => console.error("Erro ao forçar avanço:", e));
+
+  setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+      btn.style.opacity = "1";
+      btn.style.cursor = "pointer";
+  }, 5000);
+}
 
 async function poll(){
   await Promise.all([fQ(),fH(),fL(),fL_pesquisa(),fP()]);

@@ -1029,8 +1029,15 @@ def visualizador_cena():
     return jsonify({
         "status": "ativo",
         "session_id": SESSAO_ATIVA["session_id"],
-        "dados": SESSAO_ATIVA["last_scene_data"]
+        "dados": SESSAO_ATIVA["last_scene_data"],
+        "avanco_step": SESSAO_ATIVA.get("avanco_step", 0)
     })
+
+@app.route('/forcar_avanco', methods=['POST'])
+def forcar_avanco():
+    # Dashboard chamou esse endpoint
+    SESSAO_ATIVA["avanco_step"] = SESSAO_ATIVA.get("avanco_step", 0) + 1
+    return jsonify({"status": "ok", "avanco_step": SESSAO_ATIVA["avanco_step"]})
 
 
 
