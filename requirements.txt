@@ -1,0 +1,11 @@
+flask
+flask-cors
+ollama
+pydantic
+httpx
+paramiko
+invoke
+openpyxl
+rembg
+onnxruntime
+pillow

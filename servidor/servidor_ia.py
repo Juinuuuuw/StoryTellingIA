@@ -16,7 +16,7 @@ quiz_manager.init_db()
 app = Flask(__name__)
 CORS(app) # Habilita CORS para todas as rotas
 
-MODELO = 'llama3.1'
+MODELO = 'phi4-mini'  # 3.8B — muito mais rápido que llama3.1 para JSON estruturado; cabe em 6 GB VRAM
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAIZ_PROJETO = os.path.join(BASE_DIR, "..")
@@ -46,19 +46,32 @@ def serve_image(filename):
     diretorio = os.path.abspath(os.path.join(BASE_DIR, "..", "historias_geradas"))
     return send_from_directory(diretorio, filename)
 
+@app.route('/check_image/<path:filename>')
+def check_image(filename):
+    diretorio = os.path.abspath(os.path.join(BASE_DIR, "..", "historias_geradas"))
+    if os.path.exists(os.path.join(diretorio, filename)):
+        return jsonify({"ready": True})
+    return jsonify({"ready": False})
+
 # ============================================================
 # CONFIGURAÇÃO DE ESTILO (Estilo Anime 2D)
 # ============================================================
 ESTILO_TOONYOU = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed, cel shading"
-NEGATIVE_TOONYOU = "3d, cgi, render, 2.5d, photorealistic, realistic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, (3 people, 4 people, crowd:1.4), merged faces, merged bodies, fused characters, extra person, duplicate character"
 
-# Prompts específicos para personagem isolado (fundo branco/simples para rembg)
-ESTILO_CHAR_ISOLADO = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed, cel shading, simple white background, character sheet, full body, isolated character"
-NEGATIVE_CHAR_ISOLADO = "3d, cgi, render, photorealistic, realistic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, background scenery, detailed background, complex background, gradient background, multiple characters, crowd, merged bodies"
+# Negative base — usado em quadros COM 1 personagem
+_NEGATIVE_BASE = "3d, cgi, render, 2.5d, photorealistic, realistic, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, dragon, monster, creature, beast, demon, fantasy creature, mythical creature, dinosaur, reptile creature, serpent, wyvern, lizard creature, alien, robot animal, mechanical beast"
+_NEGATIVE_MULTI = "(2 people:1.5), (two people:1.5), (multiple people:1.5), (two characters:1.5), (duo:1.4), (group:1.4), (3 people, 4 people, crowd:1.4), merged faces, merged bodies, fused characters, extra person, duplicate character, extra face, extra head"
 
-# Prompts específicos para fundo sem personagens
-ESTILO_FUNDO = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed scenery, cel shading, empty scene, background art, environmental concept art, cinematic wide shot"
-NEGATIVE_FUNDO = "3d, cgi, render, photorealistic, realistic, lowres, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, people, person, character, human, man, woman, child, boy, girl, figure, silhouette"
+NEGATIVE_TOONYOU     = f"{_NEGATIVE_BASE}, {_NEGATIVE_MULTI}"
+NEGATIVE_CHAR_ISOLADO = f"{_NEGATIVE_BASE}, {_NEGATIVE_MULTI}, background scenery, detailed background, complex background, gradient background"
+
+# Negative para quadros de cenário PURO — bloqueia qualquer pessoa
+NEGATIVE_CENA_PURA = f"{_NEGATIVE_BASE}, people, person, character, human, man, woman, child, boy, girl, figure, silhouette, face, body, hands, (any human:1.5)"
+
+# Prompts específicos para fundo sem personagens (isolamento rembg)
+ESTILO_FUNDO    = "masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed scenery, cel shading, empty scene, background art, environmental concept art, cinematic wide shot"
+NEGATIVE_FUNDO  = NEGATIVE_CENA_PURA
+
 
 def _acao_para_keywords(acao: str, student_name: str, npc_name: str) -> str:
     """
@@ -104,56 +117,157 @@ def _acao_para_keywords(acao: str, student_name: str, npc_name: str) -> str:
     return result if result else 'standing, neutral pose'
 
 
-def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, npc_principal):
+def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, npc_principal,
+                            scenery_guideline=""):
     """
-    Gera 4 prompts distintos (Storyboard Completo).
-    Cada prompt é uma cena COMPLETA (fundo + personagens interagindo) para manter a qualidade e consistência.
-    REGRA: máximo 1 personagem por quadro (o gerador não consegue 2 personagens bem).
+    Gera 4 prompts de imagem (storyboard).
+
+    Regras de personagem por quadro:
+    - MÁXIMO 1 personagem por quadro (o gerador falha com 2+).
+    - O LLM sugere quem aparece em cada microcena via campo 'personagens'.
+    - Se a lista tiver >1, usamos apenas o primeiro.
+    - Se estiver vazia, é quadro de cenário puro (sem humano).
+    - Garantimos que ao menos 1 dos 4 quadros seja cenário puro.
+
+    NPC visual:
+    - A descrição vem exatamente do blueprint (npc_global_visual) — não prefixamos
+      com '1man,' genérico para evitar contradições.
     """
+    import random
+
     while len(microcenas_raw) < 4:
         microcenas_raw.append(microcenas_raw[-1].copy())
 
+    # Monta mapa nome→descrição visual
     desc_por_nome = {}
     for p in personagens_globais:
         desc_por_nome[p["nome"].lower()] = p["descricao_visual"]
 
-    student_desc = desc_por_nome.get(student_name.lower(), "1child, cute student, period-appropriate clothing")
-    npc_desc     = desc_por_nome.get(npc_principal.lower(), "1man, historical figure, period-appropriate clothing")
+    student_desc = desc_por_nome.get(student_name.lower(), "1child, 10 years old, short hair, brown eyes, simple period-appropriate clothing")
+    npc_desc     = desc_por_nome.get(npc_principal.lower(), "1person, historical figure, period-appropriate clothing")
 
-    prompts = []
-    textos = []
+    # Garante que ao menos um quadro seja de cenário puro.
+    # Verifica se o LLM já deixou algum com 'personagens' vazio.
+    tem_cenario_puro = any(len(mc.get("personagens", [])) == 0 for mc in microcenas_raw[:4])
+    if not tem_cenario_puro:
+        # Força o quadro 3 (índice 2) a ser cenário puro
+        microcenas_raw[2] = dict(microcenas_raw[2])
+        microcenas_raw[2]["personagens"] = []
+
+    # Garante que não haja 2 quadros seguidos com o mesmo personagem
+    # (alterna NPC → aluno → cenário → NPC etc.)
+    ultimo_char = None
+
+    prompts   = []
+    textos    = []
+    negatives = []   # ← negative_prompt específico por quadro
 
     for i, cena in enumerate(microcenas_raw[:4]):
-        personagens_presentes = cena.get('personagens', [])
+        pers = list(cena.get("personagens", []))
 
-        # REGRA CRÍTICA: máximo 1 personagem por quadro
-        if len(personagens_presentes) > 1:
-            personagens_presentes = personagens_presentes[:1]
+        # Máximo 1 personagem
+        if len(pers) > 1:
+            pers = pers[:1]
 
-        # Monta a descrição física apenas do personagem presente
-        desc_personagens = []
-        for p_nome in personagens_presentes:
+        # Resolve o tipo de quadro e define negative correto
+        char_prompt   = ""
+        negative_quad = NEGATIVE_TOONYOU   # default: quadro com 1 pessoa
+
+        if len(pers) == 0:
+            # Quadro de cenário puro — bloqueia qualquer humano
+            char_prompt   = "no humans, no people, scenery only, environmental shot, empty scene"
+            negative_quad = NEGATIVE_CENA_PURA
+            ultimo_char   = None
+        else:
+            p_nome = pers[0]
+            # Helper para extrair gênero e reforçar o negative prompt
+            def aplicar_anti_genero(prompt_char, neg_quad):
+                if "1boy" in prompt_char or "1man" in prompt_char or "male" in prompt_char:
+                    return neg_quad + ", (1girl, woman, female, girl, breasts:1.4)"
+                elif "1girl" in prompt_char or "1woman" in prompt_char or "female" in prompt_char:
+                    return neg_quad + ", (1boy, man, male, facial hair:1.4)"
+                return neg_quad
+
             if p_nome.lower() == student_name.lower():
-                desc_personagens.append(f"1child, {student_desc}")
+                if ultimo_char == "student" and i < 3:
+                    char_prompt = f"solo, {npc_desc}"
+                    ultimo_char = "npc"
+                else:
+                    char_prompt = f"solo, 1child, {student_desc}"
+                    ultimo_char = "student"
             elif p_nome.lower() == npc_principal.lower():
-                desc_personagens.append(f"1man, {npc_desc}")
+                if ultimo_char == "npc" and i < 3:
+                    char_prompt = f"solo, 1child, {student_desc}"
+                    ultimo_char = "student"
+                else:
+                    char_prompt = f"solo, {npc_desc}"
+                    ultimo_char = "npc"
+            else:
+                char_prompt   = "no humans, scenery only, empty scene"
+                negative_quad = NEGATIVE_CENA_PURA
+                ultimo_char   = None
 
-        char_prompt = ", ".join(desc_personagens) if desc_personagens else "no humans, scenery focus"
+            # Aplica o anti-gênero se não for cenário puro
+            if ultimo_char is not None:
+                negative_quad = aplicar_anti_genero(char_prompt, negative_quad)
 
-        acao_raw  = cena.get('acao', 'standing')
-        acao      = _acao_para_keywords(acao_raw, student_name, npc_principal)
-        emocao    = cena.get('emocao', 'neutral')
-        cenario   = cena.get('cenario', 'detailed background')
-        camera    = cena.get('camera', 'medium shot')
+        # Texto que vai para o gerador de imagem (Inglês)
+        acao_raw = cena.get("action_english", cena.get("acao", "standing, looking around"))
+        acao     = _acao_para_keywords(acao_raw, student_name, npc_principal)
+        emocao   = cena.get("emotion_english", cena.get("emocao", "neutral"))
+        cenario  = cena.get("scenery_english", cena.get("cenario", "detailed period-appropriate background"))
+        camera   = cena.get("camera_english", cena.get("camera", "medium shot"))
 
-        prompt_completo = (
-            f"masterpiece, best quality, highres, anime style, 2d illustration, studio ghibli style, vibrant vivid colors, highly detailed, cel shading, "
-            f"{char_prompt}, {acao}, {emocao} expression, {cenario}, {camera}, cinematic lighting"
-        )
+        # Texto que vai aparecer escrito na tela para o usuário (Português)
+        acao_tela = cena.get("acao_ptbr", acao_raw)
+
+        # Se for cenário puro, o LLM frequentemente ainda coloca ações/nomes, quebram a imagem.
+        # Filtramos agressivamente.
+        if len(pers) == 0:
+            acao = ""
+            emocao = ""
+            import re as _re
+            # Remove nomes dos personagens do cenário gerado
+            for nome_char in [student_name, npc_principal]:
+                if nome_char:
+                    cenario = _re.sub(r'\b' + _re.escape(nome_char) + r'\b', 'someone', cenario, flags=_re.IGNORECASE)
+
+        # Extrai objetos-chave do scenery_guideline como contexto de época
+        sg_extra = ""
+        if scenery_guideline:
+            import re as _re
+            objetos = _re.search(r'Key objects?:(.*?)(?:Atmosphere:|$)', scenery_guideline, _re.IGNORECASE | _re.DOTALL)
+            if objetos:
+                trecho = objetos.group(1).strip()
+                trecho = _re.sub(r'\([^)]*\)', '', trecho)
+                trecho = _re.sub(r'[.\[\]{}]', '', trecho)
+                trecho = _re.sub(r'\s+', ' ', trecho).strip(' ,')
+                if len(trecho) > 130:
+                    trecho = trecho[:130].rsplit(' ', 1)[0]
+                sg_extra = trecho
+            else:
+                sg_extra = scenery_guideline[:100]
+
+        # Montagem do Prompt
+        if len(pers) == 0:
+            prompt_completo = (
+                f"{char_prompt}, {cenario}, {sg_extra}, {camera}, cinematic lighting, "
+                f"masterpiece, best quality, highres, anime style, 2d illustration, "
+                f"studio ghibli style, vibrant vivid colors, highly detailed scenery, cel shading"
+            )
+        else:
+            prompt_completo = (
+                f"{char_prompt}, {acao}, {emocao} expression, "
+                f"{cenario}, {sg_extra}, {camera}, cinematic lighting, "
+                f"masterpiece, best quality, highres, anime style, 2d illustration, "
+                f"studio ghibli style, vibrant vivid colors, highly detailed, cel shading"
+            )
+
         prompts.append(prompt_completo)
-        textos.append(acao_raw)
+        textos.append(acao_tela)
+        negatives.append(negative_quad)
 
-    return prompts, textos
+    return prompts, textos, negatives
 
 
 # ============================================================
@@ -168,8 +282,12 @@ def gerar_json_seguro(prompt, temperatura=0.75, max_tentativas=3):
                 model=MODELO, 
                 messages=[{'role': 'user', 'content': prompt}], 
                 format='json',
-                options={'temperature': temperatura, 'num_predict': 2000},
-                keep_alive=0
+                options={
+                    'temperature': temperatura,
+                    'num_predict': 1600,   # suficiente para o JSON completo; menos = mais rápido
+                    'num_ctx': 4096,       # contexto adequado sem desperdiçar VRAM
+                },
+                keep_alive=0               # descarrega da VRAM imediatamente — Forge precisa da memória para gerar as imagens
             )
             conteudo = resposta.message.content.strip()
             print(f"\n=== RESPOSTA JSON (Tentativa {tentativa+1}) ===\n{conteudo}\n=====================\n")
@@ -409,10 +527,11 @@ Retorne APENAS um objeto JSON combinando perfeitamente com este schema:
   ],
   "microcenas": [
     {{
-      "acao": "string (MUST BE EN-US) — Highly descriptive and dynamic action verb phrase. NO passive verbs ('looking', 'standing'). Use active physical interactions.",
-      "camera": "string (MUST BE EN-US) — Camera angle. VARY per microcena: 'close-up', 'medium shot', 'full body shot', 'low angle', 'high angle', 'dutch angle', 'extreme close-up', 'wide establishment shot'.",
-      "emocao": "string (MUST BE EN-US) — Character emotion or 'neutral'.",
-      "cenario": "string (MUST BE STRICTLY EN-US) — Fully standalone, highly detailed scenery. NO Portuguese. NO 'same as before'.",
+      "acao_ptbr": "string — TEXTO PARA A TELA. STRICTLY IN PORTUGUESE (PT-BR). Descreva a ação que está acontecendo neste quadro para o usuário ler.",
+      "action_english": "string — IMAGE PROMPT. STRICTLY IN ENGLISH. Highly descriptive and dynamic action verb phrase for the AI Generator.",
+      "camera_english": "string — STRICTLY IN ENGLISH. Camera angle. VARY per microcena.",
+      "emotion_english": "string — STRICTLY IN ENGLISH. Character emotion or 'neutral'.",
+      "scenery_english": "string — STRICTLY IN ENGLISH. Fully standalone, highly detailed scenery.",
       "personagens": ["string (Character Name, or EMPTY for environment shots)"]
     }}
   ]
@@ -427,6 +546,15 @@ Retorne APENAS um objeto JSON combinando perfeitamente com este schema:
 - Camera angles MUST be different for each microcena.
 - For student microcenas: personagens: ["{contexto['student_name']}"]
 - For NPC microcenas: personagens: ["{contexto.get('npc_principal', 'NPC')}"]
+
+### ⛔ MICROCENAS ANTI-REPETITION RULES (CRITICAL) ###
+Each microcena "cenario" MUST describe a DISTINCT physical location, object, or angle.
+FORBIDDEN patterns in "cenario":
+  - Repeating "relay machines, vacuum tubes, paper tape" across ALL 4 cenarios — if you use these in one, the next must focus on something ELSE (a chalkboard equation, a window with fog outside, a close-up of a paper symbol, a mechanical cog, etc.)
+  - Using "same as before", "similar to", or any reference to a previous cenario.
+  - Two consecutive cenarios in the same room viewed from the same angle.
+Each "acao" must be DIFFERENT from the other 3 — no two microcenas can have the same verb or interaction.
+Each "camera" must be DIFFERENT from all others — rotate through close-up, medium shot, wide shot, extreme close-up, low angle, etc.
 
 ### TAREFA DA HISTÓRIA ATUAL (CURRENT STORY TASK) ###
 Estudante: {contexto['student_name']}
@@ -444,7 +572,15 @@ Histórico: {historico}
 """
 
     if contexto.get("is_final"):
-        prompt += "\nIMPORTANT: FINAL STEP. No 'opcoes' needed (use two warm reflective options). Write a meaningful, specific ending that honors the historical figure's real legacy."
+        prompt += (
+            "\n\nIMPORTANT — THIS IS THE FINAL CHAPTER. Rules:"
+            "\n- The 'historia' MUST close the story with an emotionally earned ending. Show the student saying goodbye to the historical figure."
+            "\n- Include ONE specific legacy fact (year, award, or lasting impact) spoken aloud by the NPC."
+            "\n- The NPC's final line must be a direct, warm farewell addressed to the student by name."
+            "\n- The last sentence of 'historia' must feel like a curtain closing — a complete resolution, not a cliffhanger."
+            "\n- 'opcoes' should be two warm, reflective choices (e.g., 'Guardar a memória deste encontro' / 'Perguntar o que o futuro reserva')."
+            "\n- One microcena must be a wide establishment shot of the location fading to warm light — the visual farewell."
+        )
 
     return prompt
 
@@ -483,7 +619,7 @@ def fixar_visual_aluno(personagens, student_name, state):
     return personagens
 
 
-def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name="", npc_principal=""):
+def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name="", npc_principal="", scenery_guideline=""):
     microcenas = cena_dados.get("microcenas", [])
     
     if not isinstance(microcenas, list) or len(microcenas) == 0:
@@ -493,27 +629,27 @@ def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name=
         microcenas.append(microcenas[-1].copy())
 
     # Sistema Clássico: 4 Cenas Completas
-    prompts_imagens, textos_quadros = montar_triptico_prompts(microcenas[:4], personagens_globais, student_name, npc_principal)
+    prompts_imagens, textos_quadros, negatives_por_quadro = montar_triptico_prompts(
+        microcenas[:4], personagens_globais, student_name, npc_principal,
+        scenery_guideline=scenery_guideline
+    )
 
     nomes_base = []
     for idx, mc in enumerate(microcenas[:4]):
         num_q = idx + 1
-        if len(mc.get("personagens", [])) > 0:
-            # Tem personagem: vamos usar AnimateDiff, gerar como GIF
-            nomes_base.append(f"sessao_{sid}/cena_{num_cena}_quadro_{num_q}.gif")
-        else:
-            # Sem personagem: imagem estática única
-            nomes_base.append(f"sessao_{sid}/cena_{num_cena}_quadro_{num_q}.png")
+        nomes_base.append(f"sessao_{sid}/cena_{num_cena}_quadro_{num_q}.png")
 
     return {
         "historia": cena_dados.get("historia", ""),
         "fala_robo": cena_dados.get("historia", ""),
         "opcoes": (cena_dados.get("opcoes", []) + ["Continuar", "Explorar"])[:2],
         "prompts_imagens": prompts_imagens,
+        "negative_prompts": negatives_por_quadro,   # lista com 1 negative por quadro
         "imagens_arquivos": nomes_base,
         "referencia_arquivo": nomes_base[0],
         "microcenas_textos": textos_quadros
     }
+
 
 # Variável global para o visualizador (PC2) seguir o que o terminal (PC1) está fazendo
 SESSAO_ATIVA = {
@@ -521,11 +657,16 @@ SESSAO_ATIVA = {
     "status": "aguardando", # pode ser: "aguardando", "pensando", "ativo", "modal", "quiz_gerando", "quiz", "quiz_fim"
     "fala_enrolacao": "",
     "last_scene_data": None,
+    # --- Sincronização NAO ↔ Imagens ---
+    "quadro_atual": 0,       # índice do quadro (imagem) que o frontend está exibindo agora
+    "text_chunks": [],       # lista de strings: texto correspondente a cada quadro
+    "nao_falando": False,    # True enquanto o NAO está falando; False quando terminou
     # --- Quiz ---
     "quiz_perguntas": [],    # lista de dicts com pergunta, opcoes, resposta_correta
     "quiz_ids": [],          # IDs das perguntas no banco SQLite
     "quiz_idx_atual": 0,     # índice da pergunta sendo exibida
 }
+
 
 ESCOLHA_PENDENTE = None
 
@@ -549,7 +690,29 @@ def definir_pensando():
     dados = request.json
     SESSAO_ATIVA["status"] = "pensando"
     SESSAO_ATIVA["fala_enrolacao"] = dados.get("frase", "Hmm, deixe-me pensar...")
+    SESSAO_ATIVA["nao_falando"] = True   # enquanto pensa/fala, bloqueia avanço
     return jsonify({"status": "ok"})
+
+@app.route('/nao_iniciou_fala', methods=['POST'])
+def nao_iniciou_fala():
+    """Chamado pelo nao_speaker.py ANTES de iniciar a fala. Bloqueia o avanço de quadro."""
+    SESSAO_ATIVA["nao_falando"] = True
+    return jsonify({"status": "ok"})
+
+@app.route('/nao_terminou_fala', methods=['POST'])
+def nao_terminou_fala():
+    """Chamado pelo nao_speaker.py APÓS terminar a fala. Libera o avanço de quadro."""
+    SESSAO_ATIVA["nao_falando"] = False
+    return jsonify({"status": "ok"})
+
+@app.route('/nao_terminou', methods=['GET'])
+def nao_terminou():
+    """
+    Polling do frontend: retorna se o NAO terminou de falar o quadro atual.
+    Retorna {"terminou": true} quando o NAO está livre.
+    """
+    terminou = not SESSAO_ATIVA.get("nao_falando", False)
+    return jsonify({"terminou": terminou})
 
 @app.route('/publicar_cena', methods=['POST'])
 def publicar_cena():
@@ -557,6 +720,54 @@ def publicar_cena():
     SESSAO_ATIVA["session_id"] = dados.get("session_id")
     SESSAO_ATIVA["last_scene_data"] = dados
     SESSAO_ATIVA["status"] = "ativo"
+    return jsonify({"status": "ok"})
+
+@app.route('/publicar_quadro', methods=['POST'])
+def publicar_quadro():
+    """
+    Chamado pelo frontend (index.html) sempre que avança para uma nova imagem.
+    Informa ao servidor (e portanto ao nao_speaker.py) qual quadro está visível agora.
+    """
+    dados = request.json
+    SESSAO_ATIVA["quadro_atual"] = dados.get("quadro_idx", 0)
+    return jsonify({"status": "ok"})
+
+@app.route('/visualizador/quadro_atual')
+def visualizador_quadro():
+    """
+    Endpoint exclusivo para o nao_speaker.py.
+    Retorna o chunk de texto correspondente ao quadro que está sendo exibido agora,
+    permitindo que o NAO fale em sincronia com cada imagem.
+    """
+    chunks = SESSAO_ATIVA.get("text_chunks", [])
+    idx = SESSAO_ATIVA.get("quadro_atual", -1)
+    texto = chunks[idx] if chunks and 0 <= idx < len(chunks) else ""
+
+    status = SESSAO_ATIVA.get("status", "aguardando")
+    if status == "pensando":
+        return jsonify({
+            "status": "pensando",
+            "texto": SESSAO_ATIVA.get("fala_enrolacao", ""),
+            "quadro_idx": idx
+        })
+
+    return jsonify({
+        "status": status,
+        "texto": texto,
+        "quadro_idx": idx,
+        "total_quadros": len(chunks)
+    })
+
+@app.route('/registrar_chunks', methods=['POST'])
+def registrar_chunks():
+    """
+    Chamado pelo frontend UMA VEZ ao detectar uma nova cena com imagens.
+    Guarda os text_chunks (texto por quadro) para sincronizar a fala do NAO.
+    NÃO altera status, session_id nem quadro_atual - apenas salva os chunks.
+    """
+    dados = request.json
+    SESSAO_ATIVA["text_chunks"] = dados.get("text_chunks", [])
+    SESSAO_ATIVA["quadro_atual"] = -1   # -1 significa que nenhum quadro está visível ainda
     return jsonify({"status": "ok"})
 
 @app.route('/publicar_modal', methods=['POST'])
@@ -625,7 +836,7 @@ def iniciar():
     state["last_narrative"] = cena_raw.get("historia", "")
     manager.save_state(sid)
 
-    proc = processar_cena(cena_raw, personagens, sid, 1, student_name=nome, npc_principal=ctx.get("npc_principal", ""))
+    proc = processar_cena(cena_raw, personagens, sid, 1, student_name=nome, npc_principal=ctx.get("npc_principal", ""), scenery_guideline=ctx.get("scenery_guideline", ""))
 
     # Salva a cena 1 no banco
     quiz_manager.salvar_cena(
@@ -644,11 +855,11 @@ def iniciar():
         'historia_original': proc['historia'],
         'fala_robo': proc['fala_robo'],
         'prompts_imagens': proc['prompts_imagens'],
+        'negative_prompts': proc['negative_prompts'],      # array por quadro
+        'negative_prompt': proc['negative_prompts'][0] if proc.get('negative_prompts') else NEGATIVE_TOONYOU,  # legado
         'imagens_arquivos': proc['imagens_arquivos'],
         'referencia_arquivo': proc['referencia_arquivo'],
         'microcenas_textos': proc['microcenas_textos'],
-        'negative_prompt': NEGATIVE_TOONYOU,
-        'negative_prompt_char': NEGATIVE_CHAR_ISOLADO,
         'opcoes': proc['opcoes'], 'tem_opcoes': True
     })
 
@@ -753,7 +964,7 @@ def escolher():
     manager.save_state(sid)
 
     num_cena = state["current_step_idx"] + 1
-    proc = processar_cena(cena_raw, personagens, sid, num_cena, student_name=state["student"]["name"], npc_principal=ctx.get("npc_principal", ""))
+    proc = processar_cena(cena_raw, personagens, sid, num_cena, student_name=state["student"]["name"], npc_principal=ctx.get("npc_principal", ""), scenery_guideline=ctx.get("scenery_guideline", ""))
 
     # Salva a nova cena no banco
     quiz_manager.salvar_cena(
@@ -771,13 +982,14 @@ def escolher():
         'historia_original': proc['historia'],
         'fala_robo': proc['fala_robo'],
         'prompts_imagens': proc['prompts_imagens'],
+        'negative_prompts': proc['negative_prompts'],      # array por quadro
+        'negative_prompt': proc['negative_prompts'][0] if proc.get('negative_prompts') else NEGATIVE_TOONYOU,  # legado
         'imagens_arquivos': proc['imagens_arquivos'],
         'referencia_arquivo': proc['imagens_arquivos'][0],
         'microcenas_textos': proc['microcenas_textos'],
-        'negative_prompt': NEGATIVE_TOONYOU,
-        'negative_prompt_char': NEGATIVE_CHAR_ISOLADO,
         'opcoes': proc['opcoes'], 'tem_opcoes': not ctx.get('is_final', False)
     })
+
 
 @app.route('/visualizador/cena_atual')
 @app.route('/visualizador/cena_atual/')
@@ -807,9 +1019,9 @@ def visualizador_cena():
             "dados": SESSAO_ATIVA["last_scene_data"]
         })
 
-    if SESSAO_ATIVA["status"] == "quiz_fim":
+    if SESSAO_ATIVA["status"] == "historia_fim" or SESSAO_ATIVA["status"] == "quiz_fim":
         return jsonify({
-            "status": "quiz_fim",
+            "status": "historia_fim",
             "session_id": SESSAO_ATIVA["session_id"],
             "dados": SESSAO_ATIVA["last_scene_data"]
         })
@@ -922,19 +1134,29 @@ def finalizar_sessao():
     SESSAO_ATIVA["quiz_idx_atual"] = 0
 
     def gerar_silencioso():
+        import sqlite3
+        con = sqlite3.connect(quiz_manager.DB_PATH)
+        con.row_factory = sqlite3.Row
+        pre_record = con.execute("SELECT pre_id FROM pre_questionarios WHERE session_id = ?", (sid,)).fetchone()
+        con.close()
+        
+        if not pre_record:
+            print(f"🚫 Sessão {sid} não possui código (pre_id). O quiz não será gerado.")
+            return
+
         historico = state.get("history", [])
         student_name = state["student"]["name"]
         tema = state["student"].get("theme", "")
         skill = state["student"].get("focus_skill", "")
 
-        print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] — Aluno: {student_name}")
+        print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] - Aluno: {student_name}")
 
         prompt_quiz = montar_prompt_quiz(student_name, historico)
         quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
         perguntas = quiz_raw.get("perguntas", [])
 
         if not perguntas:
-            print("⚠️ Falha ao gerar perguntas do quiz.")
+            print("❌ Falha ao gerar perguntas do quiz.")
             return
 
         # Garante que "Não me lembro." está sempre na posição 3
@@ -955,7 +1177,7 @@ def finalizar_sessao():
 
     threading.Thread(target=gerar_silencioso).start()
 
-    return jsonify({"status": "ok", "msg": "História encerrada. Quiz gerado no backend."})
+    return jsonify({"status": "ok", "msg": "História encerrada. Quiz gerado no backend silenciosamente."})
 
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():

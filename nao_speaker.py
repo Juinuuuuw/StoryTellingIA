@@ -5,6 +5,7 @@ import urllib.request
 import os
 import sys
 import subprocess
+from naoguese import para_naoguese  # transliteração fonética PT-BR → NAOguês
 
 try:
     import paramiko
@@ -18,8 +19,9 @@ try:
 except ImportError:
     QI_DISPONIVEL = False
 
-SERVER_URL = "http://127.0.0.1:5000/visualizador/cena_atual"
-NAO_IP     = "172.16.60.28"
+SERVER_URL       = "http://127.0.0.1:5000/visualizador/cena_atual"
+SERVER_QUADRO    = "http://127.0.0.1:5000/visualizador/quadro_atual"
+NAO_IP     = "172.16.60.3"
 NAO_PORT   = 9559
 
 # ============================================================
@@ -171,51 +173,100 @@ else:
 
 
 # ============================================================
-# LOOP PRINCIPAL
+# LOOP PRINCIPAL — sincronizado por quadro
 # ============================================================
-ultimo_texto = None
+ultimo_texto   = None
+ultimo_quadro  = -1   # rastreia o índice do quadro já falado
 print("Monitorando servidor... (CTRL+C para parar)")
+
+def _sinalizar_inicio_fala():
+    """Avisa o servidor que o NAO começou a falar (bloqueia avanço de quadro)."""
+    try:
+        urllib.request.urlopen(
+            urllib.request.Request(SERVER_URL.replace("/visualizador/cena_atual", "/nao_iniciou_fala"),
+                                   data=b"{}", method="POST",
+                                   headers={"Content-Type": "application/json"}),
+            timeout=2
+        )
+    except Exception:
+        pass
+
+def _sinalizar_fim_fala():
+    """Avisa o servidor que o NAO terminou de falar (libera avanço de quadro)."""
+    try:
+        urllib.request.urlopen(
+            urllib.request.Request(SERVER_URL.replace("/visualizador/cena_atual", "/nao_terminou_fala"),
+                                   data=b"{}", method="POST",
+                                   headers={"Content-Type": "application/json"}),
+            timeout=2
+        )
+    except Exception:
+        pass
+
+def falar(texto):
+    """Dispara a fala no NAO com gesto contextual."""
+    if not texto:
+        return
+    texto = limpar_texto(texto)
+    gesto = escolher_gesto(texto)          # usa texto original PT-BR para escolher gesto
+
+    texto_nao = para_naoguese(texto)       # converte para NAOguês antes de falar
+    print("NAO vai falar: " + texto_nao)
+    print("  (original): " + texto)
+
+    anim_path = GESTOS[gesto]
+    print("Gesto: " + gesto + " (" + anim_path + ")")
+    texto_animado = "^start({}) {}".format(anim_path, texto_nao)
+
+    _sinalizar_inicio_fala()   # bloqueia avanço de quadro no frontend
+    try:
+        if QI_DISPONIVEL:
+            anim.say(texto_animado, config)   # BLOQUEANTE — só retorna quando termina
+        else:
+            falar_fallback(texto_animado, texto_nao)
+    except Exception as e1:
+        print("ALAnimatedSpeech falhou (" + str(e1) + "), usando TTS simples...")
+        try:
+            if QI_DISPONIVEL:
+                tts.say(texto_nao)            # BLOQUEANTE
+        except Exception as e2:
+            print("TTS também falhou: " + str(e2))
+    finally:
+        _sinalizar_fim_fala()  # libera avanço de quadro — sempre executa, mesmo em erro
+
 
 while True:
     try:
-        raw  = urllib.request.urlopen(SERVER_URL, timeout=5).read()
-        data = json.loads(raw)
+        # ── Prioridade 1: estado "pensando" (enrolação enquanto IA gera) ──
+        raw_cena = urllib.request.urlopen(SERVER_URL, timeout=5).read()
+        cena_data = json.loads(raw_cena)
 
-        if data.get("status") in ["ativo", "pensando", "modal"]:
-            if data.get("status") == "pensando":
-                texto_raw = data.get("fala_robo", "")
-            elif data.get("status") == "modal":
-                texto_raw = data.get("dados", {}).get("pergunta", "")
-            else:
-                texto_raw = data.get("dados", {}).get("fala_robo", "")
+        if cena_data.get("status") == "pensando":
+            texto_enrolacao = cena_data.get("fala_robo", "") or cena_data.get("fala_enrolacao", "")
+            if texto_enrolacao and texto_enrolacao != ultimo_texto:
+                ultimo_texto = texto_enrolacao
+                ultimo_quadro = -1   # reseta para falar novamente na próxima cena
+                falar(texto_enrolacao)
 
-            texto = limpar_texto(texto_raw)
+        elif cena_data.get("status") == "modal":
+            pergunta = cena_data.get("dados", {}).get("pergunta", "")
+            if pergunta and pergunta != ultimo_texto:
+                ultimo_texto = pergunta
+                falar(pergunta)
 
-            if texto and texto != ultimo_texto:
-                ultimo_texto = texto
-                print("NAO vai falar: " + texto)
+        elif cena_data.get("status") == "ativo":
+            # ── Prioridade 2: quadro específico sendo exibido agora ──
+            raw_q = urllib.request.urlopen(SERVER_QUADRO, timeout=5).read()
+            q_data = json.loads(raw_q)
 
-                # Escolhe o gesto baseado no texto
-                gesto = escolher_gesto(texto)
-                anim_path = GESTOS[gesto]
-                print("Gesto: " + gesto + " (" + anim_path + ")")
+            texto_quadro = q_data.get("texto", "")
+            quadro_idx   = q_data.get("quadro_idx", 0)
 
-                # Embute a animação no início do texto com tag ^start
-                # O NAO dispara a animação E fala ao mesmo tempo
-                texto_animado = "^start({}) {}".format(anim_path, texto)
-
-                try:
-                    if QI_DISPONIVEL:
-                        anim.say(texto_animado, config)
-                    else:
-                        falar_fallback(texto_animado, texto)
-                except Exception as e1:
-                    print("ALAnimatedSpeech falhou (" + str(e1) + "), usando TTS simples...")
-                    try:
-                        if QI_DISPONIVEL:
-                            tts.say(texto)
-                    except Exception as e2:
-                        print("TTS também falhou: " + str(e2))
+            # Fala apenas quando o quadro muda E há texto novo
+            if texto_quadro and quadro_idx != ultimo_quadro:
+                ultimo_quadro = quadro_idx
+                ultimo_texto  = texto_quadro
+                falar(texto_quadro)
 
     except KeyboardInterrupt:
         print("Encerrando.")
@@ -223,4 +274,4 @@ while True:
     except Exception as e:
         print("Erro: " + str(e))
 
-    time.sleep(3)
+    time.sleep(1)  # poll a cada 1s — rápido o suficiente para pegar a troca de quadro

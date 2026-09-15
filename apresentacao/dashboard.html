@@ -358,8 +358,8 @@
 Chart.defaults.color = 'rgba(255, 255, 255, 0.6)';
 Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
 Chart.defaults.font.family = "'Montserrat', sans-serif";
-const API=window.location.origin, POLL=5000, LETRAS=['A','B','C','D'];
-let dQ=null,dH=[],cQ={},cH={};
+const API=(window.location.protocol==='file:')?'http://127.0.0.1:5000':window.location.origin, POLL=5000, LETRAS=['A','B','C','D'];
+let dQ={}, dH=[], cH={}, cQ={};
 let qSK='data_hora',qSA=false,hSK='data_inicio',hSA=false;
 let qExp=null,hExp=null;
 let chT=null,chP=null;

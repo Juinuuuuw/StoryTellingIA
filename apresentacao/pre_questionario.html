@@ -419,7 +419,7 @@
 </div>
 
 <script>
-const API = window.location.origin;
+const API = (window.location.protocol === 'file:') ? 'http://127.0.0.1:5000' : window.location.origin;
 const respostas = {};
 let secaoAtual = 1;
 const tempoInicio = Date.now();

@@ -837,6 +837,106 @@
             type();
         }
 
+        /**
+         * splitByCharLength — divide o texto em N chunks de tamanho equilibrado.
+         *
+         * Regras:
+         *  1. Só corta em ponto final (.  !  ?) — nunca no meio de uma frase.
+         *  2. Distribui as frases tentando que cada chunk tenha ~igual nº de caracteres.
+         *  3. Garante que nenhum chunk fique vazio:
+         *     - Se há menos frases que chunks, o último chunk é dividido em partes menores.
+         *     - Qualquer fragmento sem pontuação terminal vai para o último chunk.
+         */
+        function splitByCharLength(text, numChunks) {
+            if (!text || numChunks <= 0) return [text || ''];
+
+            // Captura frases terminadas em . ! ? (incluindo aspas/parênteses logo após)
+            // Ex: "Disse ela." / "Isso é incrível!" / "O que aconteceu?"
+            const rawSentences = text.match(/[^.!?]+[.!?]["')\]]?(?:\s|$)/g) || [];
+            const sentences = rawSentences.map(s => s.trim()).filter(s => s.length > 0);
+
+            // Texto que sobrou sem pontuação terminal (ex: última frase sem ponto)
+            const matched = rawSentences.join('');
+            const orphan = text.slice(matched.length).trim();
+
+            // Se não conseguiu detectar frases, devolve o texto inteiro em todos os chunks
+            if (sentences.length === 0) {
+                return Array(numChunks).fill(text);
+            }
+
+            // Se há apenas uma frase para vários chunks, distribui por palavras
+            if (sentences.length === 1 && numChunks > 1) {
+                const words = sentences[0].split(/\s+/);
+                const perChunk = Math.ceil(words.length / numChunks);
+                const chunks = [];
+                for (let i = 0; i < numChunks; i++) {
+                    const part = words.slice(i * perChunk, (i + 1) * perChunk).join(' ');
+                    if (part) chunks.push(part);
+                }
+                while (chunks.length < numChunks) chunks.push(chunks[chunks.length - 1] || '');
+                return chunks;
+            }
+
+            // Calcula o alvo de caracteres por chunk
+            const totalChars = sentences.reduce((acc, s) => acc + s.length, 0)
+                               + (orphan ? orphan.length : 0);
+            const targetPerChunk = totalChars / numChunks;
+
+            const chunks = [];
+            let bucket   = [];
+            let bucketLen = 0;
+            let sIdx     = 0;
+
+            for (let chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
+                const isLast      = chunkIdx === numChunks - 1;
+                const sentencesLeft = sentences.length - sIdx;
+                const chunksLeft  = numChunks - chunkIdx;
+
+                bucket    = [];
+                bucketLen = 0;
+
+                // Último chunk: absorve tudo que sobrou
+                if (isLast) {
+                    while (sIdx < sentences.length) {
+                        bucket.push(sentences[sIdx++]);
+                    }
+                    if (orphan) bucket.push(orphan);
+                    chunks.push(bucket.join(' ').trim());
+                    break;
+                }
+
+                // Garante pelo menos 1 frase por chunk, reservando 1 frase para cada chunk futuro
+                const minRequired = chunksLeft - 1; // outros chunks também precisam de pelo menos 1
+                const available   = sentencesLeft - minRequired;
+
+                // Adiciona frases até atingir o alvo de caracteres
+                let added = 0;
+                while (sIdx < sentences.length && added < available) {
+                    // Adiciona a primeira frase incondicionalmente
+                    if (added === 0) {
+                        bucket.push(sentences[sIdx]);
+                        bucketLen += sentences[sIdx].length;
+                        sIdx++;
+                        added++;
+                        continue;
+                    }
+
+                    const nextLen = sentences[sIdx].length;
+                    // Para de adicionar se já ultrapassou o alvo por mais de 20%
+                    if (bucketLen + nextLen > targetPerChunk * 1.2 && added >= 1) break;
+
+                    bucket.push(sentences[sIdx]);
+                    bucketLen += nextLen;
+                    sIdx++;
+                    added++;
+                }
+
+                chunks.push(bucket.join(' ').trim());
+            }
+
+            return chunks;
+        }
+
         // ─── CADASTRO / REGISTRO ─────────────────────────────────────────
 
         let cadNome = '';
@@ -1110,30 +1210,23 @@
         }
 
 
-        async function loadImageWithRetry(url, retries = 30) {
-            return new Promise((resolve) => {
-                let attempts = 0;
-                let currentUrl = url;
-                const img = new Image();
-                img.onload = () => resolve(true);
-                img.onerror = () => {
-                    attempts++;
-                    if (attempts >= retries) {
-                        // If we failed to load a .gif, it might have fallen back to .png on the server
-                        if (currentUrl.endsWith('.gif')) {
-                            console.warn("GIF loading failed, attempting PNG fallback for: " + currentUrl);
-                            currentUrl = currentUrl.replace('.gif', '.png');
-                            attempts = 0; // reset attempts for the PNG fallback
-                            setTimeout(() => { img.src = currentUrl; }, 1000);
-                        } else {
-                            resolve(false);
-                        }
-                    } else {
-                        setTimeout(() => { img.src = currentUrl; }, 1000);
-                    }
-                };
-                img.src = currentUrl;
-            });
+        async function waitForImage(filename) {
+            let currentFilename = filename;
+            let attempts = 0;
+            while(attempts < 300) {
+                try {
+                    const res = await fetch(`${API_URL}/check_image/${currentFilename}`, { cache: 'no-store' });
+                    const data = await res.json();
+                    if (data.ready) return currentFilename;
+                } catch(e) {}
+                
+                attempts++;
+                if (attempts === 20 && currentFilename.endsWith('.gif')) {
+                    currentFilename = currentFilename.replace('.gif', '.png');
+                }
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            return null;
         }
 
         async function startImageSequence(images, data, textChunks) {
@@ -1144,14 +1237,31 @@
             const loader = document.getElementById('loader');
             const storyTextEl = document.getElementById('story-text');
             
-            loader.style.display = 'none';
             imgEl.style.display = "block";
 
             const playFrame = async (idx) => {
-                const url = `${API_URL}/images/${images[idx]}`;
-                const ready = await loadImageWithRetry(url);
+                const filename = images[idx];
+                const finalFilename = await waitForImage(filename);
                 if (seqId !== currentSequenceId) return false;
-                if (ready) {
+                
+                if (finalFilename) {
+                    const url = `${API_URL}/images/${finalFilename}`;
+                    // Força o carregamento da imagem silenciosamente antes de exibir
+                    const img = new Image();
+                    await new Promise(res => { img.onload = res; img.onerror = res; img.src = url; });
+                    
+                    // Ocultar loader apenas quando a 1ª imagem for exibida
+                    if (idx === 0) {
+                        loader.style.display = 'none';
+                    }
+
+                    // Notifica o servidor que este quadro está visível agora (NAO sincroniza a fala)
+                    fetch(`${API_URL}/publicar_quadro`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ quadro_idx: idx })
+                    }).catch(() => {});
+
                     imgEl.src = url;
                     if (textChunks && textChunks[idx]) {
                         typeWriterEffect(textChunks[idx], storyTextEl);
@@ -1166,17 +1276,39 @@
                 return false;
             };
 
+            // ── Aguarda o NAO terminar de falar antes de avançar ──────────
+            const waitForNaoFinish = async () => {
+                const MAX_ESPERA_MS  = 60000;  // máximo 60s — segurança caso NAO desconecte
+                const POLL_INTERVAL  = 800;    // checa a cada 800ms
+                const t0 = Date.now();
+                while (Date.now() - t0 < MAX_ESPERA_MS) {
+                    try {
+                        const r = await fetch(`${API_URL}/nao_terminou`, { cache: 'no-store' });
+                        const d = await r.json();
+                        if (d.terminou) return;
+                    } catch (e) {
+                        // servidor offline — libera para não travar
+                        return;
+                    }
+                    await new Promise(r => setTimeout(r, POLL_INTERVAL));
+                }
+                // timeout: avança mesmo assim
+            };
+
             if (images.length === 0) { triggerDecisionModal(data); return; }
 
             for (let i = 0; i < images.length; i++) {
                 if (seqId !== currentSequenceId) return;
                 await playFrame(i);
-                
-                // Transição de fade inout para a próxima
+
+                // Aguarda o NAO terminar de falar o quadro atual antes de avançar
+                await waitForNaoFinish();
+
                 if (i < images.length - 1) {
-                    await new Promise(r => setTimeout(r, 8000));
+                    // pequena pausa de transição após o NAO terminar
+                    await new Promise(r => setTimeout(r, 800));
                 } else {
-                    await new Promise(r => setTimeout(r, 8000));
+                    await new Promise(r => setTimeout(r, 800));
                     if (seqId === currentSequenceId) triggerDecisionModal(data);
                 }
             }
@@ -1252,9 +1384,10 @@
         }
 
         async function checkActiveSession() {
+            if (isModalLocallyOpen) return;
             try {
-                const req = await fetch(`${API_URL}/visualizador/cena_atual`);
-                const data = await req.json();
+                const r = await fetch(`${API_URL}/visualizador/cena_atual`, { cache: 'no-store' });
+                const data = await r.json();
 
                 if (data.status === "aguardando" || data.status === "pensando") {
                     document.getElementById('loader').style.display = 'flex';
@@ -1278,7 +1411,7 @@
                     return;
                 }
 
-                // ── Quiz: gerando ──
+                // 🔹 Quiz: gerando 🔹
                 if (data.status === "quiz_gerando") {
                     document.getElementById('loader').style.display = 'flex';
                     document.getElementById('loader').querySelector('div:last-child').innerText = "PREPARANDO PERGUNTAS...";
@@ -1286,7 +1419,7 @@
                     return;
                 }
 
-                // ── Quiz: pergunta atual (Obsoleto, agora é no pós-questionário) ──
+                // 🔹 Quiz: pergunta atual (Obsoleto, agora é no pós-questionário) 🔹
                 if (data.status === "quiz") {
                     return;
                 }
@@ -1306,8 +1439,8 @@
                         fimScreen.style.display = 'flex';
                         gsap.fromTo(fimScreen, { opacity: 0 }, { opacity: 1, duration: 1, ease: "power2.out" });
                         
-                        document.getElementById('quiz-fim-badge').innerText = `🏆`;
-                        document.getElementById('quiz-fim-titulo').innerText = "Obrigado por brincar!";
+                        document.getElementById('quiz-fim-badge').innerText = `✨`;
+                        document.getElementById('quiz-fim-titulo').innerText = "Obrigado por ouvir a história!";
                         document.getElementById('quiz-fim-subtitulo').innerText = "A história terminou. Você pode fechar esta tela e o seu pesquisador te guiará para a próxima etapa.";
                     }
                     return;
@@ -1328,24 +1461,17 @@
                     
                     const hasImages = Array.isArray(sceneData.imagens_arquivos) && sceneData.imagens_arquivos.length > 0;
                     if (hasImages) {
-                        // Split text into sentences
-                        const sentences = textoHistoria.match(/[^.!?]+[.!?]+/g) || [textoHistoria];
                         const numChunks = sceneData.imagens_arquivos.length;
-                        const textChunks = [];
-                        const base = Math.floor(sentences.length / numChunks);
-                        let remainder = sentences.length % numChunks;
-                        let sIdx = 0;
-                        for (let i = 0; i < numChunks; i++) {
-                            let count = base + (remainder > 0 ? 1 : 0);
-                            remainder--;
-                            let chunkSentences = [];
-                            for(let j = 0; j < count && sIdx < sentences.length; j++) {
-                                chunkSentences.push(sentences[sIdx].trim());
-                                sIdx++;
-                            }
-                            textChunks.push(chunkSentences.join(' '));
-                        }
-                        
+                        const textChunks = splitByCharLength(textoHistoria, numChunks);
+
+                        // Registra os text_chunks no servidor UMA ÚNICA VEZ para o NAO sincronizar.
+                        // Usa endpoint dedicado para não interferir no status/quadro_atual da cena.
+                        fetch(`${API_URL}/registrar_chunks`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text_chunks: textChunks })
+                        }).catch(() => {});
+
                         startImageSequence(sceneData.imagens_arquivos, sceneData, textChunks);
                     } else {
                         typeWriterEffect(textoHistoria, storyTextEl);

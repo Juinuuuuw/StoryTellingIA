@@ -47,22 +47,30 @@ function registrarLog(conteudo) {
 }
 
 // ─── GERAÇÃO DE IMAGENS ───────────────────────────────────────
-async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negativePrompt, numeroCena, dadosDaCena, seedCena) {
+async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negativePrompts, numeroCena, dadosDaCena, seedCena) {
     console.log(`\n🎨 Gerando Storyboard - Cena ${numeroCena}`);
 
+    // negativePrompts pode ser array (por quadro) ou string (fallback legado)
+    const getNegative = (i) => {
+        if (Array.isArray(negativePrompts)) return negativePrompts[i] || negativePrompts[0] || "";
+        return negativePrompts || "";
+    };
+
     for (let i = 0; i < promptsImagens.length; i++) {
-        const promptAtual = promptsImagens[i];
-        const acaoTexto   = microcenasTextos[i] || `Quadro ${i + 1}`;
-        const nomeBase    = dadosDaCena ? dadosDaCena.imagens_arquivos[i] : `cena_${numeroCena}_q${i + 1}.png`;
+        const promptAtual   = promptsImagens[i];
+        const negativeAtual = getNegative(i);
+        const acaoTexto     = microcenasTextos[i] || `Quadro ${i + 1}`;
+        const nomeBase      = dadosDaCena ? dadosDaCena.imagens_arquivos[i] : `cena_${numeroCena}_q${i + 1}.png`;
 
         console.log(`   🎬 Quadro ${i + 1}: [${acaoTexto}]`);
+        console.log(`      negative: ${negativeAtual.slice(0, 80)}...`);
 
         const payload = {
             prompt: promptAtual,
-            negative_prompt: negativePrompt || "",
-            steps: 28,
-            width: 1280,
-            height: 720,
+            negative_prompt: negativeAtual,
+            steps: 20,
+            width: 1024,
+            height: 576,
             sampler_name: "DPM++ 2M Karras",
             cfg_scale: 7.0,
             seed: seedCena + (i * 100),
@@ -72,10 +80,12 @@ async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negati
 
 
         if (base64Referencia) {
+            // DESATIVADO: O Forge local não possui modelos de IP-Adapter instalados (causa KeyError: 0)
+            /*
             payload.alwayson_scripts["controlnet"] = {
                 args: [{
                     enabled: true,
-                    module: "ip-adapter_clip_sdxl",
+                    module: "CLIP-ViT-bigG (IPAdapter)",
                     model: "ip-adapter_sdxl",
                     weight: 0.85,
                     image: base64Referencia,
@@ -87,7 +97,10 @@ async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negati
                     control_mode: "Balanced"
                 }]
             };
+            */
         }
+
+
 
         try {
             const response = await axios.post(FORGE_TXT2IMG, payload, { timeout: 300000 });
@@ -173,7 +186,7 @@ async function processarSessao(sessionId) {
         await gerarSequenciaStoryboard(
             dadosCena.prompts_imagens,
             dadosCena.microcenas_textos || [],
-            dadosCena.negative_prompt || "",
+            dadosCena.negative_prompts || dadosCena.negative_prompt || "",
             contadorCena, dadosCena, seedSessao
         );
     } else {
@@ -223,9 +236,10 @@ async function processarSessao(sessionId) {
             await gerarSequenciaStoryboard(
                 dadosCena.prompts_imagens,
                 dadosCena.microcenas_textos || [],
-                dadosCena.negative_prompt || "",
+                dadosCena.negative_prompts || dadosCena.negative_prompt || "",
                 contadorCena, dadosCena, seedSessao + contadorCena * 1000
             );
+
         } else {
             await axios.post(`${SERVIDOR_FLASK}/publicar_cena`, dadosCena).catch(() => {});
         }

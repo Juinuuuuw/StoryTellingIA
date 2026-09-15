@@ -356,15 +356,16 @@
 
 <div class="spinner-overlay" id="spinner">
   <div class="spinner"></div>
-  <div class="spinner-text">PROCESSANDO...</div>
+  <div class="spinner-text" id="spinner-text">PROCESSANDO...</div>
 </div>
 
 <script>
-const API = window.location.origin;
+const API = (window.location.protocol === 'file:') ? 'http://127.0.0.1:5000' : window.location.origin;
 const respostas = {};
 let secaoAtual = 1;
 const totalSecoes = 8;
 let preId = null;
+let sessionId = null;
 
 // Extracted from original script to dynamically populate structures
 const LIKERT_SECOES_DEF = [{'titulo': 'Imersão Narrativa', 'tipo': 'escala', 'perguntas': [{'texto': 'Consegui imaginar facilmente os acontecimentos apresentados na história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Enquanto ouvia a história, deixei de prestar atenção, por alguns momentos, no que estava ao meu redor.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Fiquei mentalmente envolvido(a) com a história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'A história despertou alguma reação emocional em mim.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Engajamento com a Experiência', 'tipo': 'escala', 'perguntas': [{'texto': 'A experiência prendeu minha atenção.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Gostei de acompanhar a experiência.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Fiquei curioso(a) para saber o que aconteceria em seguida.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Interação com o NAO', 'tipo': 'escala', 'perguntas': [{'texto': 'Consegui compreender claramente o que o NAO dizia.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Os movimentos e gestos do NAO combinaram com a história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'A troca de falas com o NAO ocorreu de forma fluida.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Contribuição das Imagens', 'tipo': 'escala', 'perguntas': [{'texto': 'As imagens ajudaram a compreender e imaginar os acontecimentos da história.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'As imagens tornaram a experiência mais envolvente.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Personalização e Adaptação Percebida', 'tipo': 'escala', 'perguntas': [{'texto': 'Senti que a história considerou o que aconteceu durante minha interação com o NAO.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}, {'texto': 'Tive a impressão de que minhas respostas ou ações influenciaram a experiência.', 'labelEsq': 'Discordo totalmente', 'labelDir': 'Concordo totalmente'}]}, {'titulo': 'Percepção da Geração Dinâmica', 'tipo': 'escala', 'perguntas': [{'texto': 'Na sua percepção, a história estava pronta antes da sessão ou foi gerada ou adaptada durante a interação?', 'labelEsq': 'Certeza que já estava pronta', 'labelDir': 'Certeza que foi gerada/adaptada'}, {'texto': 'Na sua percepção, as imagens estavam prontas antes da sessão ou foram geradas durante a interação?', 'labelEsq': 'Certeza que já estavam prontas', 'labelDir': 'Certeza que foram geradas'}]}, {'titulo': 'Percepção do NAO Após a Interação', 'desc': 'Agora, considerando toda a experiência que você acabou de realizar com o NAO, indique sua impressão sobre ele.', 'tipo': 'grid', 'grupos': [{'subtitulo': 'Antropomorfismo', 'linhas': ['Falso / Natural', 'Com aspecto mecânico / Com aspecto humano', 'Inconsciente / Consciente', 'Artificial / Realista', 'Move-se com rigidez / Move-se com fluidez']}, {'subtitulo': 'Animacidade', 'linhas': ['Morto / Com vida', 'Parado / Enérgico', 'Artificial / Realista', 'Estático / Interativo', 'Apático / Participativo']}, {'subtitulo': 'Simpatia', 'linhas': ['Não gosto / Gosto', 'Hostil / Amigável', 'Antipático / Gentil', 'Desagradável / Agradável', 'Horrível / Simpático']}, {'subtitulo': 'Inteligência Percebida', 'linhas': ['Incompetente / Competente', 'Ignorante / Sabedor', 'Irresponsável / Responsável', 'Pouco inteligente / Inteligente', 'Insensato / Sensato']}, {'subtitulo': 'Segurança Percebida', 'linhas': ['Ansioso / Descontraído', 'Calmo / Agitado', 'Sereno / Surpreendido']}]}, {'titulo': 'Expectativa e Experiência', 'tipo': 'escala', 'perguntas': [{'texto': 'Considerando suas expectativas antes da sessão, como você avalia a experiência realizada?', 'labelEsq': 'Muito abaixo do que eu esperava', 'labelDir': 'Muito acima do que eu esperava'}]}];
@@ -415,10 +416,6 @@ async function validarEIniciar() {
             
             document.getElementById('spinner').classList.remove('active');
             
-            if (window.quizPerguntas && window.quizPerguntas.length > 0) {
-                if (!secoes.includes('quiz')) secoes.unshift('quiz');
-            }
-            
             document.getElementById('step-identificacao').style.display = 'none';
             document.getElementById('form-container').style.display = 'block';
             document.getElementById('lbl-part-id').innerText = preId;
@@ -430,13 +427,15 @@ async function validarEIniciar() {
         }
     } catch(e) {
         document.getElementById('spinner').classList.remove('active');
-        alert('Erro ao validar.');
+        alert('Erro ao validar: ' + e.name + ' - ' + e.message);
+        console.error("Erro detalhado:", e);
     }
 }
 
 
 function renderizarQuiz() {
     const container = document.getElementById('quiz-container');
+    if (!container) return;
     if (!window.quizPerguntas || window.quizPerguntas.length === 0) return;
     
     let html = '';
