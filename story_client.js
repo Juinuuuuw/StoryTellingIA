@@ -248,13 +248,7 @@ async function processarSessao(sessionId) {
     }
 
     console.log(`\n✨ Sessão encerrada! Arquivos em: ${PASTA_SESSAO}`);
-
-    try {
-        await axios.post(`${SERVIDOR_FLASK}/finalizar_sessao`, { session_id: sessionId });
-        console.log("✅ Quiz solicitado ao servidor.");
-    } catch (e) {
-        console.log("⚠️  Não foi possível acionar o quiz:", e.message);
-    }
+    // O frontend (index.html) agora chama /finalizar_sessao quando termina de exibir a última cena.
 }
 
 // ─── LOOP PRINCIPAL DO DAEMON ─────────────────────────────────

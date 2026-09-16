@@ -242,10 +242,10 @@ while True:
         cena_data = json.loads(raw_cena)
 
         if cena_data.get("status") == "pensando":
+            ultimo_quadro = -1   # sempre reseta ao entrar no estado pensando
             texto_enrolacao = cena_data.get("fala_robo", "") or cena_data.get("fala_enrolacao", "")
             if texto_enrolacao and texto_enrolacao != ultimo_texto:
                 ultimo_texto = texto_enrolacao
-                ultimo_quadro = -1   # reseta para falar novamente na próxima cena
                 falar(texto_enrolacao)
 
         elif cena_data.get("status") == "modal":

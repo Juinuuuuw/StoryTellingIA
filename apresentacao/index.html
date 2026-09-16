@@ -1189,12 +1189,6 @@
                         body: JSON.stringify({ session_id: dados.session_id })
                     }).catch(() => {});
                     
-                    await fetch(`${API_URL}/publicar_cena`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(dados)
-                    }).catch(() => {});
-
                     // Esconde o cadastro e inicia o polling
                     document.getElementById('cadastro-screen').style.display = 'none';
                     document.getElementById('story-panel').style.display = 'block';
@@ -1301,7 +1295,17 @@
                     // pequena pausa de transição (fôlego)
                     await new Promise(r => setTimeout(r, 400));
                 } else {
-                    if (seqId === currentSequenceId) triggerDecisionModal(data);
+                    if (seqId === currentSequenceId) {
+                        triggerDecisionModal(data);
+                        if (data.tem_opcoes === false || !data.opcoes || data.opcoes.length === 0) {
+                            // Fim da história: avisa o backend para encerrar a sessão
+                            fetch(`${API_URL}/finalizar_sessao`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ session_id: lastSessionId })
+                            }).catch(() => {});
+                        }
+                    }
                 }
             }
         }
@@ -1346,6 +1350,9 @@
                                 body: JSON.stringify({ frase: "Processando sua escolha..." })
                             });
                             hideModal();
+                            const loader = document.getElementById('loader');
+                            loader.style.display = 'flex';
+                            loader.querySelector('div:last-child').innerText = "GERANDO PRÓXIMA CENA...";
                             
                             const resp = await fetch(`${API_URL}/escolher`, {
                                 method: 'POST',
@@ -1354,13 +1361,7 @@
                             });
                             const dados = await resp.json();
                             
-                            if (dados && dados.status === 'sucesso') {
-                                await fetch(`${API_URL}/publicar_cena`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(dados)
-                                });
-                            }
+
                         } catch(e) {
                             console.error(e);
                         }
@@ -1373,6 +1374,85 @@
         function hideModal() {
             document.getElementById('interaction-modal').style.display = 'none';
             isModalLocallyOpen = false;
+        }
+
+        function splitByCharLength(text, numChunks) {
+            if (!text) return Array(numChunks).fill("");
+            
+            // Divide a frase a cada ponto final, exclamação ou interrogação
+            const regex = /[^.!?]+[.!?]+/g;
+            let sentences = text.match(regex);
+            
+            // Fallback se não encontrar pontuação
+            if (!sentences || sentences.length === 0) {
+                sentences = [text];
+            } else {
+                // Junta qualquer resto de string que não tinha pontuação no final
+                const lastMatchEnd = text.lastIndexOf(sentences[sentences.length - 1]) + sentences[sentences.length - 1].length;
+                const remainder = text.slice(lastMatchEnd).trim();
+                if (remainder) {
+                    sentences[sentences.length - 1] += " " + remainder;
+                }
+            }
+            
+            const chunks = [];
+            
+            // Se houver menos ou igual número de frases que chunks, coloca 1 frase por chunk (e vazios no final)
+            // Mas para evitar chunks vazios no final (que quebram a cena 3 quadro 4), dividimos a última frase
+            if (sentences.length < numChunks) {
+                // Primeiro coloca as frases inteiras
+                for (let i = 0; i < sentences.length; i++) {
+                    chunks.push(sentences[i].trim());
+                }
+                // Preenche o resto com vazio inicialmente
+                while (chunks.length < numChunks) {
+                    chunks.push("");
+                }
+                // Tenta emprestar palavras do último chunk não-vazio para preencher os vazios
+                for (let i = chunks.length - 1; i > 0; i--) {
+                    if (!chunks[i]) {
+                        // Encontra o chunk anterior não-vazio com mais de 2 palavras
+                        for (let j = i - 1; j >= 0; j--) {
+                            let words = chunks[j].split(/\s+/);
+                            if (words.length > 2) {
+                                let half = Math.floor(words.length / 2);
+                                chunks[i] = words.slice(half).join(" ") + (words.slice(half).join("").match(/[.!?]/) ? "" : ".");
+                                chunks[j] = words.slice(0, half).join(" ") + "...";
+                                break;
+                            }
+                        }
+                    }
+                }
+                return chunks;
+            }
+            
+            // Se tem mais frases do que chunks, agrupa por quantidade de caracteres (preservando frases completas)
+            const totalChars = sentences.reduce((acc, s) => acc + s.length, 0);
+            const targetCharsPerChunk = Math.max(1, Math.floor(totalChars / numChunks));
+            
+            let currentChunk = "";
+            let currentChars = 0;
+
+            for (let i = 0; i < sentences.length; i++) {
+                const s = sentences[i].trim();
+                if (currentChars + s.length > targetCharsPerChunk && chunks.length < numChunks - 1 && currentChunk.length > 0) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = s;
+                    currentChars = s.length;
+                } else {
+                    currentChunk += (currentChunk ? " " : "") + s;
+                    currentChars += s.length;
+                }
+            }
+            if (currentChunk) {
+                chunks.push(currentChunk.trim());
+            }
+
+            while (chunks.length < numChunks) {
+                chunks.push(""); 
+            }
+            
+            return chunks;
         }
 
         async function checkActiveSession() {
@@ -1459,7 +1539,7 @@
                     if (hasImages) {
                         const numChunks = sceneData.imagens_arquivos.length;
                         const textChunks = splitByCharLength(textoHistoria, numChunks);
-
+                        
                         // Registra os text_chunks no servidor UMA ÚNICA VEZ para o NAO sincronizar.
                         // Usa endpoint dedicado para não interferir no status/quadro_atual da cena.
                         fetch(`${API_URL}/registrar_chunks`, {

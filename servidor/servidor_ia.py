@@ -850,7 +850,7 @@ def iniciar():
     )
 
 
-    return jsonify({
+    dados_retorno = {
         'session_id': sid, 'status': 'sucesso', 'node_id': ctx['current_step'],
         'historia_original': proc['historia'],
         'fala_robo': proc['fala_robo'],
@@ -861,7 +861,16 @@ def iniciar():
         'referencia_arquivo': proc['referencia_arquivo'],
         'microcenas_textos': proc['microcenas_textos'],
         'opcoes': proc['opcoes'], 'tem_opcoes': True
-    })
+    }
+
+    # Publica a cena automaticamente no servidor
+    SESSAO_ATIVA["session_id"] = sid
+    SESSAO_ATIVA["last_scene_data"] = dados_retorno
+    SESSAO_ATIVA["status"] = "ativo"
+    SESSAO_ATIVA["text_chunks"] = []
+    SESSAO_ATIVA["quadro_atual"] = -1
+
+    return jsonify(dados_retorno)
 
 
 @app.route('/escolher', methods=['POST'])
@@ -977,7 +986,7 @@ def escolher():
         opcoes=proc.get('opcoes', [])
     )
 
-    return jsonify({
+    dados_retorno = {
         'session_id': sid, 'status': 'sucesso', 'node_id': ctx['current_step'],
         'historia_original': proc['historia'],
         'fala_robo': proc['fala_robo'],
@@ -988,7 +997,16 @@ def escolher():
         'referencia_arquivo': proc['imagens_arquivos'][0],
         'microcenas_textos': proc['microcenas_textos'],
         'opcoes': proc['opcoes'], 'tem_opcoes': not ctx.get('is_final', False)
-    })
+    }
+
+    # Publica a cena automaticamente no servidor
+    SESSAO_ATIVA["session_id"] = sid
+    SESSAO_ATIVA["last_scene_data"] = dados_retorno
+    SESSAO_ATIVA["status"] = "ativo"
+    SESSAO_ATIVA["text_chunks"] = []
+    SESSAO_ATIVA["quadro_atual"] = -1
+
+    return jsonify(dados_retorno)
 
 
 @app.route('/visualizador/cena_atual')
