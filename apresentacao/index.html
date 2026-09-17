@@ -693,23 +693,23 @@
                 <label class="cadastro-label">Qual é gênero do seu personagem?</label>
                 <div class="card-grid cols-2" style="margin-bottom:32px;">
                     <div class="card-opcao" id="card-masculino" onclick="selecionarGenero('Masculino')">
-                        <div class="card-emoji">👦</div>
+                        <div class="card-emoji"><i data-lucide="user" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
                         <div class="card-titulo">Masculino</div>
                     </div>
                     <div class="card-opcao" id="card-feminino" onclick="selecionarGenero('Feminino')">
-                        <div class="card-emoji">👧</div>
+                        <div class="card-emoji"><i data-lucide="user-round" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
                         <div class="card-titulo">Feminino</div>
                     </div>
                 </div>
                 <label class="cadastro-label" style="margin-top:8px;">Escolha sua jornada histórica</label>
                 <div class="card-grid jornadas">
                     <div class="card-opcao" id="card-turing" onclick="selecionarJornada('alan_turing','Cambridge (1936)')">
-                        <div class="card-emoji">🖥️</div>
+                        <div class="card-emoji"><i data-lucide="monitor" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
                         <div class="card-titulo">Alan Turing</div>
                         <div class="card-desc">Cambridge · 1936</div>
                     </div>
                     <div class="card-opcao" id="card-katherine" onclick="selecionarJornada('katherine_johnson','NASA (NASA Langley)')">
-                        <div class="card-emoji">🚀</div>
+                        <div class="card-emoji"><i data-lucide="rocket" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
                         <div class="card-titulo">Katherine Johnson</div>
                         <div class="card-desc">NASA Langley · Anos 50</div>
                     </div>
@@ -776,7 +776,7 @@
 
     <!-- Tela de Fim do Quiz Cognitivo -->
     <div id="quiz-fim-screen">
-        <div class="emoji">🎉</div>
+        <div class="emoji"><i data-lucide="party-popper" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
         <div id="quiz-fim-titulo">Parabéns!</div>
         <div id="quiz-fim-subtitulo">Você completou a jornada histórica!</div>
         <div class="quiz-fim-badge" id="quiz-fim-badge">0 / 0</div>
@@ -795,7 +795,7 @@
 
     <!-- Tela Final da Experiência -->
     <div id="fim-screen">
-        <div class="emoji">⭐</div>
+        <div class="emoji"><i data-lucide="star" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
         <div id="fim-titulo">Obrigado pela participação!</div>
         <div id="fim-subtitulo">Sua jornada histórica está completa. Os dados foram registrados.</div>
     </div>
@@ -950,10 +950,10 @@
                 pergunta: 'Qual o tamanho do seu cabelo?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Curto', emoji: '💈', tag: 'short' },
-                    { label: 'Médio', emoji: '✂️', tag: 'medium length' },
-                    { label: 'Longo', emoji: '🌊', tag: 'long' },
-                    { label: 'Preso', emoji: '🎀', tag: 'ponytail' }
+                    { label: 'Curto', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'short' },
+                    { label: 'Médio', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'medium length' },
+                    { label: 'Longo', emoji: `<i data-lucide="waves" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'long' },
+                    { label: 'Preso', emoji: `<i data-lucide="gift" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'ponytail' }
                 ]
             },
             {
@@ -961,10 +961,10 @@
                 pergunta: 'Como é o tipo do seu cabelo?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Liso', emoji: '➖', tag: 'straight' },
-                    { label: 'Ondulado', emoji: '〰️', tag: 'wavy' },
-                    { label: 'Cacheado', emoji: '🌀', tag: 'curly' },
-                    { label: 'Crespo', emoji: '🔘', tag: 'coily' }
+                    { label: 'Liso', emoji: `<i data-lucide="minus" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'straight' },
+                    { label: 'Ondulado', emoji: `<i data-lucide="activity" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'wavy' },
+                    { label: 'Cacheado', emoji: `<i data-lucide="hurricane" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'curly' },
+                    { label: 'Crespo', emoji: `<i data-lucide="circle-dot" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'coily' }
                 ]
             },
             {
@@ -972,10 +972,10 @@
                 pergunta: 'Qual é a cor do seu cabelo?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Preto', emoji: '⬛', tag: 'black hair' },
-                    { label: 'Castanho', emoji: '🟫', tag: 'brown hair' },
-                    { label: 'Loiro', emoji: '🟡', tag: 'blonde hair' },
-                    { label: 'Ruivo', emoji: '🔴', tag: 'red hair' }
+                    { label: 'Preto', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'black hair' },
+                    { label: 'Castanho', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#744210; fill:#744210;"></i>`, tag: 'brown hair' },
+                    { label: 'Loiro', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#ecc94b; fill:#ecc94b;"></i>`, tag: 'blonde hair' },
+                    { label: 'Ruivo', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#e53e3e; fill:#e53e3e;"></i>`, tag: 'red hair' }
                 ]
             },
             {
@@ -983,10 +983,10 @@
                 pergunta: 'Qual é a cor da sua pele?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Clara', emoji: '🤍', tag: 'light skin' },
-                    { label: 'Morena', emoji: '🟤', tag: 'tanned skin' },
-                    { label: 'Negra', emoji: '⬛', tag: 'dark skin' },
-                    { label: 'Amarelada', emoji: '🟨', tag: 'pale skin' }
+                    { label: 'Clara', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fff5f5; fill:#fff5f5;"></i>`, tag: 'light skin' },
+                    { label: 'Morena', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'tanned skin' },
+                    { label: 'Negra', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'dark skin' },
+                    { label: 'Amarelada', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fefcbf; fill:#fefcbf;"></i>`, tag: 'pale skin' }
                 ]
             },
             {
@@ -994,10 +994,10 @@
                 pergunta: 'E os seus olhos?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Castanhos', emoji: '🟤', tag: 'brown eyes' },
-                    { label: 'Verdes', emoji: '🟢', tag: 'green eyes' },
-                    { label: 'Azuis', emoji: '🔵', tag: 'blue eyes' },
-                    { label: 'Escuros', emoji: '⚫', tag: 'dark eyes' }
+                    { label: 'Castanhos', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'brown eyes' },
+                    { label: 'Verdes', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#48bb78; fill:#48bb78;"></i>`, tag: 'green eyes' },
+                    { label: 'Azuis', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#4299e1; fill:#4299e1;"></i>`, tag: 'blue eyes' },
+                    { label: 'Escuros', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#1a202c; fill:#1a202c;"></i>`, tag: 'dark eyes' }
                 ]
             }
         ];
@@ -1107,7 +1107,7 @@
             document.getElementById('btn-personagem').disabled = true;
 
             const isLast = perguntaPersonagemAtual === PERGUNTAS_PERSONAGEM.length - 1;
-            document.getElementById('btn-personagem').innerText = isLast ? 'INICIAR JORNADA ✨' : 'CONFIRMAR →';
+            document.getElementById('btn-personagem').innerHTML = isLast ? 'INICIAR JORNADA ✨' : 'CONFIRMAR →';
 
             const grid = document.getElementById('personagem-opcoes-grid');
             grid.innerHTML = '';
@@ -1284,17 +1284,28 @@
 
             if (images.length === 0) { triggerDecisionModal(data); return; }
 
+            let algumaImagemExibida = false;
             for (let i = 0; i < images.length; i++) {
                 if (seqId !== currentSequenceId) return;
-                await playFrame(i);
+                const success = await playFrame(i);
 
-                // Em vez de esperar pelo tempo matematicamente, agora espera o analista clicar
-                await waitForDashboardSignal();
+                if (success) {
+                    algumaImagemExibida = true;
+                    // Aguarda o Dashboard mandar avançar (Botão Continuar)
+                    await waitForDashboardSignal();
+                    if (i < images.length - 1) {
+                        // pequena pausa de transição (fôlego)
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+                }
 
-                if (i < images.length - 1) {
-                    // pequena pausa de transição (fôlego)
-                    await new Promise(r => setTimeout(r, 400));
-                } else {
+                if (i === images.length - 1) {
+                    // Último frame: mostrar modal de decisão ou encerrar
+                    if (!algumaImagemExibida) {
+                        // Nenhuma imagem carregou (daemon falhou) — mostra ao menos o texto
+                        loader.style.display = 'none';
+                        typeWriterEffect(textoHistoria, storyTextEl);
+                    }
                     if (seqId === currentSequenceId) {
                         triggerDecisionModal(data);
                         if (data.tem_opcoes === false || !data.opcoes || data.opcoes.length === 0) {
@@ -1360,8 +1371,8 @@
                                 body: JSON.stringify({ session_id: lastSessionId, escolha_idx: idx, escolha_texto: opt })
                             });
                             const dados = await resp.json();
+                            // O daemon já está no loop while(temOpcoes) aguardando a próxima cena.
                             
-
                         } catch(e) {
                             console.error(e);
                         }
@@ -1456,12 +1467,15 @@
         }
 
         async function checkActiveSession() {
-            if (isModalLocallyOpen) return;
             try {
                 const r = await fetch(`${API_URL}/visualizador/cena_atual`, { cache: 'no-store' });
                 const data = await r.json();
 
                 if (data.status === "aguardando" || data.status === "pensando") {
+                    // Preserva o avanco_step mesmo no estado pensando
+                    if (data.avanco_step !== undefined) {
+                        window.currentAvancoStep = data.avanco_step;
+                    }
                     document.getElementById('loader').style.display = 'flex';
                     if (!isModalLocallyOpen && data.status === "aguardando") {
                         document.getElementById('loader').querySelector('div:last-child').innerText = "AGUARDANDO O NAO...";
@@ -1474,7 +1488,7 @@
                 if (data.status === "modal") {
                     document.getElementById('loader').style.display = 'none';
                     const modalData = data.dados || data;
-                    if (!isModalLocallyOpen || document.getElementById('modal-question').innerText !== modalData.pergunta) {
+                    if (!isModalLocallyOpen) {
                         showModal({
                             pergunta: modalData.pergunta,
                             opcoes: modalData.opcoes
@@ -1511,7 +1525,7 @@
                         fimScreen.style.display = 'flex';
                         gsap.fromTo(fimScreen, { opacity: 0 }, { opacity: 1, duration: 1, ease: "power2.out" });
                         
-                        document.getElementById('quiz-fim-badge').innerText = `✨`;
+                        document.getElementById('quiz-fim-badge').innerHTML = `✨`;
                         document.getElementById('quiz-fim-titulo').innerText = "Obrigado por ouvir a história!";
                         document.getElementById('quiz-fim-subtitulo').innerText = "A história terminou. Você pode fechar esta tela e o seu pesquisador te guiará para a próxima etapa.";
                     }
@@ -1631,7 +1645,7 @@
                 const nome = resultado.nome_aluno || "Explorador";
                 const pct = resultado.percentual || 0;
 
-                document.getElementById('quiz-fim-badge').innerText = `${acertos} / ${total}`;
+                document.getElementById('quiz-fim-badge').innerHTML = `${acertos} / ${total}`;
 
                 let titulo = "Parabéns!";
                 let subtitulo = `${nome}, você completou a jornada histórica!`;
@@ -1640,7 +1654,7 @@
                     titulo = "Perfeito! 🌟";
                     subtitulo = `${nome}, acertou tudo! Você é um verdadeiro explorador da história!`;
                 } else if (pct >= 66) {
-                    titulo = "Muito bem! 👏";
+                    titulo = `Muito bem! <i data-lucide="thumbs-up" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`;
                     subtitulo = `${nome}, você conhece bem a história!`;
                 } else if (pct >= 33) {
                     titulo = "Bom trabalho!";
@@ -1897,5 +1911,18 @@
         }
 
     </script>
+
+  <script src="lucide.js"></script>
+  <script>
+    if (window.lucide) {
+      lucide.createIcons();
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        lucide.createIcons();
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  </script>
 </body>
 </html>

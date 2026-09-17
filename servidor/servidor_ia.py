@@ -44,12 +44,14 @@ def serve_apresentacao_files(filename):
 @app.route('/images/<path:filename>')
 def serve_image(filename):
     diretorio = os.path.abspath(os.path.join(BASE_DIR, "..", "historias_geradas"))
-    return send_from_directory(diretorio, filename)
+    safe_filename = filename.replace("\\", "/")
+    return send_from_directory(diretorio, safe_filename)
 
 @app.route('/check_image/<path:filename>')
 def check_image(filename):
     diretorio = os.path.abspath(os.path.join(BASE_DIR, "..", "historias_geradas"))
-    if os.path.exists(os.path.join(diretorio, filename)):
+    safe_filename = filename.replace("/", os.sep).replace("\\", os.sep)
+    if os.path.exists(os.path.join(diretorio, safe_filename)):
         return jsonify({"ready": True})
     return jsonify({"ready": False})
 
@@ -869,6 +871,7 @@ def iniciar():
     SESSAO_ATIVA["status"] = "ativo"
     SESSAO_ATIVA["text_chunks"] = []
     SESSAO_ATIVA["quadro_atual"] = -1
+    SESSAO_ATIVA["avanco_step"] = 0  # começa zerado em cada nova cena
 
     return jsonify(dados_retorno)
 
@@ -1005,6 +1008,7 @@ def escolher():
     SESSAO_ATIVA["status"] = "ativo"
     SESSAO_ATIVA["text_chunks"] = []
     SESSAO_ATIVA["quadro_atual"] = -1
+    SESSAO_ATIVA["avanco_step"] = 0  # reseta o contador por cena
 
     return jsonify(dados_retorno)
 
@@ -1018,7 +1022,8 @@ def visualizador_cena():
     if SESSAO_ATIVA["status"] == "pensando":
         return jsonify({
             "status": "pensando",
-            "fala_robo": SESSAO_ATIVA["fala_enrolacao"]
+            "fala_robo": SESSAO_ATIVA["fala_enrolacao"],
+            "avanco_step": SESSAO_ATIVA.get("avanco_step", 0)
         })
         
     if SESSAO_ATIVA["status"] == "modal":
