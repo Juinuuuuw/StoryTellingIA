@@ -705,6 +705,8 @@ def nao_iniciou_fala():
 def nao_terminou_fala():
     """Chamado pelo nao_speaker.py APÓS terminar a fala. Libera o avanço de quadro."""
     SESSAO_ATIVA["nao_falando"] = False
+    if SESSAO_ATIVA.get("status") == "comando_avulso":
+        SESSAO_ATIVA["status"] = "aguardando"
     return jsonify({"status": "ok"})
 
 @app.route('/nao_terminou', methods=['GET'])
@@ -715,6 +717,15 @@ def nao_terminou():
     """
     terminou = not SESSAO_ATIVA.get("nao_falando", False)
     return jsonify({"terminou": terminou})
+
+@app.route('/enviar_comando_avulso', methods=['POST'])
+def enviar_comando_avulso():
+    dados = request.json
+    nome = dados.get("nome", "Amigo")
+    frase = f"Oi {nome}, você quer que eu conte uma história para você?"
+    SESSAO_ATIVA["status"] = "comando_avulso"
+    SESSAO_ATIVA["fala_comando"] = frase
+    return jsonify({"status": "ok"})
 
 @app.route('/publicar_cena', methods=['POST'])
 def publicar_cena():
@@ -1024,6 +1035,12 @@ def visualizador_cena():
             "status": "pensando",
             "fala_robo": SESSAO_ATIVA["fala_enrolacao"],
             "avanco_step": SESSAO_ATIVA.get("avanco_step", 0)
+        })
+        
+    if SESSAO_ATIVA["status"] == "comando_avulso":
+        return jsonify({
+            "status": "comando_avulso",
+            "fala_robo": SESSAO_ATIVA.get("fala_comando", "")
         })
         
     if SESSAO_ATIVA["status"] == "modal":

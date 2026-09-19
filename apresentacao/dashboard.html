@@ -172,6 +172,7 @@
   <button class="tab" onclick="trocarAba(this,'historia')">&#128214; Histórias</button>
   <button class="tab" onclick="trocarAba(this,'likert')">&#128221; Pesquisa</button>
   <button class="tab" onclick="trocarAba(this,'participantes')">&#128101; Participantes</button>
+  <button class="tab" onclick="trocarAba(this,'comandos')">&#129302; Comandos NAO</button>
 </div>
 
 <div class="page">
@@ -355,7 +356,36 @@
 
 </div>
 
+<!-- ===== ABA COMANDOS NAO ===== -->
+<div class="section" id="sec-comandos">
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">&#129302; Comandos Avulsos para o NAO</div>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.5rem;">Use estes comandos para interagir com os participantes antes ou depois de uma sessão, quando o robô estiver aguardando.</p>
+    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+      <input type="text" id="cmd-nome" placeholder="Nome da pessoa (ex: Fulano)" style="padding:.7rem 1.2rem;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);color:#fff;outline:none;font-family:'Montserrat', sans-serif;" />
+      <button class="btn btn-green" onclick="enviarComandoAvulso()">Falar: "Oi [Nome], quer uma história?"</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
 <script>
+async function enviarComandoAvulso(){
+  const nome = document.getElementById('cmd-nome').value || 'Amigo';
+  try {
+    const res = await fetch(API+'/enviar_comando_avulso', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nome: nome})
+    });
+    if(res.ok) alert("Comando enviado com sucesso para o NAO!");
+    else alert("Erro ao enviar comando.");
+  } catch(e) {
+    alert("Erro de conexão: " + e);
+  }
+}
+
 Chart.defaults.color = 'rgba(255, 255, 255, 0.6)';
 Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
 Chart.defaults.font.family = "'Montserrat', sans-serif";

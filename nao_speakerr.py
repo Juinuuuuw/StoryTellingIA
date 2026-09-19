@@ -19,9 +19,9 @@ try:
 except ImportError:
     QI_DISPONIVEL = False
 
-SERVER_URL       = "http://187.33.252.174:5000/visualizador/cena_atual"
-SERVER_QUADRO    = "http://187.33.252.174:5000/visualizador/quadro_atual"
-NAO_IP     = "172.16.60.3"
+SERVER_URL       = "http://127.0.0.1:5000/visualizador/cena_atual"
+SERVER_QUADRO    = "http://127.0.0.1:5000/visualizador/quadro_atual"
+NAO_IP     = "172.20.10.5"
 NAO_PORT   = 9559
 
 # ============================================================
@@ -242,10 +242,10 @@ while True:
         cena_data = json.loads(raw_cena)
 
         if cena_data.get("status") == "pensando":
-            ultimo_quadro = -1   # sempre reseta ao entrar no estado pensando
             texto_enrolacao = cena_data.get("fala_robo", "") or cena_data.get("fala_enrolacao", "")
             if texto_enrolacao and texto_enrolacao != ultimo_texto:
                 ultimo_texto = texto_enrolacao
+                ultimo_quadro = -1   # reseta para falar novamente na próxima cena
                 falar(texto_enrolacao)
 
         elif cena_data.get("status") == "modal":
