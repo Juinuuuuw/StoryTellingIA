@@ -721,8 +721,12 @@ def nao_terminou():
 @app.route('/enviar_comando_avulso', methods=['POST'])
 def enviar_comando_avulso():
     dados = request.json
-    nome = dados.get("nome", "Amigo")
-    frase = f"Oi {nome}, você quer que eu conte uma história para você?"
+    if "frase" in dados:
+        frase = dados["frase"]
+    else:
+        nome = dados.get("nome", "Amigo")
+        frase = f"Oi {nome}, você quer que eu conte uma história para você?"
+        
     SESSAO_ATIVA["status"] = "comando_avulso"
     SESSAO_ATIVA["fala_comando"] = frase
     return jsonify({"status": "ok"})

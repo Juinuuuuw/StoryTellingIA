@@ -361,29 +361,77 @@
   <div class="card" style="margin-bottom:1.5rem">
     <div class="card-title">&#129302; Comandos Avulsos para o NAO</div>
     <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.5rem;">Use estes comandos para interagir com os participantes antes ou depois de uma sessão, quando o robô estiver aguardando.</p>
-    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
-      <input type="text" id="cmd-nome" placeholder="Nome da pessoa (ex: Fulano)" style="padding:.7rem 1.2rem;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);color:#fff;outline:none;font-family:'Montserrat', sans-serif;" />
-      <button class="btn btn-green" onclick="enviarComandoAvulso()">Falar: "Oi [Nome], quer uma história?"</button>
+    
+    <div style="margin-bottom: 2rem;">
+        <h4 style="color:var(--primary); margin-bottom:1rem; font-size:.9rem;">1. Chamar para História</h4>
+        <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+          <input type="text" id="cmd-nome" placeholder="Nome da pessoa (ex: Fulano)" style="padding:.7rem 1.2rem;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);color:#fff;outline:none;font-family:'Montserrat', sans-serif;" />
+          <button class="btn btn-green" onclick="enviarComandoPreset('convite')">&#128227; Convidar pelo nome</button>
+        </div>
     </div>
+
+    <div style="margin-bottom: 2rem;">
+        <h4 style="color:var(--primary); margin-bottom:1rem; font-size:.9rem;">2. Animações Rápidas</h4>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="enviarComandoTexto('Olá! Sejam todos muito bem-vindos!')">&#128075; Acenar (Olá)</button>
+            <button class="btn btn-ghost" onclick="enviarComandoTexto('Parabéns! Vocês mandaram muito bem!')">&#127881; Comemorar (Parabéns)</button>
+            <button class="btn btn-ghost" onclick="enviarComandoTexto('Sim, com certeza eu concordo com isso.')">&#128077; Concordar (Sim)</button>
+            <button class="btn btn-ghost" onclick="enviarComandoTexto('Não, infelizmente isso está errado.')">&#128078; Discordar (Não)</button>
+            <button class="btn btn-ghost" onclick="enviarComandoTexto('Hmm, deixe-me pensar um pouco sobre isso...')">&#129300; Pensar (Dúvida)</button>
+            <button class="btn btn-ghost" onclick="enviarComandoTexto('Uau! Isso é realmente incrível!')">&#128562; Surpresa (Uau)</button>
+        </div>
+    </div>
+
+    <div>
+        <h4 style="color:var(--primary); margin-bottom:1rem; font-size:.9rem;">3. Falar Frase Livre</h4>
+        <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+          <input type="text" id="cmd-livre" placeholder="Digite o que o robô deve falar..." style="flex:1; min-width:300px; padding:.7rem 1.2rem;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);color:#fff;outline:none;font-family:'Montserrat', sans-serif;" />
+          <button class="btn btn-green" onclick="enviarComandoLivre()">&#9654; Falar e Animar</button>
+        </div>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:8px;">Dica: Use palavras como "parabéns", "não", "olha", "pensa" para o NAO animar o corpo de acordo com a emoção.</p>
+    </div>
+
   </div>
 </div>
 
 </div>
 
 <script>
-async function enviarComandoAvulso(){
-  const nome = document.getElementById('cmd-nome').value || 'Amigo';
+async function requestComando(frase, isJson=false) {
   try {
+    const bodyObj = isJson ? frase : { frase: frase };
     const res = await fetch(API+'/enviar_comando_avulso', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({nome: nome})
+      body: JSON.stringify(bodyObj)
     });
-    if(res.ok) alert("Comando enviado com sucesso para o NAO!");
-    else alert("Erro ao enviar comando.");
+    if(!res.ok) alert("Erro ao enviar comando.");
   } catch(e) {
     alert("Erro de conexão: " + e);
   }
+}
+
+function enviarComandoPreset(tipo){
+  if(tipo === 'convite') {
+      const nome = document.getElementById('cmd-nome').value || 'Amigo';
+      requestComando(`Oi ${nome}, você quer que eu conte uma história para você?`);
+  }
+}
+
+function enviarComandoTexto(texto){
+  requestComando(texto);
+}
+
+function enviarComandoLivre(){
+  const txt = document.getElementById('cmd-livre').value;
+  if(!txt) return;
+  requestComando(txt);
+  document.getElementById('cmd-livre').value = '';
+}
+
+// Retrocompatibilidade caso em algum lugar estivesse chamando do modo antigo
+async function enviarComandoAvulso(){
+  enviarComandoPreset('convite');
 }
 
 Chart.defaults.color = 'rgba(255, 255, 255, 0.6)';
