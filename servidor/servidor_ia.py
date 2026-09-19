@@ -720,6 +720,10 @@ def nao_terminou():
 
 @app.route('/enviar_comando_avulso', methods=['POST'])
 def enviar_comando_avulso():
+    # Proteção: só permite comandos avulsos se a história não estiver rodando
+    if SESSAO_ATIVA["status"] not in ["aguardando", "comando_avulso"]:
+        return jsonify({"status": "erro", "msg": "Uma história está em andamento! Comandos avulsos só funcionam em modo 'aguardando'."}), 400
+
     dados = request.json
     if "frase" in dados:
         frase = dados["frase"]

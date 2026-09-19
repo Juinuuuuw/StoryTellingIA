@@ -405,7 +405,8 @@ async function requestComando(frase, isJson=false) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(bodyObj)
     });
-    if(!res.ok) alert("Erro ao enviar comando.");
+    const data = await res.json();
+    if(!res.ok) alert(data.msg || "Erro ao enviar comando.");
   } catch(e) {
     alert("Erro de conexão: " + e);
   }
