@@ -643,6 +643,16 @@
                     Assim sua participação ficará vinculada no estudo.
                 </div>
 
+                <div id="lista-aguardando" style="margin-bottom: 24px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                </div>
+
+                <!-- Divisor -->
+                <div style="display:flex;align-items:center;gap:16px;margin:24px auto; max-width: 400px;">
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                    <span style="font-family:'Montserrat', sans-serif; font-size:.7rem;color:rgba(255,255,255,0.3);letter-spacing:2px;">OU</span>
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                </div>
+
                 <!-- Opção A: Tenho o código -->
                 <div id="preid-com-codigo" style="margin-bottom:24px;">
                     <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1)"
@@ -814,6 +824,40 @@
             document.addEventListener('DOMContentLoaded', () => {
                 mostrarStep('step-nome');
             });
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                carregarFila();
+            });
+        }
+
+        async function carregarFila() {
+            try {
+                const res = await fetch(`${API_URL}/fila_participantes`);
+                if (!res.ok) return;
+                const fila = await res.json();
+                const listaDiv = document.getElementById('lista-aguardando');
+                const aguardando = fila.filter(p => p.status === 'aguardando_historia' || p.status === 'pre_respondido');
+                
+                if (aguardando.length === 0) {
+                    listaDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4); font-size: 0.9rem;">Nenhum participante aguardando jogar.</span>';
+                } else {
+                    listaDiv.innerHTML = '';
+                    aguardando.forEach(p => {
+                        const btn = document.createElement('button');
+                        btn.className = 'cadastro-btn';
+                        btn.style.width = '100%';
+                        btn.style.maxWidth = '400px';
+                        btn.style.padding = '12px';
+                        btn.style.fontSize = '0.9rem';
+                        btn.innerText = `${p.pre_id} - AGUARDANDO JOGAR`;
+                        btn.onclick = () => {
+                            document.getElementById('input-preid').value = p.pre_id;
+                            confirmarPreId();
+                        };
+                        listaDiv.appendChild(btn);
+                    });
+                }
+            } catch(e) { console.error('Erro fila:', e); }
         }
 
         let lastSessionId = null;
@@ -1890,14 +1934,14 @@
                     })
                 }).catch(e => console.error("Erro ao salvar Likert:", e));
 
-                // ─── Atualiza status do participante para pos_respondido ───
+                // ─── Atualiza status do participante para historia_concluida ───
                 if (lastPreId) {
                     fetch(`${API_URL}/atualizar_status_pre`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             pre_id: lastPreId,
-                            status: 'pos_respondido',
+                            status: 'historia_concluida',
                             session_id: lastSessionId
                         })
                     }).catch(() => {});

@@ -86,9 +86,20 @@
     <div style="font-family:'Montserrat'; font-size:0.8rem; letter-spacing:3px; color:rgba(255,255,255,0.4); text-transform:uppercase; margin-bottom:12px;">Identificação</div>
     <div style="font-size:1rem; color:#f4f4f4; margin-bottom: 20px;">Por favor, informe seu código de participante para iniciar.</div>
   </div>
+  <div id="lista-aguardando" style="margin-bottom: 24px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+  </div>
+
+  <div style="display:flex;align-items:center;gap:16px;margin:24px auto; max-width: 400px;">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+      <span style="font-family:'Montserrat', sans-serif; font-size:.7rem;color:rgba(255,255,255,0.3);letter-spacing:2px;">OU</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+  </div>
+
   <input id="input-preid" class="text-input" type="text" placeholder="Código (ex: Q1)" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase(); document.getElementById('btn-iniciar').disabled = !/^Q\d+$/.test(this.value);" onkeydown="if(event.key==='Enter') validarEIniciar()">
   <div style="text-align:center;">
     <button class="btn-primary" id="btn-iniciar" onclick="validarEIniciar()" disabled>COMEÇAR AVALIAÇÃO →</button>
+    <br><br>
+    <button class="btn-ghost" onclick="window.location.href='/pos_questionario?session_id=pos_avulso'">RESPONDER SEM PARTICIPAR DO ESTUDO</button>
   </div>
 </div>
 
@@ -629,11 +640,55 @@ async function enviarFormulario() {
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const pIdUrl = urlParams.get('pre_id');
+    const sIdUrl = urlParams.get('session_id');
+    if (sIdUrl === 'pos_avulso') {
+        preId = null;
+        sessionId = 'pos_avulso';
+        document.getElementById('step-identificacao').style.display = 'none';
+        document.getElementById('form-container').style.display = 'block';
+        document.getElementById('lbl-part-id').innerText = 'Avulso';
+        atualizarUI();
+        inicializarPerguntas();
+        return;
+    }
+    
     if (pIdUrl) {
         document.getElementById('input-preid').value = pIdUrl;
         validarEIniciar();
+    } else {
+        carregarFila();
     }
 });
+
+async function carregarFila() {
+    try {
+        const res = await fetch(API + '/fila_participantes');
+        if (!res.ok) return;
+        const fila = await res.json();
+        const listaDiv = document.getElementById('lista-aguardando');
+        const aguardando = fila.filter(p => p.status === 'historia_concluida');
+        
+        if (aguardando.length === 0) {
+            listaDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4); font-size: 0.9rem;">Nenhum participante aguardando pós-questionário.</span>';
+        } else {
+            listaDiv.innerHTML = '';
+            aguardando.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-primary';
+                btn.style.width = '100%';
+                btn.style.maxWidth = '400px';
+                btn.style.padding = '12px';
+                btn.style.fontSize = '0.9rem';
+                btn.innerText = `${p.pre_id} - AGUARDANDO PÓS-QUESTIONÁRIO`;
+                btn.onclick = () => {
+                    document.getElementById('input-preid').value = p.pre_id;
+                    validarEIniciar();
+                };
+                listaDiv.appendChild(btn);
+            });
+        }
+    } catch(e) { console.error('Erro fila:', e); }
+}
 </script>
 </body>
 </html>
