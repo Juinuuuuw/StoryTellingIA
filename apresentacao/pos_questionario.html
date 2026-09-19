@@ -106,7 +106,21 @@
 
   <!-- SECTIONS -->
 
-  <div class="section-card active" id="sec-1">
+  <!-- SEÇÃO 0: QUIZ DE RETENÇÃO -->
+  <div class="section-card active" id="sec-0">
+    <div class="section-desc">Responda às questões sobre a história que você acabou de vivenciar.</div>
+    
+    <div id="quiz-container">
+      <!-- Perguntas do quiz serão injetadas aqui via JS -->
+    </div>
+
+    <div class="nav-row">
+      <div></div>
+      <button class="btn-primary" id="btn-sec0" onclick="irPara(1)" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
+  <div class="section-card" id="sec-1">
     <div class="section-desc">Responda as questões abaixo baseando-se na sua experiência.</div>
 
     <div class="question-block">
@@ -362,8 +376,8 @@
 <script>
 const API = (window.location.protocol === 'file:') ? 'http://127.0.0.1:5000' : window.location.origin;
 const respostas = {};
-let secaoAtual = 1;
-const totalSecoes = 8;
+let secaoAtual = 0;
+const totalSecoes = 9;
 let preId = null;
 let sessionId = null;
 
@@ -458,6 +472,22 @@ function renderizarQuiz() {
         </div>`;
     });
     container.innerHTML = html;
+    verificarPreenchimento(); // Verifica inicial
+}
+
+function verificarPreenchimento() {
+    if (!window.quizPerguntas) return;
+    let ok = true;
+    window.quizPerguntas.forEach(q => {
+        const selected = document.querySelector(`input[name="quiz_${q.id}"]:checked`);
+        if (selected) {
+            respostas[`quiz_${q.id}`] = parseInt(selected.value);
+        } else {
+            ok = false;
+        }
+    });
+    const btn = document.getElementById('btn-sec0');
+    if (btn) btn.disabled = !ok;
 }
 
 function inicializarPerguntas() {
@@ -521,6 +551,10 @@ function selecionarGrid(chave, valor) {
 }
 
 function validarSecaoAtual() {
+  if (secaoAtual === 0) {
+      verificarPreenchimento();
+      return;
+  }
   const secIdx = secaoAtual - 1;
   const sec = LIKERT_SECOES_DEF[secIdx];
   let ok = true;
@@ -540,10 +574,15 @@ function validarSecaoAtual() {
 }
 
 function atualizarUI() {
-  const pct = Math.round((secaoAtual / totalSecoes) * 100);
+  const divSecoes = secaoAtual === 0 ? 1 : secaoAtual;
+  const pct = Math.round((divSecoes / totalSecoes) * 100);
   document.getElementById('prog-bar').style.width = pct + '%';
-  document.getElementById('prog-label').textContent = 'Seção ' + secaoAtual + ' de ' + totalSecoes;
-  document.getElementById('sec-title-h1').textContent = LIKERT_SECOES_DEF[secaoAtual-1].titulo;
+  document.getElementById('prog-label').textContent = 'Seção ' + divSecoes + ' de ' + totalSecoes;
+  if (secaoAtual === 0) {
+      document.getElementById('sec-title-h1').textContent = 'Retenção de Conhecimento';
+  } else {
+      document.getElementById('sec-title-h1').textContent = LIKERT_SECOES_DEF[secaoAtual-1].titulo;
+  }
   validarSecaoAtual();
 }
 
