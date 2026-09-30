@@ -159,19 +159,19 @@
 <div id="loading-overlay"><div class="spinner"></div><p style="color:#64748B;font-size:.9rem">Conectando...</p></div>
 
 <div class="topbar">
-  <div><h1>&#128202; Dashboard &mdash; StoryTellingIA</h1><p id="lu-top">Aguardando dados...</p></div>
+  <div><h1><i data-lucide="bar-chart-2" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Dashboard &mdash; StoryTellingIA</h1><p id="lu-top">Aguardando dados...</p></div>
   <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-    <button class="btn" id="btnContinuarNao" onclick="forcarAvancoNao()" style="background:#4F46E5; border-color:#4F46E5; color: white;">&#9193; Continuar Cena</button>
-    <button class="btn btn-green" onclick="exportarExcelAnalista()">&#11015; Exportar Completo (Analista)</button>
-    <button class="btn btn-green" onclick="exportarExcel()" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#fff;">&#11015; Tabelas (Separado)</button>
+    <button class="btn" id="btnContinuarNao" onclick="forcarAvancoNao()" style="background:#4F46E5; border-color:#4F46E5; color: white;"><i data-lucide="skip-forward" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Continuar Cena</button>
+    <button class="btn btn-green" onclick="exportarExcelAnalista()"><i data-lucide="download" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Exportar Completo (Analista)</button>
+    <button class="btn btn-green" onclick="exportarExcel()" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#fff;"><i data-lucide="download" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Tabelas (Separado)</button>
   </div>
 </div>
 
 <div class="tabs">
-  <button class="tab active" onclick="trocarAba(this,'quiz')">&#127919; Quiz</button>
-  <button class="tab" onclick="trocarAba(this,'historia')">&#128214; Histórias</button>
-  <button class="tab" onclick="trocarAba(this,'likert')">&#128221; Pesquisa</button>
-  <button class="tab" onclick="trocarAba(this,'participantes')">&#128101; Participantes</button>
+  <button class="tab active" onclick="trocarAba(this,'quiz')"><i data-lucide="target" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Quiz</button>
+  <button class="tab" onclick="trocarAba(this,'historia')"><i data-lucide="book-open" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Histórias</button>
+  <button class="tab" onclick="trocarAba(this,'likert')"><i data-lucide="edit" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Pesquisa</button>
+  <button class="tab" onclick="trocarAba(this,'participantes')"><i data-lucide="users" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Participantes</button>
 </div>
 
 <div class="page">
@@ -179,12 +179,12 @@
 <!-- ===== ABA QUIZ ===== -->
 <div class="section active" id="sec-quiz">
   <div class="toolbar">
-    <input type="text" id="q-fa" placeholder="&#128269; Filtrar aluno..." oninput="renderQT()"/>
+    <input type="text" id="q-fa" placeholder="<i data-lucide="search" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Filtrar aluno..." oninput="renderQT()"/>
     <select id="q-ft" onchange="renderQT()"><option value="">Todos os temas</option></select>
     <input type="date" id="q-fd" onchange="renderQT()"/>
     <span style="color:var(--muted);font-size:.85rem">at&eacute;</span>
     <input type="date" id="q-fa2" onchange="renderQT()"/>
-    <button class="btn btn-ghost" onclick="limparQ()">&#10005; Limpar</button>
+    <button class="btn btn-ghost" onclick="limparQ()"><i data-lucide="x" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Limpar</button>
     <div class="spacer"></div>
     <span class="last-updated" id="q-cnt"></span>
   </div>
@@ -195,8 +195,8 @@
     <div class="stat-card"><div class="label">Aproveitamento geral</div><div class="value" id="s-pct">&#8212;</div><div class="progress-bar-bg"><div class="progress-bar" id="s-bar" style="width:0%"></div></div></div>
   </div>
   <div class="charts-row">
-    <div class="card"><div class="card-title">&#128200; Aproveitamento por Tema (%)</div><div class="chart-wrap"><canvas id="ct"></canvas></div></div>
-    <div class="card"><div class="card-title">&#127849; Acertos vs Erros</div><div class="chart-wrap"><canvas id="cp"></canvas></div></div>
+    <div class="card"><div class="card-title"><i data-lucide="trending-up" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Aproveitamento por Tema (%)</div><div class="chart-wrap"><canvas id="ct"></canvas></div></div>
+    <div class="card"><div class="card-title"><i data-lucide="pie-chart" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Acertos vs Erros</div><div class="chart-wrap"><canvas id="cp"></canvas></div></div>
   </div>
   <div class="table-card">
     <div class="table-header"><strong id="q-tt">Sess&otilde;es de Quiz</strong><span class="last-updated" id="q-lu"></span></div>
@@ -216,14 +216,14 @@
 <!-- ===== ABA HISTORIAS ===== -->
 <div class="section" id="sec-historia">
   <div class="toolbar">
-    <input type="text" id="h-fa" placeholder="&#128269; Filtrar aluno..." oninput="renderHT()"/>
+    <input type="text" id="h-fa" placeholder="<i data-lucide="search" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Filtrar aluno..." oninput="renderHT()"/>
     <select id="h-fs" onchange="renderHT()"><option value="">Todos os skills</option></select>
     <select id="h-fst" onchange="renderHT()">
       <option value="">Todos os status</option>
       <option value="em_andamento">Em andamento</option>
       <option value="concluida">Conclu&iacute;da</option>
     </select>
-    <button class="btn btn-ghost" onclick="limparH()">&#10005; Limpar</button>
+    <button class="btn btn-ghost" onclick="limparH()"><i data-lucide="x" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Limpar</button>
     <div class="spacer"></div>
     <span class="last-updated" id="h-cnt"></span>
   </div>
@@ -251,8 +251,8 @@
 <!-- ===== ABA LIKERT ===== -->
 <div class="section" id="sec-likert">
   <div class="toolbar">
-    <input type="text" id="l-fa" placeholder="&#128269; Filtrar aluno ou ID..." oninput="renderLT()"/>
-    <button class="btn btn-ghost" onclick="document.getElementById('l-fa').value='';renderLT()">&#10005; Limpar</button>
+    <input type="text" id="l-fa" placeholder="<i data-lucide="search" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Filtrar aluno ou ID..." oninput="renderLT()"/>
+    <button class="btn btn-ghost" onclick="document.getElementById('l-fa').value='';renderLT()"><i data-lucide="x" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Limpar</button>
     <div class="spacer"></div>
     <span class="last-updated" id="l-cnt"></span>
   </div>
@@ -271,7 +271,7 @@
 <div class="section" id="sec-live">
   <div class="live-card" style="margin-top:0">
     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
-      <span style="font-weight:700;font-size:.95rem">&#128308; Sess&atilde;o ao vivo</span>
+      <span style="font-weight:700;font-size:.95rem"><i data-lucide="circle-dot" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Sess&atilde;o ao vivo</span>
       <span class="live-status-badge" id="lv-badge" style="background:#F3F4F6;color:#64748B">Aguardando...</span>
     </div>
     <div class="live-grid">
@@ -285,7 +285,7 @@
     </div>
   </div>
   <div class="card" style="margin-top:1rem">
-    <div class="card-title">&#128196; &Uacute;ltima cena / pergunta exibida</div>
+    <div class="card-title"><i data-lucide="file-text" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> &Uacute;ltima cena / pergunta exibida</div>
     <div id="lv-cena" style="color:var(--muted);font-size:.875rem">Aguardando sess&atilde;o...</div>
   </div>
 </div>
@@ -294,7 +294,7 @@
 <!-- ===== ABA PARTICIPANTES ===== -->
 <div class="section" id="sec-participantes">
   <div class="toolbar">
-    <input type="text" id="p-fa" placeholder="&#128269; Filtrar por ID..." oninput="renderPT()"/>
+    <input type="text" id="p-fa" placeholder="<i data-lucide="search" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Filtrar por ID..." oninput="renderPT()"/>
     <select id="p-fs" onchange="renderPT()">
       <option value="">Todos os status</option>
       <option value="aguardando_historia">Aguardando sess&#227;o</option>
@@ -304,7 +304,7 @@
       <option value="desistiu">Desistiu</option>
       <option value="sem_estudo">Sem estudo</option>
     </select>
-    <button class="btn btn-ghost" onclick="limparP()">&#10005; Limpar</button>
+    <button class="btn btn-ghost" onclick="limparP()"><i data-lucide="x" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Limpar</button>
     <div class="spacer"></div>
     <span class="last-updated" id="p-cnt"></span>
   </div>
@@ -335,7 +335,7 @@
 
   <!-- Fila de espera (aguardando_historia) -->
   <div class="card" style="margin-bottom:1.5rem">
-    <div class="card-title">&#128338; Fila de espera &mdash; Prontos para iniciar a sess&#227;o</div>
+    <div class="card-title"><i data-lucide="clock" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Fila de espera &mdash; Prontos para iniciar a sess&#227;o</div>
     <div id="fila-cards" class="fila-grid">
       <div style="color:var(--muted);font-size:.875rem">Nenhum participante aguardando.</div>
     </div>
@@ -439,7 +439,7 @@ function rQD(sid){
   const el=document.getElementById('qd-'+sid);if(!el)return;
   const d=cQ[sid];if(!d)return;
   const ps=d.perguntas||[];
-  el.innerHTML=`<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap"><strong>${d.nome_aluno}</strong><span class="badge badge-blue">${d.tema}</span><span style="color:var(--muted);font-size:.8rem">${fmt(d.data_hora)}</span><span style="margin-left:auto;font-weight:700;font-size:1.1rem;color:${pct(d.percentual)}">${d.percentual}% - ${d.acertos}/${d.total_perguntas}</span></div>${ps.length===0?'<p style="color:var(--muted)">Nenhuma pergunta registrada ainda.</p>':'<div class="questions-grid">'+ps.map((p,i)=>{const cl=p.deu_up?'up':p.correta?'correta':'errada',ic=p.deu_up?'&#129335;':p.correta?'&#9989;':'&#10060;';return`<div class="q-card ${cl}"><div class="q-num">Pergunta ${i+1} ${ic}</div><div class="q-text">${p.pergunta}</div><div class="opcoes-grid">${(p.opcoes||[]).map((o,idx)=>{const iC=idx===p.resposta_correta,iA=idx===p.resposta_dada,oc=iC?'correta':(iA&&!iC?'errada':''),bg=iC?'#10B981':iA?'#EF4444':'#9CA3AF';return`<div class="opcao ${oc}"><span class="letra" style="background:${bg}">${LETRAS[idx]}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o}">${o}</span>${iC&&iA?'<span style="font-size:.65rem;color:#059669;flex-shrink:0">&#10003;</span>':''}${iC&&!iA?'<span style="font-size:.65rem;color:#059669;flex-shrink:0">certa</span>':''}${iA&&!iC?'<span style="font-size:.65rem;color:#DC2626;flex-shrink:0">&#10007;</span>':''}</div>`}).join('')}</div>${p.deu_up?'<p style="font-size:.72rem;color:#92400E;margin-top:.5rem">&#9888; Nao me lembro</p>':''}</div>`}).join('')+'</div>'}`;
+  el.innerHTML=`<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap"><strong>${d.nome_aluno}</strong><span class="badge badge-blue">${d.tema}</span><span style="color:var(--muted);font-size:.8rem">${fmt(d.data_hora)}</span><span style="margin-left:auto;font-weight:700;font-size:1.1rem;color:${pct(d.percentual)}">${d.percentual}% - ${d.acertos}/${d.total_perguntas}</span></div>${ps.length===0?'<p style="color:var(--muted)">Nenhuma pergunta registrada ainda.</p>':'<div class="questions-grid">'+ps.map((p,i)=>{const cl=p.deu_up?'up':p.correta?'correta':'errada',ic=p.deu_up?'<i data-lucide="help-circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>':p.correta?'<i data-lucide="check-circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>':'<i data-lucide="x-circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>';return`<div class="q-card ${cl}"><div class="q-num">Pergunta ${i+1} ${ic}</div><div class="q-text">${p.pergunta}</div><div class="opcoes-grid">${(p.opcoes||[]).map((o,idx)=>{const iC=idx===p.resposta_correta,iA=idx===p.resposta_dada,oc=iC?'correta':(iA&&!iC?'errada':''),bg=iC?'#10B981':iA?'#EF4444':'#9CA3AF';return`<div class="opcao ${oc}"><span class="letra" style="background:${bg}">${LETRAS[idx]}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o}">${o}</span>${iC&&iA?'<span style="font-size:.65rem;color:#059669;flex-shrink:0">&#10003;</span>':''}${iC&&!iA?'<span style="font-size:.65rem;color:#059669;flex-shrink:0">certa</span>':''}${iA&&!iC?'<span style="font-size:.65rem;color:#DC2626;flex-shrink:0">&#10007;</span>':''}</div>`}).join('')}</div>${p.deu_up?'<p style="font-size:.72rem;color:#92400E;margin-top:.5rem"><i data-lucide="alert-triangle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Nao me lembro</p>':''}</div>`}).join('')+'</div>'}`;
 }
 function limparQ(){['q-fa','q-ft','q-fd','q-fa2'].forEach(id=>{const e=document.getElementById(id);e.tagName==='SELECT'?e.value='':e.value=''});renderQT()}
 
@@ -559,7 +559,7 @@ function rHD(sid){
   const el=document.getElementById('hd-'+sid);if(!el)return;
   const d=cH[sid];if(!d)return;
   const cs=d.cenas||[];
-  el.innerHTML=`<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap"><strong>${d.nome_aluno}</strong><span class="badge badge-blue">${d.skill}</span><span style="color:var(--muted);font-size:.8rem">${fmt(d.data_inicio)}</span>${d.data_fim?`<span style="color:var(--muted);font-size:.8rem">&#8594; ${fmt(d.data_fim)}</span>`:''}<span style="margin-left:auto;font-size:.85rem;color:var(--muted)">${cs.length} cena(s)</span></div>${cs.length===0?'<p style="color:var(--muted)">Nenhuma cena registrada ainda.</p>':'<div class="cena-timeline">'+cs.map((c,i)=>{const ac='ato'+(c.ato||1),ae=c.ato===3?'&#127917;':c.ato===2?'&#9889;':'&#127749;';const ops=Array.isArray(c.opcoes)?c.opcoes:[];const tr=c.narrativa&&c.narrativa.length>200;return`<div class="cena-item"><div class="cena-dot ${ac}">${ae}</div><div class="cena-body"><div class="cena-header"><span class="badge badge-purple">Ato ${c.ato||1}</span><span class="badge" style="background:#F1F5F9;color:#64748B">${c.step_id}</span>${c.npc_principal?`<span style="font-size:.75rem;color:var(--muted)">com ${c.npc_principal}</span>`:''}<span style="margin-left:auto;font-size:.72rem;color:var(--muted)">${fmt(c.timestamp_cena)}</span></div><div class="cena-narrativa" id="nr-${c.id}">${c.narrativa||'-'}</div>${tr?`<button class="cena-toggle" onclick="togN('${c.id}')">&#9660; ver mais</button>`:''}<div style="margin-top:.6rem;flex-wrap:wrap">${ops.map(o=>`<span class="opcao-hist${c.escolha_feita===o?' escolhida':''}">${o}</span>`).join('')}</div>${c.escolha_feita?`<div style="font-size:.72rem;color:var(--primary);font-weight:600;margin-top:.4rem">&#8594; Aluno escolheu: "${c.escolha_feita}"</div>`:ops.length>0?'<div style="font-size:.72rem;color:var(--amber);margin-top:.4rem">&#8987; Aguardando escolha...</div>':''}</div></div>`;}).join('')+'</div>'}`;
+  el.innerHTML=`<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap"><strong>${d.nome_aluno}</strong><span class="badge badge-blue">${d.skill}</span><span style="color:var(--muted);font-size:.8rem">${fmt(d.data_inicio)}</span>${d.data_fim?`<span style="color:var(--muted);font-size:.8rem"><i data-lucide="arrow-right" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> ${fmt(d.data_fim)}</span>`:''}<span style="margin-left:auto;font-size:.85rem;color:var(--muted)">${cs.length} cena(s)</span></div>${cs.length===0?'<p style="color:var(--muted)">Nenhuma cena registrada ainda.</p>':'<div class="cena-timeline">'+cs.map((c,i)=>{const ac='ato'+(c.ato||1),ae=c.ato===3?'<i data-lucide="theater" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>':c.ato===2?'<i data-lucide="zap" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>':'<i data-lucide="sunrise" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>';const ops=Array.isArray(c.opcoes)?c.opcoes:[];const tr=c.narrativa&&c.narrativa.length>200;return`<div class="cena-item"><div class="cena-dot ${ac}">${ae}</div><div class="cena-body"><div class="cena-header"><span class="badge badge-purple">Ato ${c.ato||1}</span><span class="badge" style="background:#F1F5F9;color:#64748B">${c.step_id}</span>${c.npc_principal?`<span style="font-size:.75rem;color:var(--muted)">com ${c.npc_principal}</span>`:''}<span style="margin-left:auto;font-size:.72rem;color:var(--muted)">${fmt(c.timestamp_cena)}</span></div><div class="cena-narrativa" id="nr-${c.id}">${c.narrativa||'-'}</div>${tr?`<button class="cena-toggle" onclick="togN('${c.id}')">&#9660; ver mais</button>`:''}<div style="margin-top:.6rem;flex-wrap:wrap">${ops.map(o=>`<span class="opcao-hist${c.escolha_feita===o?' escolhida':''}">${o}</span>`).join('')}</div>${c.escolha_feita?`<div style="font-size:.72rem;color:var(--primary);font-weight:600;margin-top:.4rem"><i data-lucide="arrow-right" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Aluno escolheu: "${c.escolha_feita}"</div>`:ops.length>0?'<div style="font-size:.72rem;color:var(--amber);margin-top:.4rem"><i data-lucide="hourglass" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Aguardando escolha...</div>':''}</div></div>`;}).join('')+'</div>'}`;
 }
 function togN(id){const el=document.getElementById('nr-'+id),btn=el.nextElementSibling;if(el.classList.contains('expanded')){el.classList.remove('expanded');btn.innerHTML='&#9660; ver mais'}else{el.classList.add('expanded');btn.innerHTML='&#9650; ver menos'}}
 function limparH(){['h-fa','h-fs','h-fst'].forEach(id=>{document.getElementById(id).value=''});renderHT()}
@@ -672,21 +672,18 @@ function forcarAvancoNao() {
   const btn = document.getElementById('btnContinuarNao');
   if(btn.disabled) return;
   
+  // Pisca o botão rapidamente só para dar um feedback visual (meio segundo)
   btn.disabled = true;
   const originalText = btn.innerHTML;
-  btn.innerHTML = "&#8987; Aguarde 5s...";
-  btn.style.opacity = "0.5";
-  btn.style.cursor = "not-allowed";
+  btn.innerHTML = `<i data-lucide="check" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i> Avançando...`;
   
-  fetch('http://127.0.0.1:5000/forcar_avanco', { method: 'POST' })
+  fetch(API + '/forcar_avanco', { method: 'POST' })
     .catch(e => console.error("Erro ao forçar avanço:", e));
 
   setTimeout(() => {
       btn.disabled = false;
       btn.innerHTML = originalText;
-      btn.style.opacity = "1";
-      btn.style.cursor = "pointer";
-  }, 5000);
+  }, 500); // Libera o botão em meio segundo ao invés de 5 segundos!
 }
 
 async function poll(){
@@ -696,5 +693,18 @@ async function poll(){
 }
 poll();setInterval(poll,POLL);
 </script>
+
+  <script src="lucide.js"></script>
+  <script>
+    if (window.lucide) {
+      lucide.createIcons();
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        lucide.createIcons();
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  </script>
 </body>
 </html>

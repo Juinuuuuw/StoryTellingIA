@@ -1321,8 +1321,10 @@ def salvar_likert_route():
         
         # Se veio um pre_id, atualiza o status dele para pos_respondido
         if pre_id:
+            from datetime import datetime as _dt
+            agora = _dt.now().isoformat()
             quiz_manager.atualizar_status_pre(pre_id, 'pos_respondido', session_id if session_id != 'pos_avulso' else None)
-            quiz_manager.registrar_metrica_tempo(pre_id, 'pos_questionario', 'fim')
+            quiz_manager.registrar_metrica_tempo(pre_id, 'pos_questionario', agora, agora)
             
         return jsonify({"status": "sucesso"}), 200
     except Exception as e:

@@ -406,7 +406,7 @@
 </div>
 
 <div id="tela-fim">
-  <div class="fim-icon">✨</div>
+  <div class="fim-icon"><i data-lucide="sparkles" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
   <div class="fim-title">Pré-questionário Concluído!</div>
   <div class="fim-desc">Obrigado por responder. Guarde o seu ID de participante abaixo &mdash; ele será necessário para vincular suas respostas ao longo do estudo.</div>
   <div class="id-badge" id="fim-id">&mdash;</div>
@@ -428,7 +428,7 @@ const NAO_GRIDS = [
   {tbodyId:"grid-antrop",gk:"g0",linhas:["Falso / Natural","Com aspecto mecânico / Sem aspecto mecânico","Inconsciente / Consciente","Artificial / Realista","Move-se com rigidez / Move-se com fluidez"]},
   {tbodyId:"grid-anim",gk:"g1",linhas:["Morto / Com vida","Parado / Enérgico","Artificial / Realista","Estático / Interativo","Apático / Participativo"]},
   {tbodyId:"grid-simp",gk:"g2",linhas:["Não gosto / Gosto","Hostil / Amigável","Antipático / Gentil","Desagradável / Agradável","Horrível / Simpático"]},
-  {tbodyId:"grid-intel",gk:"g3",linhas:["Incompetente / Competente","Ignorante / Sabedor","Pouco inteligente / Inteligente","Insensato / Sensato"]},
+  {tbodyId:"grid-intel",gk:"g3",linhas:["Incompetente / Competente","Ignorante / Sabedor","Irresponsável / Responsável","Pouco inteligente / Inteligente","Insensato / Sensato"]},
   {tbodyId:"grid-seg",gk:"g4",linhas:["Ansioso / Descontraído","Calmo / Agitado","Sereno / Surpreendido"]}
 ];
 
@@ -581,5 +581,18 @@ document.addEventListener('DOMContentLoaded', () => {
   validarSecaoAtual();
 });
 </script>
+
+  <script src="lucide.js"></script>
+  <script>
+    if (window.lucide) {
+      lucide.createIcons();
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        lucide.createIcons();
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  </script>
 </body>
 </html>

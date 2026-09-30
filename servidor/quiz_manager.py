@@ -302,13 +302,26 @@ def get_estatisticas_participacao():
 
 
 def registrar_metrica_tempo(pre_id: str, fase: str, inicio: str, fim: str = None, duracao_seg: int = None):
-    """Registra ou atualiza uma métrica de tempo para uma fase específica."""
+    """Registra ou atualiza uma métrica de tempo para uma fase específica e calcula a duração automaticamente."""
+    from datetime import datetime
     con = sqlite3.connect(DB_PATH)
     try:
         existing = con.execute(
-            "SELECT id FROM metricas_tempo WHERE pre_id=? AND fase=?",
+            "SELECT id, inicio FROM metricas_tempo WHERE pre_id=? AND fase=?",
             (pre_id, fase)
         ).fetchone()
+        
+        # Calcular duracao_seg se 'fim' foi fornecido e 'duracao_seg' não
+        if fim and duracao_seg is None:
+            try:
+                start_str = existing[1] if existing else inicio
+                if start_str and start_str != 'fim':
+                    start_dt = datetime.fromisoformat(start_str)
+                    end_dt = datetime.fromisoformat(fim)
+                    duracao_seg = int((end_dt - start_dt).total_seconds())
+            except Exception as e:
+                print("Erro ao calcular duracao_seg:", e)
+                
         if existing:
             con.execute(
                 "UPDATE metricas_tempo SET fim=?, duracao_seg=? WHERE pre_id=? AND fase=?",
@@ -1103,24 +1116,52 @@ def exportar_excel_analista(filepath):
         # Colunas Likert fixas (garante que apareçam mesmo se o DB estiver vazio)
         likert_cols = ['Likert [Imersão Narrativa] - Consegui imaginar facilmente os acontecimentos apresentados na história.', 'Likert [Imersão Narrativa] - Enquanto ouvia a história, deixei de prestar atenção, por alguns momentos, no que estava ao meu redor.', 'Likert [Imersão Narrativa] - Fiquei mentalmente envolvido(a) com a história.', 'Likert [Imersão Narrativa] - A história despertou alguma reação emocional em mim.', 'Likert [Engajamento com a Experiência] - A experiência prendeu minha atenção.', 'Likert [Engajamento com a Experiência] - Gostei de acompanhar a experiência.', 'Likert [Engajamento com a Experiência] - Fiquei curioso(a) para saber o que aconteceria em seguida.', 'Likert [Interação com o NAO] - Consegui compreender claramente o que o NAO dizia.', 'Likert [Interação com o NAO] - Os movimentos e gestos do NAO combinaram com a história.', 'Likert [Interação com o NAO] - A troca de falas com o NAO ocorreu de forma fluida.', 'Likert [Contribuição das Imagens] - As imagens ajudaram a compreender e imaginar os acontecimentos da história.', 'Likert [Contribuição das Imagens] - As imagens tornaram a experiência mais envolvente.', 'Likert [Personalização e Adaptação Percebida] - Senti que a história considerou o que aconteceu durante minha interação com o NAO.', 'Likert [Personalização e Adaptação Percebida] - Tive a impressão de que minhas respostas ou ações influenciaram a experiência.', 'Likert [Percepção da Geração Dinâmica] - Na sua percepção, a história estava pronta antes da sessão ou foi gerada ou adaptada durante a interação?', 'Likert [Percepção da Geração Dinâmica] - Na sua percepção, as imagens estavam prontas antes da sessão ou foram geradas durante a interação?', 'Likert [Percepção do NAO Após a Interação] - Antropomorfismo - Falso / Natural', 'Likert [Percepção do NAO Após a Interação] - Antropomorfismo - Com aspecto mecânico / Com aspecto humano', 'Likert [Percepção do NAO Após a Interação] - Antropomorfismo - Inconsciente / Consciente', 'Likert [Percepção do NAO Após a Interação] - Antropomorfismo - Artificial / Realista', 'Likert [Percepção do NAO Após a Interação] - Antropomorfismo - Move-se com rigidez / Move-se com fluidez', 'Likert [Percepção do NAO Após a Interação] - Animacidade - Morto / Com vida', 'Likert [Percepção do NAO Após a Interação] - Animacidade - Parado / Enérgico', 'Likert [Percepção do NAO Após a Interação] - Animacidade - Artificial / Realista', 'Likert [Percepção do NAO Após a Interação] - Animacidade - Estático / Interativo', 'Likert [Percepção do NAO Após a Interação] - Animacidade - Apático / Participativo', 'Likert [Percepção do NAO Após a Interação] - Simpatia - Não gosto / Gosto', 'Likert [Percepção do NAO Após a Interação] - Simpatia - Hostil / Amigável', 'Likert [Percepção do NAO Após a Interação] - Simpatia - Antipático / Gentil', 'Likert [Percepção do NAO Após a Interação] - Simpatia - Desagradável / Agradável', 'Likert [Percepção do NAO Após a Interação] - Simpatia - Horrível / Simpático', 'Likert [Percepção do NAO Após a Interação] - Inteligência Percebida - Incompetente / Competente', 'Likert [Percepção do NAO Após a Interação] - Inteligência Percebida - Ignorante / Sabedor', 'Likert [Percepção do NAO Após a Interação] - Inteligência Percebida - Irresponsável / Responsável', 'Likert [Percepção do NAO Após a Interação] - Inteligência Percebida - Pouco inteligente / Inteligente', 'Likert [Percepção do NAO Após a Interação] - Inteligência Percebida - Insensato / Sensato', 'Likert [Percepção do NAO Após a Interação] - Segurança Percebida - Ansioso / Descontraído', 'Likert [Percepção do NAO Após a Interação] - Segurança Percebida - Calmo / Agitado', 'Likert [Percepção do NAO Após a Interação] - Segurança Percebida - Sereno / Surpreendido', 'Likert [Expectativa e Experiência] - Considerando suas expectativas antes da sessão, como você avalia a experiência realizada?']
 
+        pre_godspeed_cols = [
+            'Likert [Percepção do NAO Antes da Interação] - Antropomorfismo - Falso / Natural',
+            'Likert [Percepção do NAO Antes da Interação] - Antropomorfismo - Com aspecto mecânico / Com aspecto humano',
+            'Likert [Percepção do NAO Antes da Interação] - Antropomorfismo - Inconsciente / Consciente',
+            'Likert [Percepção do NAO Antes da Interação] - Antropomorfismo - Artificial / Realista',
+            'Likert [Percepção do NAO Antes da Interação] - Antropomorfismo - Move-se com rigidez / Move-se com fluidez',
+            'Likert [Percepção do NAO Antes da Interação] - Animacidade - Morto / Com vida',
+            'Likert [Percepção do NAO Antes da Interação] - Animacidade - Parado / Enérgico',
+            'Likert [Percepção do NAO Antes da Interação] - Animacidade - Artificial / Realista',
+            'Likert [Percepção do NAO Antes da Interação] - Animacidade - Estático / Interativo',
+            'Likert [Percepção do NAO Antes da Interação] - Animacidade - Apático / Participativo',
+            'Likert [Percepção do NAO Antes da Interação] - Simpatia - Não gosto / Gosto',
+            'Likert [Percepção do NAO Antes da Interação] - Simpatia - Hostil / Amigável',
+            'Likert [Percepção do NAO Antes da Interação] - Simpatia - Antipático / Gentil',
+            'Likert [Percepção do NAO Antes da Interação] - Simpatia - Desagradável / Agradável',
+            'Likert [Percepção do NAO Antes da Interação] - Simpatia - Horrível / Simpático',
+            'Likert [Percepção do NAO Antes da Interação] - Inteligência Percebida - Incompetente / Competente',
+            'Likert [Percepção do NAO Antes da Interação] - Inteligência Percebida - Ignorante / Sabedor',
+            'Likert [Percepção do NAO Antes da Interação] - Inteligência Percebida - Irresponsável / Responsável',
+            'Likert [Percepção do NAO Antes da Interação] - Inteligência Percebida - Pouco inteligente / Inteligente',
+            'Likert [Percepção do NAO Antes da Interação] - Inteligência Percebida - Insensato / Sensato',
+            'Likert [Percepção do NAO Antes da Interação] - Segurança Percebida - Ansioso / Descontraído',
+            'Likert [Percepção do NAO Antes da Interação] - Segurança Percebida - Calmo / Agitado',
+            'Likert [Percepção do NAO Antes da Interação] - Segurança Percebida - Sereno / Surpreendido'
+        ]
+
         # Cabeçalhos base
         headers = [
             'ID Absoluto (Pré)', 'Session ID (História)', 'Data Cadastro', 'Status',
             'Idade', 'Área de Formação', 'Contato com Robôs', 'Frequência de IA',
             'Conhec. História Computação (1-5)', 'Marco Citado (Pré)',
             'Conhec. Alan Turing (1-5)', 'Marco Citado 2 (Pré)',
-            'Expectativa Experiência',
-            
-            # Médias NAO (Pré)
-            'Pré NAO: Antropomorfismo', 'Pré NAO: Animacidade', 'Pré NAO: Simpatia', 'Pré NAO: Inteligência', 'Pré NAO: Segurança',
-            
+            'Expectativa Experiência'
+        ]
+        
+        # Inserir as colunas Godspeed (Pré)
+        headers.extend(pre_godspeed_cols)
+        
+        headers.extend([
             # Dados da Sessão Interativa
             'Nome Aluno', 'Tema Jogado', 'Skill', 'Total Cenas',
             'Perguntas Respondidas', 'Acertos', '% Aproveitamento',
             
             # Métricas de Tempo
             'Tempo Pré-Questionário (s)', 'Tempo História (s)', 'Tempo Pós-Questionário (s)'
-        ]
+        ])
         
         # Adiciona colunas do Likert ao final
         headers.extend(likert_cols)
@@ -1134,25 +1175,31 @@ def exportar_excel_analista(filepath):
             pre_id = p['pre_id']
             session_id = p['session_id']
             
-            # Médias NAO
-            medias_nao = { 'Antropomorfismo': '', 'Animacidade': '', 'Simpatia': '', 'Inteligência': '', 'Segurança': '' }
+            # Itens Godspeed (Pré)
+            godspeed_pre_vals = {col: '' for col in pre_godspeed_cols}
             if p['percepcao_nao']:
                 try:
                     import json
                     percepcao = json.loads(p['percepcao_nao'])
-                    attr_names = list(medias_nao.keys())
-                    # Mapeando grupos para os atributos (0: Antropomorfismo, etc)
-                    # s0_g0_lX...
+                    old_data = ("s0_g3_l4" not in percepcao and "s0_g3_l3" in percepcao)
+                    idx = 0
                     for g_idx in range(5):
-                        soma = 0
-                        qtd = 0
-                        for l_idx in range(5):
-                            k = f"s0_g{g_idx}_l{l_idx}"
-                            if k in percepcao:
-                                soma += percepcao[k]
-                                qtd += 1
-                        if qtd > 0:
-                            medias_nao[attr_names[g_idx]] = round(soma / qtd, 2)
+                        num_items = 3 if g_idx == 4 else 5
+                        for l_idx in range(num_items):
+                            if g_idx == 3 and old_data:
+                                if l_idx == 0: val = percepcao.get("s0_g3_l0", "")
+                                elif l_idx == 1: val = percepcao.get("s0_g3_l1", "")
+                                elif l_idx == 2: val = ""
+                                elif l_idx == 3: val = percepcao.get("s0_g3_l2", "")
+                                elif l_idx == 4: val = percepcao.get("s0_g3_l3", "")
+                            else:
+                                k = f"s0_g{g_idx}_l{l_idx}"
+                                val = percepcao.get(k, '')
+                                
+                            if idx < len(pre_godspeed_cols):
+                                col_name = pre_godspeed_cols[idx]
+                                godspeed_pre_vals[col_name] = val
+                            idx += 1
                 except:
                     pass
             
@@ -1171,17 +1218,14 @@ def exportar_excel_analista(filepath):
                 'Marco Citado 2 (Pré)': p['ja_ouviu_marco_historico'],
                 'Expectativa Experiência': p['expectativa_experiencia'],
                 
-                'Pré NAO: Antropomorfismo': medias_nao['Antropomorfismo'],
-                'Pré NAO: Animacidade': medias_nao['Animacidade'],
-                'Pré NAO: Simpatia': medias_nao['Simpatia'],
-                'Pré NAO: Inteligência': medias_nao['Inteligência'],
-                'Pré NAO: Segurança': medias_nao['Segurança'],
-                
                 'Nome Aluno': '', 'Tema Jogado': '', 'Skill': '', 'Total Cenas': 0,
                 'Perguntas Respondidas': 0, 'Acertos': 0, '% Aproveitamento': 0,
                 'Tempo Pré-Questionário (s)': p['tempo_resposta_seg'],
                 'Tempo História (s)': 0, 'Tempo Pós-Questionário (s)': 0
             }
+            
+            # Atualiza o dicionário da linha com os itens individuais Godspeed Pré
+            row_data.update(godspeed_pre_vals)
             
             # Dados da Sessão
             if session_id:

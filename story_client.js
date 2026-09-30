@@ -103,7 +103,9 @@ async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negati
 
 
         try {
+            console.time(`TempoQuadro${i+1}`);
             const response = await axios.post(FORGE_TXT2IMG, payload, { timeout: 300000 });
+            console.timeEnd(`TempoQuadro${i+1}`);
             if (response.data?.images) {
                 const imgBase64 = response.data.images[0];
                 salvarImagem(imgBase64, nomeBase);

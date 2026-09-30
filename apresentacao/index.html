@@ -1235,32 +1235,43 @@
 
             const playFrame = async (idx) => {
                 const filename = images[idx];
-                const finalFilename = await waitForImage(filename);
-                if (seqId !== currentSequenceId) return false;
-                
-                if (finalFilename) {
-                    const url = `${API_URL}/images/${finalFilename}`;
-                    // Força o carregamento da imagem silenciosamente antes de exibir
-                    const img = new Image();
-                    await new Promise(res => { img.onload = res; img.onerror = res; img.src = url; });
-                    
-                    // Ocultar loader apenas quando a 1ª imagem for exibida
-                    if (idx === 0) {
-                        loader.style.display = 'none';
-                    }
 
-                    // Notifica o servidor que este quadro está visível agora (NAO sincroniza a fala)
+                // Para os quadros seguintes (2, 3 e 4), exibe o texto imediatamente
+                // enquanto a imagem termina de ser gerada em background
+                if (idx > 0) {
+                    if (textChunks && textChunks[idx]) {
+                        typeWriterEffect(textChunks[idx], storyTextEl);
+                    }
+                    // Notifica o servidor para o NAO já ir falando
                     fetch(`${API_URL}/publicar_quadro`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ quadro_idx: idx })
                     }).catch(() => {});
+                }
+
+                const finalFilename = await waitForImage(filename);
+                if (seqId !== currentSequenceId) return false;
+                
+                if (finalFilename) {
+                    const url = `${API_URL}/images/${finalFilename}`;
+                    const img = new Image();
+                    await new Promise(res => { img.onload = res; img.onerror = res; img.src = url; });
+                    
+                    if (idx === 0) {
+                        loader.style.display = 'none';
+                        // Para o primeiro quadro, exibe o texto apenas DEPOIS da imagem pronta
+                        if (textChunks && textChunks[idx]) {
+                            typeWriterEffect(textChunks[idx], storyTextEl);
+                        }
+                        fetch(`${API_URL}/publicar_quadro`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quadro_idx: idx })
+                        }).catch(() => {});
+                    }
 
                     imgEl.src = url;
-                    if (textChunks && textChunks[idx]) {
-                        typeWriterEffect(textChunks[idx], storyTextEl);
-                    }
-                    // Efeito Ken Burns Cinematico
                     gsap.fromTo(imgEl,
                         { scale: 1.05, x: 0, y: 0, opacity: 0.2 },
                         { scale: 1.15, x: 10, y: -10, opacity: 1, duration: 10, ease: "sine.inOut" }
@@ -1270,12 +1281,14 @@
                 return false;
             };
 
+            // Captura o step inicial (antes de qualquer frame tocar)
+            let baseAvancoStep = window.currentAvancoStep || 0;
+            
             // ── Aguarda o Dashboard mandar avançar (Botão Continuar) ──────────
             const waitForDashboardSignal = async () => {
-                // localAvanco captura o step no momento que a imagem carregou
-                const waitStep = window.currentAvancoStep || 0;
                 while (true) {
-                    if ((window.currentAvancoStep || 0) > waitStep) {
+                    if ((window.currentAvancoStep || 0) > baseAvancoStep) {
+                        baseAvancoStep = window.currentAvancoStep || 0;
                         return; // O dashboard aumentou o avanço!
                     }
                     await new Promise(r => setTimeout(r, 500));
@@ -1907,7 +1920,7 @@
 
 
         function pollStatus() {
-            setInterval(checkActiveSession, 2000);
+            setInterval(checkActiveSession, 500);
         }
 
     </script>
