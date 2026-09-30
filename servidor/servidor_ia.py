@@ -328,11 +328,11 @@ def montar_prompt_narrativo(contexto, historico="", student_visual_fixo="",
         f"FIXED VISUAL (use EXACTLY as is, do not change): {student_visual_fixo}"
         if student_visual_fixo
         else (
-            f"Generate a DETAILED physical description for a {contexto.get('student_genero', 'Masculino')} child (8-12 years old) including: "
+            f"Generate a DETAILED physical description for a {contexto.get('student_genero', 'Masculino')} young adult including: "
             "hair color and style, eye color, skin tone, clothing color and style, "
-            "any distinctive feature. Example: '1boy, 10 years old, short messy brown hair, green eyes, "
+            "any distinctive feature. Example: '1man, young adult, short messy brown hair, green eyes, "
             "light skin, wearing a white linen shirt and dark brown trousers'. "
-            "CRITICAL: The student is a CHILD. They must look COMPLETELY DIFFERENT from the adult NPC."
+            "CRITICAL: The student must look COMPLETELY DIFFERENT from the NPC."
         )
     )
 
@@ -491,12 +491,12 @@ Os ÚNICOS campos permitidos em Inglês são os técnicos de imagem: acao, camer
 {secao_rag}
 {secao_canonica}
 ### PROTOCOLO DOS PERSONAGENS ###
-- O Estudante ({contexto['student_name']}) é o PROTAGONISTA e é uma CRIANÇA (8-12 anos de idade).
+- O Estudante ({contexto['student_name']}) é o PROTAGONISTA e é um JOVEM ADULTO.
 - {genero_instrucao}
 - REGRA DE PERSPECTIVA CRÍTICA: SEMPRE escreva a "historia" em TERCEIRA PESSOA. Refira-se a {contexto['student_name']} pelo nome. Nunca use "Você" ou "Eu".
 - {contexto['student_name']} está FISICAMENTE PRESENTE na cena histórica como um assistente, pesquisador ou engenheiro aprendiz.
 - NPCs devem interagir DIRETAMENTE com {contexto['student_name']} — dê a eles diálogos específicos e trejeitos.
-- CRÍTICO: {contexto['student_name']} (CRIANÇA) e {contexto.get('npc_principal')} (ADULTO) devem ter aparências visuais totalmente diferentes.
+- CRÍTICO: {contexto['student_name']} e {contexto.get('npc_principal')} devem ter aparências visuais totalmente diferentes.
 {npc_visual_instruction}
 
 ### REGRAS DE NARRAÇÃO ###
@@ -847,7 +847,7 @@ def iniciar():
 
     personagens = cena_raw.get("personagens", [])
     if not personagens:
-        desc_padrao = "1boy" if genero == "Masculino" else "1girl"
+        desc_padrao = "1man" if genero == "Masculino" else "1woman"
         desc_final = visual_fixo if visual_fixo else f"{desc_padrao}, short hair, brown eyes, light skin, period-appropriate clothing"
         personagens = [{"nome": nome, "descricao_visual": desc_final}]
 
