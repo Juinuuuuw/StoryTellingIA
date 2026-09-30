@@ -145,7 +145,7 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
     for p in personagens_globais:
         desc_por_nome[p["nome"].lower()] = p["descricao_visual"]
 
-    student_desc = desc_por_nome.get(student_name.lower(), "1child, 10 years old, short hair, brown eyes, simple period-appropriate clothing")
+    student_desc = desc_por_nome.get(student_name.lower(), "1man, young adult, short hair, brown eyes, simple period-appropriate clothing")
     npc_desc     = desc_por_nome.get(npc_principal.lower(), "1person, historical figure, period-appropriate clothing")
 
     # Garante que ao menos um quadro seja de cenário puro.
@@ -195,11 +195,11 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
                     char_prompt = f"solo, {npc_desc}"
                     ultimo_char = "npc"
                 else:
-                    char_prompt = f"solo, 1child, {student_desc}"
+                    char_prompt = f"solo, {student_desc}"
                     ultimo_char = "student"
             elif p_nome.lower() == npc_principal.lower():
                 if ultimo_char == "npc" and i < 3:
-                    char_prompt = f"solo, 1child, {student_desc}"
+                    char_prompt = f"solo, {student_desc}"
                     ultimo_char = "student"
                 else:
                     char_prompt = f"solo, {npc_desc}"

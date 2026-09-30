@@ -110,10 +110,6 @@ async function gerarSequenciaStoryboard(promptsImagens, microcenasTextos, negati
                 const imgBase64 = response.data.images[0];
                 salvarImagem(imgBase64, nomeBase);
                 registrarLog(`[QUADRO-${i + 1}] ${nomeBase}: ${promptAtual}`);
-                if (!base64Referencia) {
-                    base64Referencia = imgBase64;
-                    console.log("      🌟 IP-Adapter ÂNCORA definida nesta imagem.");
-                }
             }
             console.log(`      ✅ Quadro ${i + 1} concluído.`);
         } catch (err) {
