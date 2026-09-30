@@ -1,10 +1,11 @@
-# nao_speaker.py
+# nao_speaker_v2.py
 import json
 import time
 import urllib.request
 import os
 import sys
 import subprocess
+import random
 from naoguese import para_naoguese  # transliteração fonética PT-BR → NAOguês
 
 try:
@@ -19,9 +20,9 @@ try:
 except ImportError:
     QI_DISPONIVEL = False
 
-SERVER_URL       = "http://187.33.252.174:5000/visualizador/cena_atual"
-SERVER_QUADRO    = "http://187.33.252.174:5000/visualizador/quadro_atual"
-NAO_IP     = "172.16.60.3"
+SERVER_URL       = "http://127.0.0.1:5000/visualizador/cena_atual"
+SERVER_QUADRO    = "http://127.0.0.1:5000/visualizador/quadro_atual"
+NAO_IP     = "172.20.10.5"
 NAO_PORT   = 9559
 
 # ============================================================
@@ -99,6 +100,17 @@ POSES = [
       "além disso", "importante", "principais"],                  "contar"),
 ]
 
+# NOVO: Frases de enrolação adicionais
+FRASES_ENROLACAO = [
+    "Hmm, deixe-me ver...",
+    "Estou processando as ideias...",
+    "Interessante...",
+    "Só mais um momento...",
+    "Estou pensando no que vai acontecer...",
+    "Quase lá...",
+    "Pensando..."
+]
+
 def escolher_gesto(texto):
     texto_lower = texto.lower()
     for palavras, gesto in POSES:
@@ -160,6 +172,29 @@ if QI_DISPONIVEL:
         motion  = session.service("ALMotion")
         tts.setLanguage("Brazilian")
         config = {"bodyLanguageMode": "contextual"}
+        
+        # Garante que os motores da cabeça estão ligados para podermos movê-la no modo idle
+        try:
+            motion.setStiffnesses("Head", 1.0)
+            
+            # Desativa o "tracking" automático do NAO (que faz ele olhar loucamente pros lados)
+            try:
+                awareness = session.service("ALBasicAwareness")
+                if awareness.isAwarenessRunning():
+                    awareness.stopAwareness()
+            except Exception:
+                pass
+                
+            try:
+                autoMoves = session.service("ALAutonomousMoves")
+                autoMoves.setExpressiveListeningEnabled(False)
+                autoMoves.setBackgroundStrategy("none")
+            except Exception:
+                pass
+                
+        except Exception as e:
+            print("Aviso: Nao foi possivel ativar stiffness da cabeca:", e)
+            
         print("Conectado ao NAO!")
     except Exception as e:
         print("Erro ao conectar ao NAO: " + str(e))
@@ -172,11 +207,37 @@ else:
         print("Paramiko pronto para conectar ao NAO via SSH!")
 
 
+# NOVO: Função para movimentar a cabeça lentamente (idle look)
+def mover_cabeca_idle():
+    yaw = random.uniform(-0.15, 0.15)
+    pitch = random.uniform(-0.10, 0.10)
+    velocidade = random.uniform(0.02, 0.05)
+    
+    if QI_DISPONIVEL:
+        try:
+            motion.setAngles(["HeadYaw", "HeadPitch"], [yaw, pitch], velocidade)
+        except Exception:
+            pass
+    elif PARAMIKO_DISPONIVEL:
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(NAO_IP, username="nao", password="nao", timeout=2)
+            cmd1 = f'qicli call ALMotion.setAngles "HeadYaw" {yaw} {velocidade}'
+            cmd2 = f'qicli call ALMotion.setAngles "HeadPitch" {pitch} {velocidade}'
+            ssh.exec_command(f"{cmd1} ; {cmd2}")
+            ssh.close()
+        except:
+            pass
+
 # ============================================================
 # LOOP PRINCIPAL — sincronizado por quadro
 # ============================================================
 ultimo_texto   = None
 ultimo_quadro  = -1   # rastreia o índice do quadro já falado
+tempo_ultima_fala = time.time()
+tempo_ultimo_movimento = time.time()
+
 print("Monitorando servidor... (CTRL+C para parar)")
 
 def _sinalizar_inicio_fala():
@@ -204,6 +265,7 @@ def _sinalizar_fim_fala():
         pass
 
 def falar(texto):
+    global tempo_ultima_fala
     """Dispara a fala no NAO com gesto contextual."""
     if not texto:
         return
@@ -233,20 +295,37 @@ def falar(texto):
             print("TTS também falhou: " + str(e2))
     finally:
         _sinalizar_fim_fala()  # libera avanço de quadro — sempre executa, mesmo em erro
+        tempo_ultima_fala = time.time()
 
 
 while True:
+    agora = time.time()
     try:
         # ── Prioridade 1: estado "pensando" (enrolação enquanto IA gera) ──
         raw_cena = urllib.request.urlopen(SERVER_URL, timeout=5).read()
         cena_data = json.loads(raw_cena)
 
         if cena_data.get("status") == "pensando":
-            ultimo_quadro = -1   # sempre reseta ao entrar no estado pensando
             texto_enrolacao = cena_data.get("fala_robo", "") or cena_data.get("fala_enrolacao", "")
+            
+            # Se for um novo texto de enrolação recebido do servidor, fala ele
             if texto_enrolacao and texto_enrolacao != ultimo_texto:
                 ultimo_texto = texto_enrolacao
+                ultimo_quadro = -1   # reseta para falar novamente na próxima cena
                 falar(texto_enrolacao)
+            else:
+                # Se ainda estiver "pensando" e já se passaram 8 a 15 segundos desde a última fala, fala algo a mais
+                if agora - tempo_ultima_fala > random.uniform(8, 15):
+                    frase_extra = random.choice(FRASES_ENROLACAO)
+                    print(f"Adicionando enrolação extra: {frase_extra}")
+                    falar(frase_extra)
+                    
+        elif cena_data.get("status") == "comando_avulso":
+            texto_comando = cena_data.get("fala_robo", "")
+            if texto_comando and texto_comando != ultimo_texto:
+                ultimo_texto = texto_comando
+                ultimo_quadro = -1
+                falar(texto_comando)
 
         elif cena_data.get("status") == "modal":
             pergunta = cena_data.get("dados", {}).get("pergunta", "")
@@ -273,5 +352,11 @@ while True:
         break
     except Exception as e:
         print("Erro: " + str(e))
+        
+    # Aciona movimento de cabeça ocioso se não falou nada recentemente e já passou algum tempo
+    agora = time.time()
+    if agora - tempo_ultimo_movimento > random.uniform(3, 7):
+        mover_cabeca_idle()
+        tempo_ultimo_movimento = agora
 
     time.sleep(1)  # poll a cada 1s — rápido o suficiente para pegar a troca de quadro

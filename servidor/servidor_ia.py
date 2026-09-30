@@ -705,6 +705,8 @@ def nao_iniciou_fala():
 def nao_terminou_fala():
     """Chamado pelo nao_speaker.py APÓS terminar a fala. Libera o avanço de quadro."""
     SESSAO_ATIVA["nao_falando"] = False
+    if SESSAO_ATIVA.get("status") == "comando_avulso":
+        SESSAO_ATIVA["status"] = "aguardando"
     return jsonify({"status": "ok"})
 
 @app.route('/nao_terminou', methods=['GET'])
@@ -715,6 +717,23 @@ def nao_terminou():
     """
     terminou = not SESSAO_ATIVA.get("nao_falando", False)
     return jsonify({"terminou": terminou})
+
+@app.route('/enviar_comando_avulso', methods=['POST'])
+def enviar_comando_avulso():
+    # Proteção: só permite comandos avulsos se a história não estiver rodando
+    if SESSAO_ATIVA["status"] not in ["aguardando", "comando_avulso"]:
+        return jsonify({"status": "erro", "msg": "Uma história está em andamento! Comandos avulsos só funcionam em modo 'aguardando'."}), 400
+
+    dados = request.json
+    if "frase" in dados:
+        frase = dados["frase"]
+    else:
+        nome = dados.get("nome", "Amigo")
+        frase = f"Oi {nome}, você quer que eu conte uma história para você?"
+        
+    SESSAO_ATIVA["status"] = "comando_avulso"
+    SESSAO_ATIVA["fala_comando"] = frase
+    return jsonify({"status": "ok"})
 
 @app.route('/publicar_cena', methods=['POST'])
 def publicar_cena():
@@ -1026,6 +1045,12 @@ def visualizador_cena():
             "avanco_step": SESSAO_ATIVA.get("avanco_step", 0)
         })
         
+    if SESSAO_ATIVA["status"] == "comando_avulso":
+        return jsonify({
+            "status": "comando_avulso",
+            "fala_robo": SESSAO_ATIVA.get("fala_comando", "")
+        })
+        
     if SESSAO_ATIVA["status"] == "modal":
         return jsonify({
             "status": "modal",
@@ -1100,7 +1125,7 @@ Com base nos acontecimentos da história descritos abaixo, gere EXATAMENTE 5 per
 5. Duas opções devem ser distratores plausíveis, mas incorretos.
 6. As perguntas devem ser claras, curtas e adequadas para crianças (8-12 anos).
 7. Distribua as perguntas entre os diferentes momentos da história (começo, meio, fim).
-8. O campo "resposta_correta" deve ser o ÍNDICE (0, 1, 2 ou 3) da opção correta no array "opcoes".
+8. A opção correta deve estar SEMPRE no primeiro item (índice 0) do array "opcoes". O sistema vai embaralhar automaticamente depois.
 9. "Não me lembro." deve estar SEMPRE no índice 3.
 
 ### JSON SCHEMA ###
@@ -1110,9 +1135,9 @@ Retorne APENAS um objeto JSON:
     {{
       "pergunta": "string — Uma pergunta em PT-BR sobre um fato específico da história",
       "opcoes": [
-        "string — Resposta correta OU distrator",
-        "string — Distrator",
-        "string — Distrator",
+        "string — A RESPOSTA CORRETA EXATA",
+        "string — Distrator 1",
+        "string — Distrator 2",
         "Não me lembro."
       ],
       "resposta_correta": 0,
@@ -1121,7 +1146,7 @@ Retorne APENAS um objeto JSON:
   ]
 }}
 
-CRÍTICO: Gere EXATAMENTE 5 perguntas. Todo o texto em PT-BR. "Não me lembro." deve ser sempre a última opção (índice 3) em cada pergunta.
+CRÍTICO: Gere EXATAMENTE 5 perguntas. A resposta correta DEVE ser sempre o primeiro item do array de opções.
 """
     return prompt
 
@@ -1189,15 +1214,34 @@ def finalizar_sessao():
             print("❌ Falha ao gerar perguntas do quiz.")
             return
 
-        # Garante que "Não me lembro." está sempre na posição 3
+        # Garante que "Não me lembro." está sempre na posição 3 e embaralha as outras
+        import random
         for p in perguntas:
             opcoes = p.get("opcoes", [])
+            
+            # Pega o texto da resposta correta (deve ser o índice 0 pelo novo prompt, mas tenta ler do índice fornecido pela IA por segurança)
+            idx_correta_ia = p.get("resposta_correta", 0)
+            if not isinstance(idx_correta_ia, int) or idx_correta_ia >= len(opcoes):
+                idx_correta_ia = 0
+            texto_correto = opcoes[idx_correta_ia] if opcoes else ""
+            
             # Remove "Não me lembro." se estiver em posição errada
             opcoes_sem_nao = [o for o in opcoes if o.strip().lower() != "não me lembro."]
-            # Garante exatamente 3 distractors + "Não me lembro." no final
+            # Garante exatamente 3 distractors
             while len(opcoes_sem_nao) < 3:
                 opcoes_sem_nao.append("Não disponível")
-            p["opcoes"] = opcoes_sem_nao[:3] + ["Não me lembro."]
+            opcoes_shuffled = opcoes_sem_nao[:3]
+            
+            # Embaralha apenas as 3 opções!
+            random.shuffle(opcoes_shuffled)
+            
+            # Descobre o novo índice da resposta correta
+            novo_idx_correto = 0
+            if texto_correto in opcoes_shuffled:
+                novo_idx_correto = opcoes_shuffled.index(texto_correto)
+                
+            p["opcoes"] = opcoes_shuffled + ["Não me lembro."]
+            p["resposta_correta"] = novo_idx_correto
 
         # Persiste no banco SQLite
         quiz_manager.criar_sessao_quiz(sid, student_name, tema, skill)

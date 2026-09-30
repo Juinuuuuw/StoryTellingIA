@@ -80,7 +80,8 @@ def init_db():
             pergunta_ref TEXT NOT NULL,
             pergunta_texto TEXT NOT NULL,
             resposta INTEGER NOT NULL,
-            timestamp TEXT NOT NULL
+            timestamp TEXT NOT NULL,
+            pre_id TEXT
         );
 
         -- ── PRÉ-QUESTIONÁRIO ─────────────────────────────────────────
