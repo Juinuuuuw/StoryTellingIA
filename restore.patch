@@ -1,0 +1,66 @@
+--- apresentacao/index.html
++++ apresentacao/index.html
+@@ -972,10 +972,10 @@
+                 pergunta: 'Qual é a cor do seu cabelo?',
+                 cols: 4,
+                 opcoes: [
+-                    { label: 'Preto', emoji: '⬛', tag: 'black hair' },
+-                    { label: 'Castanho', emoji: '🟫', tag: 'brown hair' },
+-                    { label: 'Loiro', emoji: '🟡', tag: 'blonde hair' },
+-                    { label: 'Ruivo', emoji: '🔴', tag: 'red hair' }
++                    { label: 'Preto', emoji: colCircle('#1a1a1a'), tag: 'black hair' },
++                    { label: 'Castanho', emoji: colCircle('#4a3018'), tag: 'brown hair' },
++                    { label: 'Loiro', emoji: colCircle('#F0E68C'), tag: 'blonde hair' },
++                    { label: 'Ruivo', emoji: colCircle('#B22222'), tag: 'red hair' }
+                 ]
+             },
+             {
+@@ -983,10 +983,10 @@
+                 pergunta: 'Qual é a cor da sua pele?',
+                 cols: 4,
+                 opcoes: [
+-                    { label: 'Clara', emoji: '🤍', tag: 'light skin' },
+-                    { label: 'Morena', emoji: '🟤', tag: 'tanned skin' },
+-                    { label: 'Negra', emoji: '⬛', tag: 'dark skin' },
+-                    { label: 'Amarelada', emoji: '🟨', tag: 'pale skin' }
++                    { label: 'Clara', emoji: colCircle('#FFE0BD'), tag: 'light skin' },
++                    { label: 'Morena', emoji: colCircle('#C68642'), tag: 'olive skin, tanned skin, brown skin' },
++                    { label: 'Negra', emoji: colCircle('#3d2314'), tag: 'dark brown skin, ebony complexion' },
++                    { label: 'Amarelada', emoji: colCircle('#F1C27D'), tag: 'pale skin' }
+                 ]
+             },
+             {
+@@ -994,10 +994,10 @@
+                 pergunta: 'E os seus olhos?',
+                 cols: 4,
+                 opcoes: [
+-                    { label: 'Castanhos', emoji: '🟤', tag: 'brown eyes' },
+-                    { label: 'Verdes', emoji: '🟢', tag: 'green eyes' },
+-                    { label: 'Azuis', emoji: '🔵', tag: 'blue eyes' },
+-                    { label: 'Escuros', emoji: '⚫', tag: 'dark eyes' }
++                    { label: 'Castanhos', emoji: colCircle('#634e34'), tag: 'brown eyes' },
++                    { label: 'Verdes', emoji: colCircle('#2E8B57'), tag: 'green eyes' },
++                    { label: 'Azuis', emoji: colCircle('#4169E1'), tag: 'blue eyes' },
++                    { label: 'Escuros', emoji: colCircle('#1a1a1a'), tag: 'dark eyes' }
+                 ]
+             }
+         ];
+@@ -1151,7 +1151,17 @@
+             if (cadSkill === 'alan_turing') roupaTag = 'casual 1930s clothes, vintage sweater and trousers';
+             else if (cadSkill === 'katherine_johnson') roupaTag = cadGenero === 'Feminino' ? 'formal 1960s suit, elegant vintage dress' : 'formal 1960s suit, elegant vintage suit';
+ 
+-            const visualFixo = `${generoIngles}, ${r.comprimento.tag} ${r.tipo.tag} ${r.cor_cabelo.tag}, ${r.pele.tag}, ${r.olhos.tag}, ${roupaTag}`;
++            // Ajuste dinâmico de pele para forçar a IA
++            let peleTag = r.pele.tag;
++            if (r.pele.label === 'Negra') {
++                peleTag = cadGenero === 'Feminino' 
++                    ? 'black woman, very dark skin, deep dark brown skin, ebony skin, dark-skinned'
++                    : 'black man, very dark skin, ebony skin, dark-skinned';
++            } else if (r.pele.label === 'Morena') {
++                peleTag = 'tan skin, medium brown skin, warm brown skin';
++            }
++
++            const visualFixo = `${generoIngles}, ${peleTag}, ${r.comprimento.tag} ${r.tipo.tag} ${r.cor_cabelo.tag}, ${r.olhos.tag}, ${roupaTag}`;
+ 
+             try {
+                 const resp = await fetch(`${API_URL}/iniciar_historia`, {

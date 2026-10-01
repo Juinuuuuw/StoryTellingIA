@@ -1,0 +1,47 @@
+6: <title>Pré-Questionário - Estudo NAO</title>
+273: <h1>Pré-Questionário</h1>
+274: <p>Estudo com Robô Social NAO</p>
+278: <div class="progress-label" id="prog-label">Seção 1 de 4</div>
+284: <div class="section-desc">Responda as perguntas abaixo antes da experiência com o robô NAO. Suas respostas são confidenciais e serão usadas apenas para fins de pesquisa.</div>
+287: <div class="question-label">Qual é a sua idade? <span class="req">*</span></div>
+292: <div class="question-label">Qual é a sua área de formação ou atuação? <span class="req">*</span></div>
+293: <input type="text" class="text-input" id="q-area" placeholder="Ex: Ciência da Computação, Educação, Medicina..." oninput="validarSecaoAtual()"/>
+297: <div class="question-label">Você já teve contato anterior com robôs sociais? <span class="req">*</span></div>
+300: <div class="option-item" data-chave="contato_robos" data-valor="Apenas por vídeos, notícias ou demonstrações."><div class="option-dot"></div><span class="option-text">Apenas por vídeos, notícias ou demonstrações.</span></div>
+301: <div class="option-item" data-chave="contato_robos" data-valor="Já tive contato presencial uma ou poucas vezes."><div class="option-dot"></div><span class="option-text">Já tive contato presencial uma ou poucas vezes.</span></div>
+302: <div class="option-item" data-chave="contato_robos" data-valor="Já interagi várias vezes com robôs sociais."><div class="option-dot"></div><span class="option-text">Já interagi várias vezes com robôs sociais.</span></div>
+303: <div class="option-item" data-chave="contato_robos" data-valor="Trabalho ou estudo diretamente com robótica social."><div class="option-dot"></div><span class="option-text">Trabalho ou estudo diretamente com robótica social.</span></div>
+308: <div class="question-label">Com que frequência você utiliza ferramentas de IA generativa, como ChatGPT, Gemini, Copilot ou similares? <span class="req">*</span></div>
+312: <div class="option-item" data-chave="frequencia_ia" data-valor="Algumas vezes por mês."><div class="option-dot"></div><span class="option-text">Algumas vezes por mês.</span></div>
+323: <div class="section-desc">Queremos entender o seu nível de familiaridade com o tema antes da sessão.</div>
+326: <div class="question-label">Antes desta sessão, quanto você considera que conhecia sobre a história da computação? <span class="req">*</span></div>
+328: <span class="likert-label-text">Não conhecia<br>praticamente nada</span>
+335: <div class="question-label">Antes desta sessão, você se lembra de já ter ouvido falar de algum marco ou acontecimento importante da história da computação? <span class="req">*</span></div>
+338: <div class="option-item" data-chave="ja_ouviu_marco_pre" data-valor="Não."><div class="option-dot"></div><span class="option-text">Não.</span></div>
+339: <div class="option-item" data-chave="ja_ouviu_marco_pre" data-valor="Não tenho certeza."><div class="option-dot"></div><span class="option-text">Não tenho certeza.</span></div>
+344: <div class="question-label">Antes desta sessão, você já tinha ouvido falar de Alan Turing? <span class="req">*</span></div>
+346: <span class="likert-label-text">Não sabia<br>nada</span>
+353: <div class="question-label">Você se lembra de já ter ouvido falar de algum marco histórico da computação antes de hoje? <span class="req">*</span></div>
+356: <div class="option-item" data-chave="ja_ouviu_marco_historico" data-valor="Não."><div class="option-dot"></div><span class="option-text">Não.</span></div>
+357: <div class="option-item" data-chave="ja_ouviu_marco_historico" data-valor="Não tenho certeza."><div class="option-dot"></div><span class="option-text">Não tenho certeza.</span></div>
+369: <div class="section-desc">Observe o robô e indique sua impressão sobre ele. Em cada linha, existem duas características opostas. Marque um valor entre 1 e 5. Não existem respostas certas ou erradas.</div>
+372: <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-antrop"></tbody></table></div>
+375: <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-anim"></tbody></table></div>
+378: <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-simp"></tbody></table></div>
+380: <div class="nao-section-title">Inteligência Percebida</div>
+381: <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-intel"></tbody></table></div>
+383: <div class="nao-section-title">Segurança Percebida</div>
+384: <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-seg"></tbody></table></div>
+394: <div class="section-desc">Estamos quase lá! Compartilhe brevemente o que você espera.</div>
+397: <div class="question-label">Como você imagina que será a experiência de ouvir uma história contada pelo NAO?</div>
+398: <textarea class="text-input" id="q-expectativa" placeholder="Escreva livremente sua expectativa sobre a experiência..."></textarea>
+409: <div class="fim-icon">✨</div>
+410: <div class="fim-title">Pré-questionário Concluído!</div>
+411: <div class="fim-desc">Obrigado por responder. Guarde o seu ID de participante abaixo &mdash; ele será necessário para vincular suas respostas ao longo do estudo.</div>
+413: <div class="fim-desc" style="font-size:0.85rem;margin-top:10px;">Informe este ID ao pesquisador quando for iniciar a sessão com o NAO.</div>
+428: {tbodyId:"grid-antrop",gk:"g0",linhas:["Falso / Natural","Com aspecto mecânico / Sem aspecto mecânico","Inconsciente / Consciente","Artificial / Realista","Move-se com rigidez / Move-se com fluidez"]},
+429: {tbodyId:"grid-anim",gk:"g1",linhas:["Morto / Com vida","Parado / Enérgico","Artificial / Realista","Estático / Interativo","Apático / Participativo"]},
+430: {tbodyId:"grid-simp",gk:"g2",linhas:["Não gosto / Gosto","Hostil / Amigável","Antipático / Gentil","Desagradável / Agradável","Horrível / Simpático"]},
+432: {tbodyId:"grid-seg",gk:"g4",linhas:["Ansioso / Descontraído","Calmo / Agitado","Sereno / Surpreendido"]}
+527: document.getElementById('prog-label').textContent = 'Seção ' + n + ' de 4';
+572: alert('Não foi possível conectar ao servidor. Verifique se ele está rodando.');

@@ -1,0 +1,24 @@
+696: <div class="card-emoji">👦</div>
+700: <div class="card-emoji">👧</div>
+707: <div class="card-emoji">🖥️</div>
+712: <div class="card-emoji">🚀</div>
+779: <div class="emoji">🎉</div>
+953: { label: 'Curto', emoji: '💈', tag: 'short' },
+955: { label: 'Longo', emoji: '🌊', tag: 'long' },
+956: { label: 'Preso', emoji: '🎀', tag: 'ponytail' }
+966: { label: 'Cacheado', emoji: '🌀', tag: 'curly' },
+967: { label: 'Crespo', emoji: '🔘', tag: 'coily' }
+976: { label: 'Castanho', emoji: '🟫', tag: 'brown hair' },
+977: { label: 'Loiro', emoji: '🟡', tag: 'blonde hair' },
+978: { label: 'Ruivo', emoji: '🔴', tag: 'red hair' }
+986: { label: 'Clara', emoji: '🤍', tag: 'light skin' },
+987: { label: 'Morena', emoji: '🟤', tag: 'tanned skin' },
+989: { label: 'Amarelada', emoji: '🟨', tag: 'pale skin' }
+997: { label: 'Castanhos', emoji: '🟤', tag: 'brown eyes' },
+998: { label: 'Verdes', emoji: '🟢', tag: 'green eyes' },
+999: { label: 'Azuis', emoji: '🔵', tag: 'blue eyes' },
+1486: // 🔹 Quiz: gerando 🔹
+1494: // 🔹 Quiz: pergunta atual (Obsoleto, agora é no pós-questionário) 🔹
+1640: titulo = "Perfeito! 🌟";
+1643: titulo = "Muito bem! 👏";
+1867: console.log("📊 Respostas Likert:", JSON.stringify(likertRespostas));

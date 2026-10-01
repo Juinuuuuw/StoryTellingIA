@@ -1,0 +1,57 @@
+import re
+
+path_idx = 'apresentacao/index.html'
+with open(path_idx, 'r', encoding='utf-8') as f:
+    idx_content = f.read()
+
+idx_content = idx_content.replace("emoji.innerText = o.emoji;", "emoji.innerHTML = o.emoji;")
+idx_content = idx_content.replace("document.getElementById('quiz-fim-badge').innerText", "document.getElementById('quiz-fim-badge').innerHTML")
+idx_content = idx_content.replace("document.getElementById('btn-personagem').innerText", "document.getElementById('btn-personagem').innerHTML")
+
+def ic(name):
+    return f"<i data-lucide=&quot;{name}&quot; style=&quot;width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;&quot;></i>"
+
+def ic_color(color):
+    return f"<i data-lucide=&quot;circle&quot; style=&quot;width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:{color}; fill:{color};&quot;></i>"
+
+idx_emojis = {
+    '👦': ic('user'),
+    '👧': ic('user-round'),
+    '🖥️': ic('monitor'),
+    '🚀': ic('rocket'),
+    '💈': ic('scissors'),
+    '✂️': ic('scissors'),
+    '🌊': ic('waves'),
+    '🎀': ic('gift'),
+    '➖': ic('minus'),
+    '〰️': ic('activity'),
+    '🌀': ic('hurricane'),
+    '🔘': ic('circle-dot'),
+    '⬛': ic_color('#2d3748'),
+    '🟫': ic_color('#744210'),
+    '🟡': ic_color('#ecc94b'),
+    '🔴': ic_color('#e53e3e'),
+    '🤍': ic_color('#fff5f5'),
+    '🟤': ic_color('#975a16'),
+    '🟨': ic_color('#fefcbf'),
+    '🟢': ic_color('#48bb78'),
+    '🔵': ic_color('#4299e1'),
+    '⚫': ic_color('#1a202c'),
+    '🎬': ic('clapperboard'),
+    '✔': ic('check'),
+    '🏆': ic('award'),
+    '👏': ic('thumbs-up'),
+    '🎉': ic('party-popper'),
+    '🧠': ic('brain'),
+    '🔥': ic('flame'),
+    '⭐': ic('star')
+}
+
+for e, icon_html in idx_emojis.items():
+    idx_content = idx_content.replace(e, icon_html)
+
+if 'lucide@latest' not in idx_content:
+    idx_content = idx_content.replace('</body>', '  <script src="https://unpkg.com/lucide@latest"></script>\n  <script>lucide.createIcons();</script>\n</body>')
+
+with open(path_idx, 'w', encoding='utf-8') as f:
+    f.write(idx_content)

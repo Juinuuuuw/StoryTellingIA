@@ -1,0 +1,178 @@
+5: <title>História Interativa - NAO</title>
+27: /* ─── FULLSCREEN BACKGROUND & KEN BURNS ─── */
+52: /* ─── STORY PANEL (GLASSMORPHISM) ─── */
+111: /* ─── LOADER ─── */
+134: /* ─── MODAL DECISÃO ─── */
+186: /* ─── TELA INTRO ─── */
+214: /* ─── QUIZ MODAL ─── */
+286: /* ─── TELA FIM QUIZ ─── */
+336: /* ─── QUESTIONÁRIO LIKERT ─── */
+495: /* ─── TELA FINAL COMPLETA ─── */
+511: /* ─── TELA DE CADASTRO ─── */
+631: <!-- Tela de Cadastro (substitui o botão simples de intro) -->
+634: <div class="cadastro-titulo">Exploradores da História</div>
+635: <div class="cadastro-subtitulo">NAO · Experiência Interativa</div>
+637: <!-- STEP 0: Código do Pré-Questionário -->
+639: <div class="step-indicator">Identificação</div>
+640: <label class="cadastro-label" style="text-align:center;">Você respondeu o questionário antes de começar?</label>
+642: Se sim, informe o código que recebeu ao final (ex: <strong style="color:var(--accent);">Q1</strong>).<br>
+643: Assim sua participação ficará vinculada no estudo.
+646: <!-- Opção A: Tenho o código -->
+648: <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1)"
+657: CONFIRMAR CÓDIGO →
+668: <!-- Opção B: Sem código -->
+674: <!-- Badge de confirmação (oculto até confirmar) -->
+684: <label class="cadastro-label">Qual é o do seu personagem?</label>
+687: <button class="cadastro-btn" id="btn-nome" onclick="avancarParaGenero()" disabled>CONTINUAR →</button>
+690: <!-- STEP 2: Gênero + Jornada -->
+693: <label class="cadastro-label">Qual é gênero do seu personagem?</label>
+696: <div class="card-emoji">👦</div>
+700: <div class="card-emoji">👧</div>
+704: <label class="cadastro-label" style="margin-top:8px;">Escolha sua jornada histórica</label>
+707: <div class="card-emoji">🖥️</div>
+709: <div class="card-desc">Cambridge · 1936</div>
+712: <div class="card-emoji">🚀</div>
+714: <div class="card-desc">NASA Langley · Anos 50</div>
+717: <button class="cadastro-btn" id="btn-jornada" onclick="avancarParaPersonagem()" disabled style="margin-top:32px;">CONTINUAR →</button>
+720: <!-- STEP 3: Personalização do personagem -->
+722: <div class="step-indicator">Passo 3 de 3 — Monte seu personagem</div>
+725: <button class="cadastro-btn" id="btn-personagem" onclick="avancarPersonagem()" disabled style="margin-top:32px;">CONFIRMAR →</button>
+732: <div style="font-family:'Montserrat',sans-serif;font-size:0.9rem;color:rgba(255,255,255,0.4);letter-spacing:2px;">Preparando sua jornada histórica</div>
+757: <div id="story-text">Aguardando início da história...</div>
+779: <div class="emoji">🎉</div>
+780: <div id="quiz-fim-titulo">Parabéns!</div>
+781: <div id="quiz-fim-subtitulo">Você completou a jornada histórica!</div>
+785: <!-- Questionário Likert Estático -->
+792: <button class="likert-next-btn" id="likert-next-btn" onclick="likertNext()">CONTINUAR →</button>
+796: <!-- Tela Final da Experiência -->
+798: <div class="emoji">⭐</div>
+799: <div id="fim-titulo">Obrigado pela participação!</div>
+800: <div id="fim-subtitulo">Sua jornada histórica está completa. Os dados foram registrados.</div>
+808: // Captura o pre_id da URL query string (?pre_id=Q1) — funciona como fallback/atalho
+812: // Se o pre_id já veio pela URL, pula o step de identificação automaticamente
+841: * splitByCharLength — divide o texto em N chunks de tamanho equilibrado.
+844: *  1. Só corta em ponto final (.  !  ?) — nunca no meio de uma frase.
+845: *  2. Distribui as frases tentando que cada chunk tenha ~igual nº de caracteres.
+847: *     - Se há menos frases que chunks, o último chunk é dividido em partes menores.
+848: *     - Qualquer fragmento sem pontuação terminal vai para o último chunk.
+853: // Captura frases terminadas em . ! ? (incluindo aspas/parênteses logo após)
+854: // Ex: "Disse ela." / "Isso é incrível!" / "O que aconteceu?"
+858: // Texto que sobrou sem pontuação terminal (ex: última frase sem ponto)
+862: // Se não conseguiu detectar frases, devolve o texto inteiro em todos os chunks
+867: // Se há apenas uma frase para vários chunks, distribui por palavras
+898: // Último chunk: absorve tudo que sobrou
+909: const minRequired = chunksLeft - 1; // outros chunks também precisam de pelo menos 1
+912: // Adiciona frases até atingir o alvo de caracteres
+925: // Para de adicionar se já ultrapassou o alvo por mais de 20%
+940: // ─── CADASTRO / REGISTRO ─────────────────────────────────────────
+953: { label: 'Curto', emoji: '💈', tag: 'short' },
+954: { label: 'Médio', emoji: '✂️', tag: 'medium length' },
+955: { label: 'Longo', emoji: '🌊', tag: 'long' },
+956: { label: 'Preso', emoji: '🎀', tag: 'ponytail' }
+961: pergunta: 'Como é o tipo do seu cabelo?',
+964: { label: 'Liso', emoji: '➖', tag: 'straight' },
+965: { label: 'Ondulado', emoji: '〰️', tag: 'wavy' },
+966: { label: 'Cacheado', emoji: '🌀', tag: 'curly' },
+967: { label: 'Crespo', emoji: '🔘', tag: 'coily' }
+972: pergunta: 'Qual é a cor do seu cabelo?',
+975: { label: 'Preto', emoji: '⬛', tag: 'black hair' },
+976: { label: 'Castanho', emoji: '🟫', tag: 'brown hair' },
+977: { label: 'Loiro', emoji: '🟡', tag: 'blonde hair' },
+978: { label: 'Ruivo', emoji: '🔴', tag: 'red hair' }
+983: pergunta: 'Qual é a cor da sua pele?',
+986: { label: 'Clara', emoji: '🤍', tag: 'light skin' },
+987: { label: 'Morena', emoji: '🟤', tag: 'tanned skin' },
+988: { label: 'Negra', emoji: '⬛', tag: 'dark skin' },
+989: { label: 'Amarelada', emoji: '🟨', tag: 'pale skin' }
+997: { label: 'Castanhos', emoji: '🟤', tag: 'brown eyes' },
+998: { label: 'Verdes', emoji: '🟢', tag: 'green eyes' },
+999: { label: 'Azuis', emoji: '🔵', tag: 'blue eyes' },
+1000: { label: 'Escuros', emoji: '⚫', tag: 'dark eyes' }
+1019: // ─── STEP PRÉ-ID ────────────────────────────────────────────────
+1038: // Mostra badge de confirmação
+1041: document.getElementById('btn-preid-confirmar').textContent = '✓ CONFIRMADO — CONTINUAR →';
+1046: // ID não encontrado
+1048: document.getElementById('input-preid').placeholder = 'Código não encontrado. Tente novamente.';
+1053: document.getElementById('input-preid').placeholder = 'Digite seu código (ex: Q1)';
+1057: // Se o servidor não responder, aceita o código informado sem validar
+1061: document.getElementById('btn-preid-confirmar').textContent = '✓ CONTINUAR →';
+1110: document.getElementById('btn-personagem').innerText = isLast ? 'INICIAR JORNADA ✨' : 'CONFIRMAR →';
+1172: // ─── Vincula pre_id ao session_id (se veio do pré-questionário) ───
+1185: // Sinaliza ao story_client (daemon) para iniciar a geração de imagens
+1197: alert('Erro ao iniciar a história. Tente novamente.');
+1201: alert('Não foi possível conectar ao servidor. Verifique se ele está rodando.');
+1243: // Força o carregamento da imagem silenciosamente antes de exibir
+1247: // Ocultar loader apenas quando a 1ª imagem for exibida
+1252: // Notifica o servidor que este quadro está visível agora (NAO sincroniza a fala)
+1273: // ── Aguarda o Dashboard mandar avançar (Botão Continuar) ──────────
+1279: return; // O dashboard aumentou o avanço!
+1295: // pequena pausa de transição (fôlego)
+1301: // Fim da história: avisa o backend para encerrar a sessão
+1316: pergunta: "QUAL É A SUA DECISÃO?",
+1355: loader.querySelector('div:last-child').innerText = "GERANDO PRÓXIMA CENA...";
+1382: // Divide a frase a cada ponto final, exclamação ou interrogação
+1386: // Fallback se não encontrar pontuação
+1390: // Junta qualquer resto de string que não tinha pontuação no final
+1400: // Se houver menos ou igual número de frases que chunks, coloca 1 frase por chunk (e vazios no final)
+1401: // Mas para evitar chunks vazios no final (que quebram a cena 3 quadro 4), dividimos a última frase
+1411: // Tenta emprestar palavras do último chunk não-vazio para preencher os vazios
+1414: // Encontra o chunk anterior não-vazio com mais de 2 palavras
+1469: document.getElementById('loader').querySelector('div:last-child').innerText = "CRIANDO PRÓXIMA CENA...";
+1486: // 🔹 Quiz: gerando 🔹
+1494: // 🔹 Quiz: pergunta atual (Obsoleto, agora é no pós-questionário) 🔹
+1499: // ── História Finalizada ──
+1509: // Mostra a tela de Fim de Sessão
+1514: document.getElementById('quiz-fim-badge').innerText = `✨`;
+1515: document.getElementById('quiz-fim-titulo').innerText = "Obrigado por ouvir a história!";
+1516: document.getElementById('quiz-fim-subtitulo').innerText = "A história terminou. Você pode fechar esta tela e o seu pesquisador te guiará para a próxima etapa.";
+1524: // ATUALIZA A VARIÁVEL DE AVANÇO MANUAL
+1534: document.getElementById('loader').style.display = 'flex'; // mantem loader até imagem 1 carregar
+1543: // Registra os text_chunks no servidor UMA ÚNICA VEZ para o NAO sincronizar.
+1544: // Usa endpoint dedicado para não interferir no status/quadro_atual da cena.
+1563: // ─── QUIZ FUNCTIONS ───────────────────────────────────────────────
+1597: // Bloqueia todos os botões imediatamente
+1615: // Aguarda 1.5s antes de liberar o polling para detectar a próxima pergunta
+1617: document.getElementById('quiz-question').innerText = "..."; // reset para o polling detectar mudança
+1636: let titulo = "Parabéns!";
+1637: let subtitulo = `${nome}, você completou a jornada histórica!`;
+1640: titulo = "Perfeito! 🌟";
+1641: subtitulo = `${nome}, acertou tudo! Você é um verdadeiro explorador da história!`;
+1643: titulo = "Muito bem! 👏";
+1644: subtitulo = `${nome}, você conhece bem a história!`;
+1650: subtitulo = `${nome}, cada jornada é uma nova oportunidade de aprender!`;
+1657: // Após 4 segundos, transiciona para o questionário Likert
+1663: // ─── QUESTIONÁRIO LIKERT ───────────────────────────────────────────
+1667: titulo: "Imersão Narrativa",
+1671: { texto: "Consegui imaginar facilmente os acontecimentos apresentados na história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1672: { texto: "Enquanto ouvia a história, deixei de prestar atenção, por alguns momentos, no que estava ao meu redor.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1673: { texto: "Fiquei mentalmente envolvido(a) com a história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1674: { texto: "A história despertou alguma reação emocional em mim.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1678: titulo: "Engajamento com a Experiência",
+1682: { texto: "A experiência prendeu minha atenção.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1683: { texto: "Gostei de acompanhar a experiência.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1688: titulo: "Interação com o NAO",
+1693: { texto: "Os movimentos e gestos do NAO combinaram com a história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1698: titulo: "Contribuição das Imagens",
+1702: { texto: "As imagens ajudaram a compreender e imaginar os acontecimentos da história.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1703: { texto: "As imagens tornaram a experiência mais envolvente.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1707: titulo: "Personalização e Adaptação Percebida",
+1711: { texto: "Senti que a história considerou o que aconteceu durante minha interação com o NAO.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1712: { texto: "Tive a impressão de que minhas respostas ou ações influenciaram a experiência.", labelEsq: "Discordo totalmente", labelDir: "Concordo totalmente" },
+1716: titulo: "Percepção da Geração Dinâmica",
+1720: { texto: "Na sua percepção, a história estava pronta antes da sessão ou foi gerada ou adaptada durante a interação?", labelEsq: "Tenho certeza de que já estava pronta", labelDir: "Tenho certeza de que foi gerada ou adaptada durante a interação" },
+1721: { texto: "Na sua percepção, as imagens estavam prontas antes da sessão ou foram geradas durante a interação?", labelEsq: "Tenho certeza de que já estavam prontas", labelDir: "Tenho certeza de que foram geradas durante a interação" },
+1725: titulo: "Percepção do NAO Após a Interação",
+1726: desc: "Agora, considerando toda a experiência que você acabou de realizar com o NAO, indique sua impressão sobre ele. Em cada linha existem duas características opostas. Marque um valor entre 1 e 5.",
+1731: linhas: ["Falso / Natural", "Com aspecto mecânico / Com aspecto humano", "Inconsciente / Consciente", "Artificial / Realista", "Move-se com rigidez / Move-se com fluidez"]
+1735: linhas: ["Morto / Com vida", "Parado / Enérgico", "Artificial / Realista", "Estático / Interativo", "Apático / Participativo"]
+1739: linhas: ["Não gosto / Gosto", "Hostil / Amigável", "Antipático / Gentil", "Desagradável / Agradável", "Horrível / Simpático"]
+1742: subtitulo: "Inteligência Percebida",
+1743: linhas: ["Incompetente / Competente", "Ignorante / Sabedor", "Irresponsável / Responsável", "Pouco inteligente / Inteligente", "Insensato / Sensato"]
+1746: subtitulo: "Segurança Percebida",
+1747: linhas: ["Ansioso / Descontraído", "Calmo / Agitado", "Sereno / Surpreendido"]
+1752: titulo: "Expectativa e Experiência",
+1756: { texto: "Considerando suas expectativas antes da sessão, como você avalia a experiência realizada?", labelEsq: "Muito abaixo do que eu esperava", labelDir: "Muito acima do que eu esperava" },
+1776: document.getElementById('likert-progress').innerText = `Seção ${secaoNum} de ${totalSecoes}`;
+1862: // Todas as seções respondidas → tela final
+1867: console.log("📊 Respostas Likert:", JSON.stringify(likertRespostas));
+1879: // ─── Atualiza status do participante para pos_respondido ───
