@@ -2,55 +2,55 @@
   "katherine_johnson": [
     {
       "id": "kj_001",
-      "steps": ["west_computing"],
+      "steps": ["sputnik_corrida_preparacao", "primeira_autora_preparacao"],
       "tags": ["segregacao", "banheiro", "racismo", "discriminacao", "cotidiano"],
       "fato": "O banheiro designado para as computadoras negras da NASA Langley ficava a quase 800 metros de distancia, em outro predio completamente diferente. Katherine precisava cruzar o campus inteiro sob sol escaldante ou chuva torrencial apenas para usar o toalete. A placa dizia: 'Colored Restroom'. Ela nao reclamava — simplesmente calculava mais rapido para compensar o tempo perdido."
     },
     {
       "id": "kj_002",
-      "steps": ["west_computing"],
+      "steps": ["sputnik_corrida_preparacao", "primeira_autora_preparacao"],
       "tags": ["segregacao", "cafe", "racismo", "cotidiano", "silencio"],
       "fato": "Na sala de cafe onde as funcionarias brancas da NASA faziam seu intervalo, havia uma cafeteira separada com um adesivo desgastado: 'Colored'. O mesmo cafe, a mesma marca, a mesma maquina — mas uma barreira invisivel que tornava aquele gole completamente diferente. Katherine bebia o seu cafe em pe, entre calculos, sem fazer alarde."
     },
     {
       "id": "kj_003",
-      "steps": ["west_computing"],
+      "steps": ["sputnik_corrida_preparacao"],
       "tags": ["orientacao", "excelencia", "Dorothy Vaughan", "pressao"],
       "fato": "Quando Katherine chegou ao West Area Computing em 1953, Dorothy Vaughan a orientou: 'Voce e brilhante. Mas aqui, brilhante nao basta. Voce precisa ser perfeita, porque nao podemos dar a eles nenhuma razao para nos mandarem embora.' Essas palavras moldaram cada linha que Katherine calculou por decadas."
     },
     {
       "id": "kj_004",
-      "steps": ["west_computing", "mercury_shepard"],
+      "steps": ["primeira_autora_preparacao", "primeira_autora", "freedom7_preparacao"],
       "tags": ["reuniao", "determinacao", "barreira", "pioneirismo"],
       "fato": "Katherine pediu para participar das reunioes de briefing tecnico dos engenheiros — reunioes onde mulheres, e especialmente mulheres negras, simplesmente nao entravam. O supervisor verificou os regulamentos e nao encontrou nenhuma regra proibindo. Entao Katherine comecou a entrar toda semana. Ninguem mais tentou impedi-la."
     },
     {
       "id": "kj_005",
-      "steps": ["mercury_shepard"],
+      "steps": ["freedom7_preparacao", "freedom7"],
       "tags": ["Freedom 7", "Alan Shepard", "calculo", "trajetoria", "responsabilidade"],
       "fato": "Para a missao Freedom 7, Katherine Johnson usou apenas um lapis, uma regua de calculo e formularios manuscritos. Ela calculou a parabola exata do foguete: do lancamento em Cape Canaveral ate o splashdown no Atlantico. Um erro de decimo de milesimo de grau teria feito Alan Shepard pousar no oceano errado — ou nao sobreviver. Ela verificou cada numero tres vezes."
     },
     {
       "id": "kj_006",
-      "steps": ["john_glenn_request"],
+      "steps": ["friendship7_preparacao", "friendship7"],
       "tags": ["Glenn", "IBM", "verificacao", "confianca", "computador"],
       "fato": "Antes de orbitar a Terra em 1962, John Glenn parou os engenheiros e disse: 'Tragam a moca. Se ela diz que os numeros estao certos, entao estou pronto para voar.' A 'moca' era Katherine Johnson. Glenn nao confiava nos novos computadores IBM — confiava nela. Katherine passou mais de 24 horas verificando cada linha de calculo do IBM, dado por dado. Quando terminou, disse: 'Podem ir.'"
     },
     {
       "id": "kj_007",
-      "steps": ["john_glenn_request"],
+      "steps": ["friendship7_preparacao", "friendship7"],
       "tags": ["IBM", "maquina", "humana", "precisao", "desconfianca"],
       "fato": "O IBM 7090 era novo, caro e moderno. Mas John Glenn sabia que maquinas nao pediam desculpas quando erravam. Katherine Johnson errava raramente — e quando havia duvida, ela recomecava do zero. Os engenheiros esperaram 24 horas pela verificacao dela. O foguete ficou na rampa. A NASA ficou em silencio. Valeu cada segundo."
     },
     {
       "id": "kj_008",
-      "steps": ["missao_apollo"],
+      "steps": ["apollo11_preparacao", "apollo11"],
       "tags": ["Apollo 11", "Lua", "trajetoria", "backup", "Armstrong"],
       "fato": "Para a Apollo 11, Katherine calculou a trajetoria de insercao lunar — o caminho exato que o modulo Eagle precisaria seguir para pousar na Lua. Ela tambem criou mapas de backup: tabelas manuais que os astronautas poderiam usar se os computadores falhassem no espaco. Armstrong usou os computadores. Mas os backups de Katherine estavam a bordo, dobrados e guardados."
     },
     {
       "id": "kj_009",
-      "steps": ["apollo_13_resgate"],
+      "steps": ["apollo13_preparacao", "apollo13"],
       "tags": ["Apollo 13", "explosao", "urgencia", "retorno", "vidas"],
       "fato": "Quando a Apollo 13 explodiu a 330 mil km da Terra em abril de 1970, os engenheiros tinham horas para calcular uma rota de retorno que aproveitasse a gravidade lunar como estilingue. Katherine Johnson, com sua equipe, trabalhou sem dormir. Os procedimentos de backup que ela havia desenvolvido anos antes tornaram-se o roteiro de sobrevivencia dos tres astronautas."
     },
@@ -65,49 +65,49 @@
   "alan_turing": [
     {
       "id": "at_001",
-      "steps": ["cambridge_1936"],
+      "steps": ["maquina_turing_preparacao"],
       "tags": ["excentrico", "Cambridge", "personalidade", "habitos", "diferente"],
       "fato": "Alan Turing era diferente de maneiras que o mundo de 1936 nao sabia nomear. Ele corria maratonas com um cronometro amarrado ao pulso para calcular seu proprio ritmo. Comia a mesma tigela de aveia toda manha. Prendia sua caneca de cha a mesa com um cadeado para que ninguem a roubasse. Seus colegas o achavam excentrico. Mas sua mente era uma maquina que o seculo XX ainda nao merecia."
     },
     {
       "id": "at_002",
-      "steps": ["cambridge_1936"],
+      "steps": ["maquina_turing_preparacao", "maquina_turing"],
       "tags": ["Entscheidungsproblem", "Hilbert", "algoritmo", "computabilidade", "prova"],
       "fato": "O Entscheidungsproblem havia sido proposto por David Hilbert. Ele queria saber se existia um algoritmo capaz de dizer, para qualquer afirmacao matematica, se ela era verdadeira ou falsa. Turing, com 24 anos, respondeu com uma prova elegante: nao. Ha problemas que nenhuma maquina pode resolver. E ao provar isso, ele definiu o que e uma maquina — antes mesmo de existir uma."
     },
     {
       "id": "at_003",
-      "steps": ["fita_infinita"],
+      "steps": ["maquina_turing"],
       "tags": ["fita", "cabeca de leitura", "algoritmo", "modelo", "DNA da computacao"],
       "fato": "A Maquina de Turing era um experimento mental: uma fita de papel sem fim, dividida em quadros. Uma cabeca le cada quadro, escreve ou apaga um simbolo, e se move para a esquerda ou direita. Uma tabela simples de instrucoes diz o que fazer. Com isso, Turing provou que qualquer problema computavel pode ser resolvido. E o DNA de todo computador que ja existiu."
     },
     {
       "id": "at_004",
-      "steps": ["maquina_universal"],
+      "steps": ["maquina_turing", "projeto_ace_preparacao", "projeto_ace"],
       "tags": ["software", "stored-program", "universal", "revolucao", "codigo como dados"],
       "fato": "A sacada mais radical de Turing foi perceber que uma unica maquina poderia simular qualquer outra. Em vez de construir maquinas diferentes para tarefas diferentes, voce cria UMA maquina e muda as instrucoes. Esse conceito — software — e o que permite que o mesmo smartphone reproduza musica, calcule rotas e faca ligacoes. Turing imaginou isso em 1936, com papel e caneta."
     },
     {
       "id": "at_005",
-      "steps": ["enigma_bletchley"],
+      "steps": ["bombe_victory_preparacao", "bombe_victory", "enigma_naval_preparacao"],
       "tags": ["Enigma", "Bombe", "Bletchley Park", "WWII", "criptografia", "nazistas"],
       "fato": "A maquina Enigma dos nazistas gerava 158 quintilhoes de configuracoes possiveis. Os operadores a reconfiguravam toda meia-noite. Turing construiu a Bombe — uma maquina eletromecanica que testava centenas de configuracoes por segundo, procurando padroes nos proprios erros dos telegrafistas alemaes."
     },
     {
       "id": "at_006",
-      "steps": ["enigma_bletchley"],
+      "steps": ["enigma_naval_preparacao", "enigma_naval"],
       "tags": ["Bombe", "noite", "dedicacao", "silencio", "descoberta"],
       "fato": "Havia noites em que Alan Turing dormia encostado na Bombe. A maquina trabalhava dia e noite, cheia de rotores e reles clicando ritmicamente. Turing ajustava configuracoes as 2 da manha, sozinho no porao umido de Bletchley Park. Quando a Bombe encontrou a primeira configuracao correta e os operadores decodificaram a mensagem alema — houve silencio total. Um silencio que valia milhoes de vidas."
     },
     {
       "id": "at_007",
-      "steps": ["enigma_bletchley", "legado_turing"],
+      "steps": ["enigma_naval", "projeto_ace_preparacao", "legado_turing"],
       "tags": ["segredo", "silencio obrigado", "historia apagada", "injustica", "WWII"],
       "fato": "O trabalho de Turing em Bletchley Park foi classificado como segredo por 30 anos apos a guerra. Estima-se que ele tenha salvo entre 14 e 21 milhoes de vidas ao encurtar a Segunda Guerra Mundial em ate dois anos. Mas ao voltar para casa, ele nao podia contar a ninguem — nem a propria familia — o que havia feito. Ele voltou carregando o peso de uma das maiores vitorias da historia sem poder pronuncia-la."
     },
     {
       "id": "at_008",
-      "steps": ["problema_parada"],
+      "steps": ["maquina_turing"],
       "tags": ["Halting Problem", "limite", "indecidivel", "prova", "paradoxo"],
       "fato": "O Problema da Parada e uma das provas mais elegantes e devastadoras da matematica: nao existe nenhum algoritmo geral que possa determinar, para qualquer programa, se ele vai eventualmente parar ou rodar para sempre. Turing provou isso com um paradoxo logico: se tal algoritmo existisse, voce poderia construir um programa que faz exatamente o contrario do que ele preve. O sistema colapsa em contradicao. Ha problemas que computadores nunca resolverao."
     },

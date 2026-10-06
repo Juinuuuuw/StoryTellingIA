@@ -173,6 +173,7 @@
         .card-opcao:hover { border-color: var(--accent); background: rgba(212,175,55,0.08); }
         .card-opcao.selected { border-color: var(--accent); background: rgba(212,175,55,0.15); }
         .card-opcao .card-emoji { font-size: 2rem; margin-bottom: 8px; }
+        .card-opcao .card-icone svg { width: 64px; height: 64px; display: block; margin: 0 auto 10px; }
         .card-opcao .card-titulo {
             font-family: 'Playfair Display', serif;
             font-size: 1.1rem;
@@ -288,11 +289,11 @@
                 <label class="cadastro-label">Qual é gênero do seu personagem?</label>
                 <div class="card-grid cols-2" style="margin-bottom:32px;">
                     <div class="card-opcao" id="card-masculino" onclick="selecionarGenero('Masculino')">
-                        <div class="card-emoji"><i data-lucide="user" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
+                        <div class="card-icone" data-icone-busto="curto"></div>
                         <div class="card-titulo">Masculino</div>
                     </div>
                     <div class="card-opcao" id="card-feminino" onclick="selecionarGenero('Feminino')">
-                        <div class="card-emoji"><i data-lucide="user-round" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
+                        <div class="card-icone" data-icone-busto="longo"></div>
                         <div class="card-titulo">Feminino</div>
                     </div>
                 </div>
@@ -333,6 +334,8 @@
     <div class="tela" id="tela-espera">
         <div class="spinner"></div>
         <div class="mensagem" id="mensagem-espera">Acompanhe a história na apresentação...</div>
+        <!-- Aparece depois de 10 s no mesmo quadro (o servidor informa em pode_passar) -->
+        <button class="cadastro-btn" id="btn-passar-quadro" onclick="passarQuadro()" style="display:none; margin-top:32px;">PASSAR →</button>
         <button class="cadastro-btn" id="btn-nova-historia" onclick="novaHistoria()" style="display:none; margin-top:32px;">NOVA HISTÓRIA</button>
     </div>
 
@@ -391,16 +394,88 @@
         let cadSkill = '';
         let cadTema = '';
 
+        // ─── ÍCONES SVG DA MONTAGEM DO PERSONAGEM ─────────────────────────
+        // Cada ícone mostra o que está sendo escolhido: o corte no busto, o tipo de fio,
+        // a cor numa mecha, o tom de pele num rosto e a cor da íris num olho.
+        const ICONE_CONTORNO = 'rgba(255,255,255,0.75)';
+        const ICONE_NEUTRO = '#2c2c36';            // rosto/ombros quando a pele não é o assunto
+        const ICONE_CABELO = '#d4af37';            // dourado do tema
+        const ICONE_CABELO_BORDA = '#9c7f22';
+
+        const svgIcone = (conteudo) =>
+            `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">${conteudo}</svg>`;
+
+        // Busto com o comprimento de cabelo escolhido
+        function iconeBusto(corte) {
+            const cabelo = `fill="${ICONE_CABELO}" stroke="${ICONE_CABELO_BORDA}" stroke-width="1.5"`;
+            const ombros = `<path d="M12 62 C12 50 21 45 32 45 C43 45 52 50 52 62" fill="${ICONE_NEUTRO}" stroke="${ICONE_CONTORNO}" stroke-width="2"/>`;
+            const rosto = `<circle cx="32" cy="28" r="10.5" fill="${ICONE_NEUTRO}" stroke="${ICONE_CONTORNO}" stroke-width="2"/>`;
+            const franja = `<path d="M21.2 27 C20.8 18 25.8 14.2 32 14.2 C38.2 14.2 43.2 18 42.8 27 C39.5 21.8 35.5 20.8 32 21.3 C28.5 20.8 24.5 21.8 21.2 27 Z" ${cabelo}/>`;
+            const atras = {
+                curto: '',
+                medio: `<path d="M19 28 C19 16 25 12 32 12 C39 12 45 16 45 28 L45 41 Q38.5 44 32 41 Q25.5 44 19 41 Z" ${cabelo}/>`,
+                longo: `<path d="M18 28 C18 15 25 11 32 11 C39 11 46 15 46 28 L48 56 Q41 59 37 53 L27 53 Q23 59 16 56 Z" ${cabelo}/>`,
+                preso: `<path d="M40 19 C50 20 54 30 50 46 C48 38 45 31 39 26 Z" ${cabelo}/>` +
+                       `<rect x="39" y="18" width="5.5" height="5.5" rx="1.5" fill="#c94f4f" transform="rotate(30 41.7 20.7)"/>`,
+            }[corte];
+            return svgIcone(ombros + atras + rosto + franja);
+        }
+
+        // Três fios mostrando a textura
+        function iconeFios(tipo) {
+            const traco = {
+                liso:     x => `M${x} 8 L${x} 56`,
+                ondulado: x => `M${x} 8` + ' q7 6 0 12 t0 12 t0 12 t0 12',
+                cacheado: x => `M${x} 7` + ' c10 1 10 15 0 15 c-8 0 -8 -7 0 -7'.repeat(6),
+                crespo:   x => `M${x} 8` + ' l4.5 2 l-4.5 2'.repeat(12),
+            }[tipo];
+            const largura = tipo === 'crespo' ? 2.5 : 3.5;
+            const posicoes = tipo === 'cacheado' ? [15, 32, 49] : [19, 31, 43];   // anéis largos precisam de mais espaço
+            const fios = posicoes.map(x => `<path d="${traco(x)}" stroke="${ICONE_CABELO}" stroke-width="${largura}"/>`).join('');
+            return svgIcone(fios);
+        }
+
+        // Mecha de cabelo pintada com a cor
+        function iconeMecha(cor, borda) {
+            return svgIcone(
+                `<path d="M30 6 C44 12 48 28 42 42 C38 52 30 58 22 58 C29 50 30 42 27 34 C22 22 22 12 30 6 Z" fill="${cor}" stroke="${borda}" stroke-width="2"/>` +
+                `<path d="M31 12 C38 20 40 30 36 40" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>` +
+                `<path d="M27 18 C30 26 32 34 29 44" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>`
+            );
+        }
+
+        // Rosto com o tom de pele
+        function iconeRosto(pele, boca) {
+            return svgIcone(
+                `<circle cx="32" cy="32" r="24" fill="${pele}" stroke="${ICONE_CONTORNO}" stroke-width="2"/>` +
+                `<circle cx="24" cy="29" r="3.6" fill="#fff"/><circle cx="24" cy="29.5" r="2" fill="#1b1410"/>` +
+                `<circle cx="40" cy="29" r="3.6" fill="#fff"/><circle cx="40" cy="29.5" r="2" fill="#1b1410"/>` +
+                `<path d="M23 40 Q32 47 41 40" stroke="${boca}" stroke-width="2.5"/>`
+            );
+        }
+
+        // Olho com a cor da íris
+        function iconeOlho(iris) {
+            return svgIcone(
+                `<path d="M5 32 Q32 8 59 32 Q32 56 5 32 Z" fill="#f4f1ec" stroke="${ICONE_CONTORNO}" stroke-width="2"/>` +
+                `<circle cx="32" cy="32" r="11" fill="${iris}"/>` +
+                `<circle cx="32" cy="32" r="4.5" fill="#0d0d0d"/>` +
+                `<circle cx="35.5" cy="28.5" r="2.2" fill="#fff"/>`
+            );
+        }
+
+        document.querySelectorAll('[data-icone-busto]').forEach(el => { el.innerHTML = iconeBusto(el.dataset.iconeBusto); });
+
         const PERGUNTAS_PERSONAGEM = [
             {
                 chave: 'comprimento',
                 pergunta: 'Qual o tamanho do seu cabelo?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Curto', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'short' },
-                    { label: 'Médio', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'medium length' },
-                    { label: 'Longo', emoji: `<i data-lucide="waves" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'long' },
-                    { label: 'Preso', emoji: `<i data-lucide="gift" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'ponytail' }
+                    { label: 'Curto', icone: iconeBusto('curto'), tag: 'short' },
+                    { label: 'Médio', icone: iconeBusto('medio'), tag: 'medium length' },
+                    { label: 'Longo', icone: iconeBusto('longo'), tag: 'long' },
+                    { label: 'Preso', icone: iconeBusto('preso'), tag: 'ponytail' }
                 ]
             },
             {
@@ -408,10 +483,10 @@
                 pergunta: 'Como é o tipo do seu cabelo?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Liso', emoji: `<i data-lucide="minus" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'straight' },
-                    { label: 'Ondulado', emoji: `<i data-lucide="activity" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'wavy' },
-                    { label: 'Cacheado', emoji: `<i data-lucide="hurricane" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'curly' },
-                    { label: 'Crespo', emoji: `<i data-lucide="circle-dot" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'coily' }
+                    { label: 'Liso', icone: iconeFios('liso'), tag: 'straight' },
+                    { label: 'Ondulado', icone: iconeFios('ondulado'), tag: 'wavy' },
+                    { label: 'Cacheado', icone: iconeFios('cacheado'), tag: 'curly' },
+                    { label: 'Crespo', icone: iconeFios('crespo'), tag: 'coily' }
                 ]
             },
             {
@@ -419,10 +494,10 @@
                 pergunta: 'Qual é a cor do seu cabelo?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Preto', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'black hair' },
-                    { label: 'Castanho', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#744210; fill:#744210;"></i>`, tag: 'brown hair' },
-                    { label: 'Loiro', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#ecc94b; fill:#ecc94b;"></i>`, tag: 'blonde hair' },
-                    { label: 'Ruivo', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#e53e3e; fill:#e53e3e;"></i>`, tag: 'red hair' }
+                    { label: 'Preto', icone: iconeMecha('#1c1c22', 'rgba(255,255,255,0.6)'), tag: 'black hair' },
+                    { label: 'Castanho', icone: iconeMecha('#7b4a24', '#4d2d14'), tag: 'brown hair' },
+                    { label: 'Loiro', icone: iconeMecha('#e8c25a', '#a8862a'), tag: 'blonde hair' },
+                    { label: 'Ruivo', icone: iconeMecha('#c2452d', '#7f2a1a'), tag: 'red hair' }
                 ]
             },
             {
@@ -430,10 +505,10 @@
                 pergunta: 'Qual é a cor da sua pele?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Clara', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fff5f5; fill:#fff5f5;"></i>`, tag: 'light skin' },
-                    { label: 'Morena', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'tanned skin' },
-                    { label: 'Negra', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'dark skin' },
-                    { label: 'Amarelada', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fefcbf; fill:#fefcbf;"></i>`, tag: 'pale skin' }
+                    { label: 'Clara', icone: iconeRosto('#f5d6c0', '#b0705a'), tag: 'light skin' },
+                    { label: 'Morena', icone: iconeRosto('#c68c53', '#7a4a26'), tag: 'tanned skin' },
+                    { label: 'Negra', icone: iconeRosto('#5c3a24', '#2a170c'), tag: 'dark skin' },
+                    { label: 'Amarelada', icone: iconeRosto('#ecd3a0', '#a87e4a'), tag: 'pale skin' }
                 ]
             },
             {
@@ -441,10 +516,10 @@
                 pergunta: 'E os seus olhos?',
                 cols: 4,
                 opcoes: [
-                    { label: 'Castanhos', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'brown eyes' },
-                    { label: 'Verdes', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#48bb78; fill:#48bb78;"></i>`, tag: 'green eyes' },
-                    { label: 'Azuis', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#4299e1; fill:#4299e1;"></i>`, tag: 'blue eyes' },
-                    { label: 'Escuros', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#1a202c; fill:#1a202c;"></i>`, tag: 'dark eyes' }
+                    { label: 'Castanhos', icone: iconeOlho('#7a4a1e'), tag: 'brown eyes' },
+                    { label: 'Verdes', icone: iconeOlho('#3fa45b'), tag: 'green eyes' },
+                    { label: 'Azuis', icone: iconeOlho('#3b82d6'), tag: 'blue eyes' },
+                    { label: 'Escuros', icone: iconeOlho('#2b1a10'), tag: 'dark eyes' }
                 ]
             }
         ];
@@ -563,7 +638,7 @@
             p.opcoes.forEach((op, idx) => {
                 const card = document.createElement('div');
                 card.className = 'card-opcao';
-                card.innerHTML = `<div class="card-emoji">${op.emoji}</div><div class="card-titulo">${op.label}</div>`;
+                card.innerHTML = `<div class="card-icone">${op.icone}</div><div class="card-titulo">${op.label}</div>`;
                 const jaRespondido = respostasPersonagem[p.chave];
                 if (jaRespondido && jaRespondido.tag === op.tag) card.classList.add('selected');
                 card.onclick = () => {
@@ -760,8 +835,35 @@
                     mostrarEspera(texto);
                 }
                 document.getElementById('btn-nova-historia').style.display = fim ? 'inline-block' : 'none';
+                atualizarBotaoPassar(d);
             } catch (e) {
                 mostrarEspera('Sem conexão com o servidor...');
+            }
+        }
+
+        // ─── Botão "Passar" (quando o mesmo quadro fica 10 s na tela) ─────
+        let quadroParaPassar = null;   // { cena_id, quadro } do quadro que o botão vai liberar
+
+        function atualizarBotaoPassar(d) {
+            const btn = document.getElementById('btn-passar-quadro');
+            const mostrar = !!d.pode_passar && !d.aberta;
+            if (mostrar) quadroParaPassar = { cena_id: d.cena_id, quadro: d.quadro_atual };
+            btn.style.display = mostrar ? 'inline-block' : 'none';
+        }
+
+        async function passarQuadro() {
+            if (!quadroParaPassar) return;
+            const btn = document.getElementById('btn-passar-quadro');
+            btn.style.display = 'none';   // reaparece sozinho se o servidor ainda não tiver liberado
+            try {
+                // Vale só para este quadro: um clique atrasado pela rede não passa o quadro seguinte
+                await fetch(`${API_URL}/forcar_avanco`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...quadroParaPassar, origem: 'painel de decisão' })
+                });
+            } catch (e) {
+                console.error('Erro ao passar o quadro:', e);
             }
         }
 

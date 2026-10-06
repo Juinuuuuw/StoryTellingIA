@@ -6,6 +6,7 @@ import os
 import re
 import json
 import threading
+import time
 from state_manager import manager
 import rag_historico
 import canonical_scenes
@@ -119,8 +120,76 @@ def _acao_para_keywords(acao: str, student_name: str, npc_name: str) -> str:
     return result if result else 'standing, neutral pose'
 
 
+# ============================================================
+# VISUAL DO PERSONAGEM — gênero e tom de pele estáveis
+# ============================================================
+# O ToonYou foi treinado com tags estilo Danbooru: "1boy"/"1girl" e "dark skin" são
+# tags fortes; "1man"/"1woman"/"ebony complexion" quase não pesam e o modelo cai no
+# padrão (menina de pele clara). Por isso trocamos a tag de gênero da descrição pela
+# tag forte e reforçamos o negative com o gênero/pele opostos.
+_TAG_GENERO_INICIAL = re.compile(r'^\s*(?:solo\s*,\s*)?1(?:man|woman|boy|girl|person|child)\b\s*,?\s*', re.IGNORECASE)
+_PELE_ESCURA = re.compile(r'dark[- ](?:brown )?skin|dark-skinned|ebony|african|\bblack (?:man|woman|person)\b', re.IGNORECASE)
+
+
+def genero_do_visual(desc, padrao="Masculino"):
+    """Deduz o gênero de uma descrição visual ('1man, ...' / '1woman, ...')."""
+    d = (desc or "").lower()
+    if re.match(r'\s*(?:solo\s*,\s*)?1(?:woman|girl)\b', d):
+        return "Feminino"
+    if re.match(r'\s*(?:solo\s*,\s*)?1(?:man|boy)\b', d):
+        return "Masculino"
+    if re.search(r'\b(?:woman|female|girl|lady)\b', d):
+        return "Feminino"
+    if re.search(r'\b(?:man|male|boy)\b', d):
+        return "Masculino"
+    return padrao
+
+
+def montar_visual_personagem(desc, genero):
+    """
+    Retorna (prompt_do_personagem, negative_extra) com o gênero e o tom de pele
+    reforçados por tags que o modelo realmente entende.
+    """
+    corpo = _TAG_GENERO_INICIAL.sub('', desc or '').strip(' ,')
+    # O gerador não entende negação: "NOT wearing glasses" / "no hat" acabam PEDINDO óculos e chapéu.
+    # Esses trechos vão para o negative.
+    partes, proibidos = [], []
+    for parte in (p.strip() for p in corpo.split(',')):
+        m = re.match(r'(?:not wearing|not|no|without)\s+(.+)', parte, re.IGNORECASE)
+        if m:
+            proibidos.append(m.group(1))
+        elif parte:
+            partes.append(parte)
+    corpo = ", ".join(partes)
+    feminino = genero == "Feminino"
+    # Pesos calibrados renderizando no ToonYou: abaixo de 1.6 a pele escura some em boa parte das seeds
+    if feminino:
+        tags = "(1girl:1.3), (solo:1.3), solo focus, adult woman, mature female"
+        negative = "(1boy, male focus, man, facial hair, beard, mustache:1.4), (child, kid:1.2)"
+    else:
+        tags = "(1boy:1.3), (male focus:1.2), (solo:1.3), solo focus, adult man, mature male"
+        negative = "(1girl, female focus, woman, breasts, long eyelashes, makeup:1.4), (child, kid:1.2)"
+    negative += ", (multiple girls, multiple boys:1.3)"
+    if _PELE_ESCURA.search(corpo):
+        tags += f", (dark skin:1.6), ({'dark-skinned female' if feminino else 'dark-skinned male'}:1.6), (brown skin:1.2), very dark skin"
+        negative += ", (pale skin, light skin, fair skin, white skin:1.4)"
+    if proibidos:
+        negative += f", ({', '.join(proibidos)}:1.3)"
+    return f"{tags}, {corpo}", negative
+
+
+def _remover_genero_oposto(texto, genero):
+    """Tira pronomes/palavras do gênero oposto (ex.: 'she', 'woman') de ação e cenário."""
+    if genero == "Feminino":
+        palavras = r"he|him|his|himself|man|men|boy|boys|gentleman|male"
+    else:
+        palavras = r"she|her|hers|herself|woman|women|girl|girls|lady|female"
+    texto = re.sub(rf"\b(?:{palavras})\b", "", texto, flags=re.IGNORECASE)
+    return re.sub(r"\s{2,}", " ", texto).strip(" ,")
+
+
 def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, npc_principal,
-                            scenery_guideline=""):
+                            scenery_guideline="", student_genero="Masculino", npc_visual=""):
     """
     Gera 4 prompts de imagem (storyboard).
 
@@ -145,8 +214,13 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
     for p in personagens_globais:
         desc_por_nome[p["nome"].lower()] = p["descricao_visual"]
 
-    student_desc = desc_por_nome.get(student_name.lower(), "1man, young adult, short hair, brown eyes, simple period-appropriate clothing")
-    npc_desc     = desc_por_nome.get(npc_principal.lower(), "1person, historical figure, period-appropriate clothing")
+    student_desc = desc_por_nome.get(student_name.lower(), "young adult, short hair, brown eyes, simple period-appropriate clothing")
+    # O visual do NPC vem do blueprint (fonte fixa) — o LLM às vezes reescreve e perde detalhes como a cor da pele
+    npc_desc     = npc_visual or desc_por_nome.get(npc_principal.lower(), "historical figure, period-appropriate clothing")
+    npc_genero   = genero_do_visual(npc_desc)
+
+    student_prompt, student_negative = montar_visual_personagem(student_desc, student_genero)
+    npc_prompt, npc_negative         = montar_visual_personagem(npc_desc, npc_genero)
 
     # Garante que ao menos um quadro seja de cenário puro.
     # Verifica se o LLM já deixou algum com 'personagens' vazio.
@@ -174,6 +248,7 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
         # Resolve o tipo de quadro e define negative correto
         char_prompt   = ""
         negative_quad = NEGATIVE_TOONYOU   # default: quadro com 1 pessoa
+        genero_quad   = None               # gênero de quem aparece no quadro
 
         if len(pers) == 0:
             # Quadro de cenário puro — bloqueia qualquer humano
@@ -182,36 +257,24 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
             ultimo_char   = None
         else:
             p_nome = pers[0]
-            # Helper para extrair gênero e reforçar o negative prompt
-            def aplicar_anti_genero(prompt_char, neg_quad):
-                if "1boy" in prompt_char or "1man" in prompt_char or "male" in prompt_char:
-                    return neg_quad + ", (1girl, woman, female, girl, breasts:1.4)"
-                elif "1girl" in prompt_char or "1woman" in prompt_char or "female" in prompt_char:
-                    return neg_quad + ", (1boy, man, male, facial hair:1.4)"
-                return neg_quad
-
             if p_nome.lower() == student_name.lower():
-                if ultimo_char == "student" and i < 3:
-                    char_prompt = f"solo, {npc_desc}"
-                    ultimo_char = "npc"
-                else:
-                    char_prompt = f"solo, {student_desc}"
-                    ultimo_char = "student"
+                ultimo_char = "npc" if ultimo_char == "student" and i < 3 else "student"
             elif p_nome.lower() == npc_principal.lower():
-                if ultimo_char == "npc" and i < 3:
-                    char_prompt = f"solo, {student_desc}"
-                    ultimo_char = "student"
-                else:
-                    char_prompt = f"solo, {npc_desc}"
-                    ultimo_char = "npc"
+                ultimo_char = "student" if ultimo_char == "npc" and i < 3 else "npc"
             else:
                 char_prompt   = "no humans, scenery only, empty scene"
                 negative_quad = NEGATIVE_CENA_PURA
                 ultimo_char   = None
 
-            # Aplica o anti-gênero se não for cenário puro
-            if ultimo_char is not None:
-                negative_quad = aplicar_anti_genero(char_prompt, negative_quad)
+            # Gênero e pele explícitos de quem aparece + negative com o oposto
+            if ultimo_char == "student":
+                char_prompt, extra = student_prompt, student_negative
+                genero_quad = student_genero
+            elif ultimo_char == "npc":
+                char_prompt, extra = npc_prompt, npc_negative
+                genero_quad = npc_genero
+            if genero_quad:
+                negative_quad = f"{negative_quad}, {extra}"
 
         # Texto que vai para o gerador de imagem (Inglês)
         acao_raw = cena.get("action_english", cena.get("acao", "standing, looking around"))
@@ -225,7 +288,7 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
 
         # Se for cenário puro, o LLM frequentemente ainda coloca ações/nomes, quebram a imagem.
         # Filtramos agressivamente.
-        if len(pers) == 0:
+        if genero_quad is None:
             acao = ""
             emocao = ""
             import re as _re
@@ -233,6 +296,16 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
             for nome_char in [student_name, npc_principal]:
                 if nome_char:
                     cenario = _re.sub(r'\b' + _re.escape(nome_char) + r'\b', 'someone', cenario, flags=_re.IGNORECASE)
+        else:
+            # Quadro com pessoa: nomes ("Katherine's desk") e pronomes do gênero oposto
+            # ("she smiles") puxam o gerador para a pessoa errada — removemos.
+            for nome_char in [student_name, npc_principal]:
+                for parte in (nome_char or "").split():
+                    if len(parte) > 2:
+                        cenario = re.sub(r"\b" + re.escape(parte) + r"(?:'s)?\b", "", cenario, flags=re.IGNORECASE)
+                        acao = re.sub(r"\b" + re.escape(parte) + r"(?:'s)?\b", "", acao, flags=re.IGNORECASE)
+            acao    = _remover_genero_oposto(acao, genero_quad) or "standing, neutral pose"
+            cenario = _remover_genero_oposto(cenario, genero_quad)
 
         # Extrai objetos-chave do scenery_guideline como contexto de época
         sg_extra = ""
@@ -251,7 +324,7 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
                 sg_extra = scenery_guideline[:100]
 
         # Montagem do Prompt
-        if len(pers) == 0:
+        if genero_quad is None:
             prompt_completo = (
                 f"{char_prompt}, {cenario}, {sg_extra}, {camera}, cinematic lighting, "
                 f"masterpiece, best quality, highres, anime style, 2d illustration, "
@@ -276,8 +349,116 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
 # GERAÇÃO DE CONTEÚDO (CONTRATADO PELO STATE MANAGER)
 # ============================================================
 
-def gerar_json_seguro(prompt, temperatura=0.75, max_tentativas=3):
-    conteudo = "{}"
+def encontrar_termos(texto, termos):
+    """Termos (palavra inteira, sem diferenciar maiúsculas) que aparecem no texto."""
+    return [t for t in (termos or [])
+            if re.search(r"(?<!\w)" + re.escape(t) + r"(?!\w)", texto or "", re.IGNORECASE)]
+
+
+def filtrar_opcoes(opcoes, termos_proibidos, npc, escolhas_anteriores=()):
+    """
+    Última barreira antes da tela de decisão: descarta opções que citam outra história
+    (ex.: "Ajudar Turing..." numa história da Katherine) ou que repetem uma escolha já feita.
+    Como a próxima cena nasce da escolha, uma opção contaminada contamina o resto da história.
+    """
+    feitas = {e.strip().lower() for e in escolhas_anteriores}
+    validas = []
+    for op in opcoes or []:
+        if not isinstance(op, str) or not op.strip():
+            continue
+        if encontrar_termos(op, termos_proibidos):
+            print(f"🚫 Opção descartada (mistura de histórias): {op!r}")
+        elif op.strip().lower() in feitas or op.strip().lower() in {v.lower() for v in validas}:
+            print(f"🚫 Opção descartada (repetida): {op!r}")
+        else:
+            validas.append(op.strip())
+    npc = npc or "o personagem"
+    for reserva in (f"Ajudar {npc} no próximo passo", f"Perguntar a {npc} o que vem a seguir",
+                    f"Observar com atenção o que {npc} faz agora"):
+        if len(validas) >= 2:
+            break
+        if reserva.lower() not in feitas:
+            validas.append(reserva)
+    return validas[:2]
+
+
+def garantir_marco_no_texto(cena, marco):
+    """
+    Na cena de um marco histórico, o ano precisa ser dito. O phi4-mini ignora essa regra com
+    frequência (e refazer custa ~40 s com o aluno esperando), então, se o ano não veio,
+    a cena abre anunciando o marco — o NAO fala e a frase aparece no 1º quadro.
+    """
+    if marco and marco.get("ano") and marco["ano"] not in cena.get("historia", ""):
+        cena["historia"] = f"Ano de {marco['ano']} — {marco['titulo']}. {cena.get('historia', '')}".strip()
+    return cena
+
+
+def cena_de_reserva(ctx):
+    """
+    Última garantia: se o LLM falhar em todas as tentativas, monta a cena com o conteúdo
+    do próprio blueprint (época, fala do NPC em PT-BR, marco) para a história nunca ficar vazia.
+    """
+    npc = ctx.get("npc_principal") or "o personagem"
+    aluno = ctx.get("student_name", "")
+    fala = re.search(r"'([^']*[a-zà-ú][^']{8,})'", ctx.get("must_happen", ""))
+    partes = [f"{ctx.get('epoca', '')}.".strip(" .") + "." if ctx.get("epoca") else "",
+              f"{aluno} está ao lado de {npc}, {'atenta' if ctx.get('student_genero') == 'Feminino' else 'atento'} a cada detalhe."]
+    if fala:
+        partes.append(f"{npc} diz: '{fala.group(1)}'")
+    marco = ctx.get("marco_historico")
+    if marco:
+        partes.append(marco["evento"])
+    print(f"🛟 Cena de reserva usada no passo [{ctx.get('current_step')}] — o LLM falhou em todas as tentativas.")
+    microcenas = [
+        {"acao_ptbr": f"{npc} explica o momento.", "action_english": "explaining, gesturing", "camera_english": "medium shot", "emotion_english": "focused", "scenery_english": "detailed period-appropriate room", "personagens": [npc]},
+        {"acao_ptbr": "O lugar onde tudo acontece.", "action_english": "", "camera_english": "wide establishing shot", "emotion_english": "neutral", "scenery_english": "detailed period-appropriate room, key objects of the era", "personagens": []},
+        {"acao_ptbr": f"{aluno} observa com atenção.", "action_english": "listening attentively", "camera_english": "close-up", "emotion_english": "curious", "scenery_english": "detailed period-appropriate room", "personagens": [aluno]},
+        {"acao_ptbr": f"{npc} continua o trabalho.", "action_english": "working, focused", "camera_english": "low angle", "emotion_english": "determined", "scenery_english": "detailed period-appropriate desk with documents", "personagens": [npc]},
+    ]
+    return {"historia": " ".join(p for p in partes if p), "opcoes": [], "personagens": [], "microcenas": microcenas}
+
+
+def normalizar_cena(dados):
+    """
+    Garante os tipos do JSON do LLM antes de qualquer uso. O phi4-mini às vezes devolve
+    um personagem sem "nome", microcenas como texto solto ou campos como listas — antes
+    isso derrubava a rota /escolher (KeyError) e a apresentação travava.
+    """
+    if not isinstance(dados, dict):
+        return {}
+    lista = lambda v: v if isinstance(v, list) else []
+    texto = lambda v: v.strip() if isinstance(v, str) else ""
+
+    personagens = []
+    for p in lista(dados.get("personagens")):
+        if isinstance(p, dict) and texto(p.get("nome")):
+            personagens.append({"nome": texto(p.get("nome")), "descricao_visual": texto(p.get("descricao_visual"))})
+
+    microcenas = []
+    for mc in lista(dados.get("microcenas")):
+        if not isinstance(mc, dict):
+            continue
+        limpa = {k: (v if isinstance(v, str) else " ".join(map(str, v)) if isinstance(v, list) else str(v))
+                 for k, v in mc.items() if k != "personagens" and v is not None}
+        pers = mc.get("personagens")
+        limpa["personagens"] = [x.strip() for x in pers if isinstance(x, str) and x.strip()] if isinstance(pers, list) \
+            else ([pers.strip()] if isinstance(pers, str) and pers.strip() else [])
+        microcenas.append(limpa)
+
+    return {**dados,
+            "historia": texto(dados.get("historia")),
+            "opcoes": [texto(o) for o in lista(dados.get("opcoes")) if texto(o)],
+            "personagens": personagens,
+            "microcenas": microcenas}
+
+
+def gerar_json_seguro(prompt, temperatura=0.75, max_tentativas=3, termos_proibidos=None):
+    """
+    termos_proibidos: nomes/termos de OUTRAS histórias. Se aparecerem na "historia" ou
+    nas "opcoes", refaz a geração (as opções ainda passam por filtrar_opcoes depois).
+    Se nenhuma tentativa passar em tudo, devolve a melhor tentativa com texto — nunca uma cena vazia.
+    """
+    candidatos = []   # (gravidade dos problemas, dados)
     for tentativa in range(max_tentativas):
         try:
             resposta = ollama.chat(
@@ -285,18 +466,26 @@ def gerar_json_seguro(prompt, temperatura=0.75, max_tentativas=3):
                 messages=[{'role': 'user', 'content': prompt}], 
                 format='json',
                 options={
-                    'temperature': temperatura,
+                    # Cada nova tentativa fica mais conservadora: menos chance de JSON quebrado ou laço de repetição
+                    'temperature': max(0.3, temperatura - 0.2 * tentativa),
                     'num_predict': 1600,   # suficiente para o JSON completo; menos = mais rápido
-                    'num_ctx': 4096,       # contexto adequado sem desperdiçar VRAM
+                    # O prompt da história tem ~3.500-4.200 tokens. Com 4096 o Ollama cortava o COMEÇO
+                    # do prompt (idioma, escolha do jogador, marco) e o modelo só via o schema do fim.
+                    'num_ctx': 8192,
                 },
                 keep_alive=0               # descarrega da VRAM imediatamente — Forge precisa da memória para gerar as imagens
             )
             conteudo = resposta.message.content.strip()
             print(f"\n=== RESPOSTA JSON (Tentativa {tentativa+1}) ===\n{conteudo}\n=====================\n")
-            
-            dados = json.loads(conteudo)
+            if resposta.prompt_eval_count and resposta.prompt_eval_count < len(prompt) / 6:
+                print(f"⚠️ ATENÇÃO: o prompt parece ter sido cortado ({resposta.prompt_eval_count} tokens lidos). Aumente o num_ctx.")
+
+            dados = normalizar_cena(json.loads(conteudo))
             historia = dados.get("historia", "")
-            
+            if not historia:
+                print(f"⚠️ ATENÇÃO: A IA devolveu a história vazia (Tentativa {tentativa+1}). Refazendo a geração...")
+                continue
+
             # Verificação de idioma (Heurística Simples)
             text_lower = " " + historia.lower().replace(".", " ").replace(",", " ").replace("!", " ").replace("?", " ") + " "
             en_words = [" the ", " and ", " with ", " then ", " he ", " she ", " it ", " was ", " his ", " her ", " to ", " of ", " in ", " but "]
@@ -304,20 +493,28 @@ def gerar_json_seguro(prompt, temperatura=0.75, max_tentativas=3):
             
             en_score = sum(text_lower.count(w) for w in en_words)
             pt_score = sum(text_lower.count(w) for w in pt_words)
-            
-            if en_score > pt_score and en_score > 2: # Só repete se detectar um inglês claro
+            em_ingles = en_score > pt_score and en_score > 2   # Só repete se detectar um inglês claro
+
+            opcoes_txt = " ".join(o for o in dados.get("opcoes", []) if isinstance(o, str))
+            intrusos = encontrar_termos(f"{historia} {opcoes_txt}", termos_proibidos)
+
+            if em_ingles:
                 print(f"⚠️ ATENÇÃO: A IA gerou a história majoritariamente em INGLÊS (EN: {en_score}, PT: {pt_score}). Refazendo a geração...")
-                continue
-                
-            return dados
+            if intrusos:
+                print(f"⚠️ ATENÇÃO: A cena misturou outra história ({', '.join(intrusos)}). Refazendo a geração...")
+            gravidade = 100 * bool(intrusos) + 10 * em_ingles
+            if gravidade == 0:
+                return dados
+            candidatos.append((gravidade, tentativa, dados))
         except Exception as e:
             print(f"❌ Erro no JSON (Tentativa {tentativa+1}): {e}")
-            
-    # Fallback final se falhar em todas as tentativas
-    try:
-        return json.loads(conteudo)
-    except:
-        return {}
+
+    # Nenhuma tentativa passou em tudo: usa a menos problemática (a mais recente em caso de empate)
+    if candidatos:
+        gravidade, _, dados = min(candidatos, key=lambda c: (c[0], -c[1]))
+        print(f"⚠️ Usando a melhor tentativa disponível (gravidade {gravidade}).")
+        return dados
+    return {}
 
 def montar_prompt_narrativo(contexto, historico="", student_visual_fixo="",
                             fatos_rag="", instrucao_canonica="", ato=1,
@@ -401,6 +598,35 @@ REGRA DE COERÊNCIA DA CENA CANÔNICA (CRÍTICO):
 - NÃO combine elementos da cena canônica com pontos de enredo não relacionados na mesma frase.
 """
 
+    # --- MARCOS HISTÓRICOS (2 por jornada) ---
+    secao_marco = ""
+    marcos = contexto.get("marcos_jornada", [])
+    marco = contexto.get("marco_historico")
+    if marcos:
+        lista_marcos = "\n".join(
+            f"- Capítulo {m['capitulo']}: {m['ano']} — {m['titulo']}" for m in marcos
+        )
+        secao_marco = f"""### MARCOS HISTÓRICOS DA JORNADA ###
+Esta jornada tem exatamente {len(marcos)} marcos históricos, cada um no SEU capítulo:
+{lista_marcos}
+"""
+        if marco:
+            secao_marco += f"""
+### ★ ESTE CAPÍTULO É O MARCO HISTÓRICO: {marco['ano']} — {marco['titulo']} ★ ###
+O que aconteceu: {marco['evento']}
+REGRAS OBRIGATÓRIAS DO MARCO:
+- O marco DEVE ACONTECER diante de {contexto['student_name']} neste capítulo — mostre o momento acontecendo, não apenas mencione.
+- A "historia" DEVE citar o ano "{marco['ano']}" e o acontecimento de forma explícita.
+- {contexto.get('npc_principal', 'O personagem')} deve explicar, em uma fala direta, por que este momento muda a história.
+- Pelo menos 1 microcena deve mostrar visualmente o objeto ou o momento central do marco.
+- Mesmo que o ato peça tensão, o marco se completa AQUI; deixe apenas uma nova consequência em aberto para o próximo capítulo.
+"""
+        else:
+            secao_marco += (
+                "Este capítulo NÃO é um marco. NÃO antecipe nem resolva os marcos de outros capítulos: "
+                "marcos já vividos podem ser lembrados em uma frase; marcos futuros podem apenas ser preparados.\n"
+            )
+
     # --- PLAYER CHOICE SEED ---
     secao_escolha = ""
     if escolha_anterior:
@@ -409,6 +635,11 @@ O jogador ACABOU de escolher a seguinte ação: "{escolha_anterior}"
 CRÍTICO: A sua "historia" gerada DEVE ser a consequência direta e imediata desta escolha.
 Mostre {contexto['student_name']} executando essa ação (ou sofrendo as consequências dela) na primeira frase da história. Em seguida, avance o enredo para o próximo passo.
 NÃO repita cenas passadas. Crie uma cena ORIGINAL baseada EXCLUSIVAMENTE nesta escolha.
+"""
+        if contexto.get("salto_temporal") and contexto.get("epoca"):
+            secao_escolha += f"""### SALTO NO TEMPO ###
+Este capítulo acontece em: {contexto['epoca']} — um tempo DEPOIS do capítulo anterior.
+Conclua a escolha do jogador em UMA frase e então deixe o salto explícito com uma marcação de tempo (ex.: "Meses depois...", "Anos mais tarde, em ..."). Só então avance o enredo na nova época.
 """
 
     # --- HISTORY SECTION (ENRICHED) ---
@@ -488,6 +719,7 @@ Os ÚNICOS campos permitidos em Inglês são os técnicos de imagem: acao, camer
 {ato_info['instrucao']}
 
 {secao_escolha}
+{secao_marco}
 {secao_rag}
 {secao_canonica}
 ### PROTOCOLO DOS PERSONAGENS ###
@@ -501,11 +733,14 @@ Os ÚNICOS campos permitidos em Inglês são os técnicos de imagem: acao, camer
 
 ### REGRAS DE NARRAÇÃO ###
 - A história DEVE ser um parágrafo rico e imersivo (4-6 frases) descrevendo atmosfera E ação.
+- O texto será dividido em 4 partes, uma por quadro, e o robô narra cada parte: escreva frases de TAMANHO PARECIDO (evite uma frase enorme ao lado de frases muito curtas).
 - Use detalhes sensoriais específicos: o que o estudante VÊ, OUVE, CHEIRA, SENTE.
 - Inclua pelo menos UM detalhe histórico específico (um nome real, número, lugar ou máquina).
 - NPCs DEVEM ter pelo menos UMA linha de diálogo direto (em PT-BR).
 {intro_rule}
 - NÃO resuma os acontecimentos — mostre através de ações e reações (Show, don't tell).
+- Esta história é EXCLUSIVAMENTE sobre {contexto.get('npc_principal', 'o personagem')} e a sua época. NUNCA traga pessoas, máquinas ou lugares de outras histórias ou de outras figuras históricas.
+- As 'opcoes' NUNCA podem repetir uma escolha que o jogador já fez nos capítulos anteriores.
 
 ### VISUAL DO ESTUDANTE ###
 {student_visual_instruction}
@@ -518,8 +753,8 @@ Retorne APENAS um objeto JSON combinando perfeitamente com este schema:
 {{
   "historia": "string ⚠️ EM PORTUGUÊS BRASILEIRO (PT-BR) OBRIGATÓRIO ⚠️ — Parágrafo rico e imersivo (4-6 frases) em TERCEIRA PESSOA. Deve incluir: detalhes sensoriais específicos, pelo menos UMA fala direta do NPC, UM fato histórico real. Conte a história SOBRE {contexto['student_name']}. SE o jogador fez uma escolha (ver seção AÇÃO DO JOGADOR), a primeira frase DEVE mostrar essa escolha acontecendo.",
   "opcoes": [
-    "string (PT-BR) — AÇÃO ESPECÍFICA 1 em português. Ex: 'Ajudar Turing a ajustar os rotores da Bombe'. NUNCA palavras genéricas.",
-    "string (PT-BR) — AÇÃO ESPECÍFICA 2 em português com consequências diferentes."
+    "string (PT-BR) — AÇÃO ESPECÍFICA 1 em português, CURTA (até 12 palavras), começando com um verbo: uma ação física de {contexto['student_name']} com {contexto.get('npc_principal', 'o personagem')} ou com um objeto DESTA cena ({contexto.get('epoca', 'desta época')}). NUNCA palavras genéricas.",
+    "string (PT-BR) — AÇÃO ESPECÍFICA 2 em português, CURTA (até 12 palavras), começando com um verbo, com consequências diferentes, também sobre ESTA cena."
   ],
   "personagens": [
     {{
@@ -543,6 +778,7 @@ Retorne APENAS um objeto JSON combinando perfeitamente com este schema:
 
 ### MICROCENAS RULES ###
 - Generate EXACTLY 4 microcenas.
+- Microcenas follow the SAME ORDER as the "historia": microcena 1 illustrates the first quarter of the text, microcena 2 the second, microcena 3 the third, microcena 4 the last.
 - At least 1 (max 2) must be an Establishment Shot (empty 'personagens' array) focusing on the environment or a key object.
 - Max 1 character per microcena to avoid AI glitches.
 - Camera angles MUST be different for each microcena.
@@ -552,7 +788,7 @@ Retorne APENAS um objeto JSON combinando perfeitamente com este schema:
 ### ⛔ MICROCENAS ANTI-REPETITION RULES (CRITICAL) ###
 Each microcena "cenario" MUST describe a DISTINCT physical location, object, or angle.
 FORBIDDEN patterns in "cenario":
-  - Repeating "relay machines, vacuum tubes, paper tape" across ALL 4 cenarios — if you use these in one, the next must focus on something ELSE (a chalkboard equation, a window with fog outside, a close-up of a paper symbol, a mechanical cog, etc.)
+  - Repeating the same machines or objects across ALL 4 cenarios — if you use an object in one, the next must focus on something ELSE from this same era and place (a different object, a window, a close-up of a document, a detail of the room, etc.)
   - Using "same as before", "similar to", or any reference to a previous cenario.
   - Two consecutive cenarios in the same room viewed from the same angle.
 Each "acao" must be DIFFERENT from the other 3 — no two microcenas can have the same verb or interaction.
@@ -562,6 +798,7 @@ Each "camera" must be DIFFERENT from all others — rotate through close-up, med
 Estudante: {contexto['student_name']}
 Tema: {contexto['theme']}
 Passo Atual: {contexto['current_step']} (Capítulo {contexto.get('step_index', 0) + 1} de {contexto.get('total_steps', 6)})
+Época e Lugar: {contexto.get('epoca', '')}
 Contexto Histórico: {contexto['historical_facts']}
 Objetivo da Cena: {contexto['goal']}
 Emoção Principal: {contexto['emotion']}
@@ -602,11 +839,11 @@ def fixar_visual_aluno(personagens, student_name, state):
     for p in personagens:
         if p.get("nome", "").lower() == student_name.lower():
             aluno_encontrado = True
-            if not student_visual_fixo:
+            if not student_visual_fixo and p["descricao_visual"]:
                 # Primeira cena: guardar o que o LLM gerou
                 state["student_visual_fixed"] = p["descricao_visual"]
                 student_visual_fixo = p["descricao_visual"]
-            else:
+            elif student_visual_fixo:
                 # Cenas seguintes: blindar a descrição
                 p["descricao_visual"] = student_visual_fixo
             break
@@ -621,7 +858,8 @@ def fixar_visual_aluno(personagens, student_name, state):
     return personagens
 
 
-def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name="", npc_principal="", scenery_guideline=""):
+def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name="", npc_principal="", scenery_guideline="",
+                   student_genero="Masculino", npc_visual=""):
     microcenas = cena_dados.get("microcenas", [])
     
     if not isinstance(microcenas, list) or len(microcenas) == 0:
@@ -633,7 +871,7 @@ def processar_cena(cena_dados, personagens_globais, sid, num_cena, student_name=
     # Sistema Clássico: 4 Cenas Completas
     prompts_imagens, textos_quadros, negatives_por_quadro = montar_triptico_prompts(
         microcenas[:4], personagens_globais, student_name, npc_principal,
-        scenery_guideline=scenery_guideline
+        scenery_guideline=scenery_guideline, student_genero=student_genero, npc_visual=npc_visual
     )
 
     nomes_base = []
@@ -660,7 +898,12 @@ SESSAO_ATIVA = {
     "fala_enrolacao": "",
     "last_scene_data": None,
     # --- Sincronização NAO ↔ Imagens ---
-    "quadro_atual": 0,       # índice do quadro (imagem) que o frontend está exibindo agora
+    # A rede é instável, então tudo aqui é ESTADO ABSOLUTO (cena X, quadro N), nunca "+1":
+    # repetir uma mensagem não muda nada e mensagens de cenas antigas são ignoradas.
+    "cena_id": 0,            # muda a cada nova cena
+    "quadro_atual": -1,      # índice do quadro (imagem) que o frontend está exibindo agora
+    "quadro_desde": 0.0,     # quando o quadro_atual começou (relógio do servidor)
+    "quadro_liberado": -1,   # maior quadro já liberado para avançar (NAO, dashboard, painel ou tempo-limite)
     "text_chunks": [],       # lista de strings: texto correspondente a cada quadro
     "nao_falando": False,    # True enquanto o NAO está falando; False quando terminou
     # --- Quiz ---
@@ -668,6 +911,89 @@ SESSAO_ATIVA = {
     "quiz_ids": [],          # IDs das perguntas no banco SQLite
     "quiz_idx_atual": 0,     # índice da pergunta sendo exibida
 }
+_quadro_lock = threading.Lock()
+
+# Botão "Passar" no painel de decisão aparece depois deste tempo no mesmo quadro
+SEGUNDOS_PARA_BOTAO_PASSAR = 10
+# Se nenhum sinal chegar (robô travado/sem rede), o quadro libera sozinho depois de
+# BASE + tamanho do texto × SEG_POR_CARACTERE (o NAO fala ~13 caracteres por segundo)
+TEMPO_LIMITE_BASE = 12
+TEMPO_LIMITE_SEG_POR_CARACTERE = 0.09
+
+
+def _nova_cena_ativa():
+    """Zera a sincronização de quadros para uma cena nova."""
+    with _quadro_lock:
+        SESSAO_ATIVA["cena_id"] = SESSAO_ATIVA.get("cena_id", 0) + 1
+        SESSAO_ATIVA["text_chunks"] = []
+        SESSAO_ATIVA["quadro_atual"] = -1
+        SESSAO_ATIVA["quadro_desde"] = time.time()
+        SESSAO_ATIVA["quadro_liberado"] = -1
+
+
+def _cena_confere(cena_id):
+    """Mensagem sem cena_id (clientes antigos) vale para a cena atual; com cena_id, só se bater."""
+    return cena_id is None or cena_id == SESSAO_ATIVA["cena_id"]
+
+
+def _definir_quadro_atual(cena_id, idx):
+    """O quadro só anda para frente dentro da mesma cena — reenvios e atrasos não fazem voltar."""
+    with _quadro_lock:
+        if not _cena_confere(cena_id) or not isinstance(idx, int):
+            return False
+        if idx > SESSAO_ATIVA["quadro_atual"]:
+            SESSAO_ATIVA["quadro_atual"] = idx
+            SESSAO_ATIVA["quadro_desde"] = time.time()
+        return True
+
+
+def _liberar_quadro(cena_id, idx, origem):
+    """
+    Libera o quadro idx para avançar. Idempotente: liberar duas vezes o mesmo quadro
+    (clique duplo, reenvio pela rede) não pula nada. Nunca libera um quadro que a
+    apresentação ainda não mostrou.
+    """
+    with _quadro_lock:
+        if not _cena_confere(cena_id):
+            return False
+        atual = SESSAO_ATIVA["quadro_atual"]
+        idx = atual if idx is None else min(idx, atual)
+        if idx < 0:
+            return False
+        if idx > SESSAO_ATIVA["quadro_liberado"]:
+            SESSAO_ATIVA["quadro_liberado"] = idx
+            print(f"⏭️  Quadro {idx + 1} liberado ({origem}) — cena {SESSAO_ATIVA['cena_id']}")
+        return True
+
+
+def _verificar_tempo_limite():
+    """Plano B: se nenhum sinal chegou a tempo, libera o quadro sozinho."""
+    if SESSAO_ATIVA.get("status") != "ativo":
+        return
+    atual = SESSAO_ATIVA["quadro_atual"]
+    if atual < 0 or SESSAO_ATIVA["quadro_liberado"] >= atual:
+        return
+    chunks = SESSAO_ATIVA.get("text_chunks", [])
+    texto = chunks[atual] if atual < len(chunks) else ""
+    limite = TEMPO_LIMITE_BASE + len(texto) * TEMPO_LIMITE_SEG_POR_CARACTERE
+    if time.time() - SESSAO_ATIVA["quadro_desde"] > limite:
+        _liberar_quadro(SESSAO_ATIVA["cena_id"], atual, f"tempo-limite de {limite:.0f}s")
+
+
+def _estado_quadros():
+    """Campos de sincronização enviados para a apresentação e o painel de decisão."""
+    _verificar_tempo_limite()
+    atual = SESSAO_ATIVA["quadro_atual"]
+    segundos = time.time() - SESSAO_ATIVA["quadro_desde"] if atual >= 0 else 0
+    return {
+        "cena_id": SESSAO_ATIVA["cena_id"],
+        "quadro_atual": atual,
+        "quadro_liberado": SESSAO_ATIVA["quadro_liberado"],
+        "segundos_no_quadro": round(segundos, 1),
+        "pode_passar": (SESSAO_ATIVA.get("status") == "ativo" and atual >= 0
+                        and SESSAO_ATIVA["quadro_liberado"] < atual
+                        and segundos >= SEGUNDOS_PARA_BOTAO_PASSAR),
+    }
 
 
 ESCOLHA_PENDENTE = None
@@ -697,17 +1023,24 @@ def definir_pensando():
 
 @app.route('/nao_iniciou_fala', methods=['POST'])
 def nao_iniciou_fala():
-    """Chamado pelo nao_speaker.py ANTES de iniciar a fala. Bloqueia o avanço de quadro."""
+    """Chamado pelo nao_speaker.py ANTES de iniciar a fala."""
     SESSAO_ATIVA["nao_falando"] = True
     return jsonify({"status": "ok"})
 
 @app.route('/nao_terminou_fala', methods=['POST'])
 def nao_terminou_fala():
-    """Chamado pelo nao_speaker.py APÓS terminar a fala. Libera o avanço de quadro."""
+    """
+    Chamado pelo nao_speaker.py APÓS terminar a fala. Se a fala era de um quadro
+    ({"cena_id", "quadro_idx"}), libera esse quadro — é o avanço automático da cena.
+    O speaker reenvia até receber 200, por isso a operação é idempotente.
+    """
+    dados = request.get_json(silent=True) or {}
     SESSAO_ATIVA["nao_falando"] = False
     if SESSAO_ATIVA.get("status") == "comando_avulso":
         SESSAO_ATIVA["status"] = "aguardando"
-    return jsonify({"status": "ok"})
+    if isinstance(dados.get("quadro_idx"), int):
+        _liberar_quadro(dados.get("cena_id"), dados["quadro_idx"], "NAO terminou de falar")
+    return jsonify({"status": "ok", "cena_id": SESSAO_ATIVA["cena_id"]})
 
 @app.route('/nao_terminou', methods=['GET'])
 def nao_terminou():
@@ -730,7 +1063,7 @@ def enviar_comando_avulso():
     else:
         nome = dados.get("nome", "Amigo")
         frase = f"Oi {nome}, você quer que eu conte uma história para você?"
-        
+
     SESSAO_ATIVA["status"] = "comando_avulso"
     SESSAO_ATIVA["fala_comando"] = frase
     return jsonify({"status": "ok"})
@@ -749,9 +1082,9 @@ def publicar_quadro():
     Chamado pelo frontend (index.html) sempre que avança para uma nova imagem.
     Informa ao servidor (e portanto ao nao_speaker.py) qual quadro está visível agora.
     """
-    dados = request.json
-    SESSAO_ATIVA["quadro_atual"] = dados.get("quadro_idx", 0)
-    return jsonify({"status": "ok"})
+    dados = request.get_json(silent=True) or {}
+    aceito = _definir_quadro_atual(dados.get("cena_id"), dados.get("quadro_idx", 0))
+    return jsonify({"status": "ok" if aceito else "ignorado", "cena_id": SESSAO_ATIVA["cena_id"]})
 
 @app.route('/visualizador/quadro_atual')
 def visualizador_quadro():
@@ -769,27 +1102,30 @@ def visualizador_quadro():
         return jsonify({
             "status": "pensando",
             "texto": SESSAO_ATIVA.get("fala_enrolacao", ""),
-            "quadro_idx": idx
+            "quadro_idx": idx,
+            "cena_id": SESSAO_ATIVA["cena_id"]
         })
 
     return jsonify({
         "status": status,
         "texto": texto,
         "quadro_idx": idx,
+        "cena_id": SESSAO_ATIVA["cena_id"],
         "total_quadros": len(chunks)
     })
 
 @app.route('/registrar_chunks', methods=['POST'])
 def registrar_chunks():
     """
-    Chamado pelo frontend UMA VEZ ao detectar uma nova cena com imagens.
+    Chamado pelo frontend ao detectar uma nova cena com imagens (com reenvio até confirmar).
     Guarda os text_chunks (texto por quadro) para sincronizar a fala do NAO.
-    NÃO altera status, session_id nem quadro_atual - apenas salva os chunks.
+    Só vale para a cena atual; não mexe em quadro_atual (reenviar é seguro).
     """
-    dados = request.json
+    dados = request.get_json(silent=True) or {}
+    if not _cena_confere(dados.get("cena_id")):
+        return jsonify({"status": "ignorado", "cena_id": SESSAO_ATIVA["cena_id"]})
     SESSAO_ATIVA["text_chunks"] = dados.get("text_chunks", [])
-    SESSAO_ATIVA["quadro_atual"] = -1   # -1 significa que nenhum quadro está visível ainda
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "cena_id": SESSAO_ATIVA["cena_id"]})
 
 @app.route('/publicar_modal', methods=['POST'])
 def publicar_modal():
@@ -839,6 +1175,7 @@ def decisao_atual():
     with _decisao_lock:
         resp = dict(DECISAO_ATUAL)
     resp["status_sessao"] = SESSAO_ATIVA.get("status", "aguardando")
+    resp.update(_estado_quadros())   # o painel mostra o botão "Passar" com pode_passar
     return jsonify(resp)
 
 @app.route('/decisao/responder', methods=['POST'])
@@ -884,13 +1221,15 @@ def iniciar():
         goal=ctx.get("goal", ""),
         topk=3
     )
+    steps_sessao = [s["id"] for s in state["blueprint"]["steps"]]
     inst_canonica = canonical_scenes.obter_instrucao_canonica(
         skill=skill,
         session_id=sid,
-        step_atual=ctx.get("current_step", "")
+        step_atual=ctx.get("current_step", ""),
+        steps_sessao=steps_sessao
     )
-    id_cena_sorteada = canonical_scenes.obter_id_cena_sorteada(skill, sid)
-    print(f"✨ Sessão [{sid}] | Cena canônica sorteada: [{id_cena_sorteada}]")
+    id_cena_sorteada = canonical_scenes.obter_id_cena_sorteada(skill, sid, steps_sessao)
+    print(f"✨ Sessão [{sid}] | Marcos sorteados: {state['blueprint'].get('marcos_sorteados')} | Cena canônica sorteada: [{id_cena_sorteada}]")
 
     prompt = montar_prompt_narrativo(
         ctx,
@@ -899,7 +1238,12 @@ def iniciar():
         instrucao_canonica=inst_canonica,
         ato=ctx.get("ato", 1)
     )
-    cena_raw = gerar_json_seguro(prompt)
+    marco = ctx.get("marco_historico")
+    cena_raw = gerar_json_seguro(prompt, termos_proibidos=ctx.get("termos_proibidos"))
+    if not str(cena_raw.get("historia", "")).strip():
+        cena_raw = cena_de_reserva(ctx)
+    cena_raw = garantir_marco_no_texto(cena_raw, marco)
+    cena_raw["opcoes"] = filtrar_opcoes(cena_raw.get("opcoes"), ctx.get("termos_proibidos"), ctx.get("npc_principal"))
 
     personagens = cena_raw.get("personagens", [])
     if not personagens:
@@ -913,7 +1257,8 @@ def iniciar():
     state["last_narrative"] = cena_raw.get("historia", "")
     manager.save_state(sid)
 
-    proc = processar_cena(cena_raw, personagens, sid, 1, student_name=nome, npc_principal=ctx.get("npc_principal", ""), scenery_guideline=ctx.get("scenery_guideline", ""))
+    proc = processar_cena(cena_raw, personagens, sid, 1, student_name=nome, npc_principal=ctx.get("npc_principal", ""), scenery_guideline=ctx.get("scenery_guideline", ""),
+                          student_genero=genero, npc_visual=ctx.get("npc_visual", ""))
 
     # Salva a cena 1 no banco
     quiz_manager.salvar_cena(
@@ -937,16 +1282,15 @@ def iniciar():
         'imagens_arquivos': proc['imagens_arquivos'],
         'referencia_arquivo': proc['referencia_arquivo'],
         'microcenas_textos': proc['microcenas_textos'],
+        'marco_historico': ctx.get('marco_historico'),
         'opcoes': proc['opcoes'], 'tem_opcoes': True
     }
 
-    # Publica a cena automaticamente no servidor
+    # Publica a cena automaticamente no servidor (a cena nova ganha cena_id antes de ficar visível)
+    _nova_cena_ativa()
     SESSAO_ATIVA["session_id"] = sid
     SESSAO_ATIVA["last_scene_data"] = dados_retorno
     SESSAO_ATIVA["status"] = "ativo"
-    SESSAO_ATIVA["text_chunks"] = []
-    SESSAO_ATIVA["quadro_atual"] = -1
-    SESSAO_ATIVA["avanco_step"] = 0  # começa zerado em cada nova cena
 
     return jsonify(dados_retorno)
 
@@ -1020,7 +1364,8 @@ def escolher():
     inst_canonica = canonical_scenes.obter_instrucao_canonica(
         skill=skill,
         session_id=sid,
-        step_atual=ctx.get("current_step", "")
+        step_atual=ctx.get("current_step", ""),
+        steps_sessao=[s["id"] for s in state["blueprint"]["steps"]]
     )
 
     student_visual_fixo = state.get("student_visual_fixed", "")
@@ -1033,7 +1378,13 @@ def escolher():
         ato=ctx.get("ato", 2),
         escolha_anterior=escolha  # <-- A escolha vira o ponto de partida da narrativa
     )
-    cena_raw = gerar_json_seguro(prompt)
+    marco = ctx.get("marco_historico")
+    cena_raw = gerar_json_seguro(prompt, termos_proibidos=ctx.get("termos_proibidos"))
+    if not str(cena_raw.get("historia", "")).strip():
+        cena_raw = cena_de_reserva(ctx)
+    cena_raw = garantir_marco_no_texto(cena_raw, marco)
+    cena_raw["opcoes"] = filtrar_opcoes(cena_raw.get("opcoes"), ctx.get("termos_proibidos"), ctx.get("npc_principal"),
+                                        escolhas_anteriores=[h["choice"] for h in state["history"]])
 
     # Garante que o visual do aluno nos personagens gerados seja o fixo
     personagens = state.get("personagens_globais", [])
@@ -1051,7 +1402,8 @@ def escolher():
     manager.save_state(sid)
 
     num_cena = state["current_step_idx"] + 1
-    proc = processar_cena(cena_raw, personagens, sid, num_cena, student_name=state["student"]["name"], npc_principal=ctx.get("npc_principal", ""), scenery_guideline=ctx.get("scenery_guideline", ""))
+    proc = processar_cena(cena_raw, personagens, sid, num_cena, student_name=state["student"]["name"], npc_principal=ctx.get("npc_principal", ""), scenery_guideline=ctx.get("scenery_guideline", ""),
+                          student_genero=state["student"].get("genero", "Masculino"), npc_visual=ctx.get("npc_visual", ""))
 
     # Salva a nova cena no banco
     quiz_manager.salvar_cena(
@@ -1074,16 +1426,15 @@ def escolher():
         'imagens_arquivos': proc['imagens_arquivos'],
         'referencia_arquivo': proc['imagens_arquivos'][0],
         'microcenas_textos': proc['microcenas_textos'],
+        'marco_historico': ctx.get('marco_historico'),
         'opcoes': proc['opcoes'], 'tem_opcoes': not ctx.get('is_final', False)
     }
 
-    # Publica a cena automaticamente no servidor
+    # Publica a cena automaticamente no servidor (a cena nova ganha cena_id antes de ficar visível)
+    _nova_cena_ativa()
     SESSAO_ATIVA["session_id"] = sid
     SESSAO_ATIVA["last_scene_data"] = dados_retorno
     SESSAO_ATIVA["status"] = "ativo"
-    SESSAO_ATIVA["text_chunks"] = []
-    SESSAO_ATIVA["quadro_atual"] = -1
-    SESSAO_ATIVA["avanco_step"] = 0  # reseta o contador por cena
 
     return jsonify(dados_retorno)
 
@@ -1097,8 +1448,7 @@ def visualizador_cena():
     if SESSAO_ATIVA["status"] == "pensando":
         return jsonify({
             "status": "pensando",
-            "fala_robo": SESSAO_ATIVA["fala_enrolacao"],
-            "avanco_step": SESSAO_ATIVA.get("avanco_step", 0)
+            "fala_robo": SESSAO_ATIVA["fala_enrolacao"]
         })
         
     if SESSAO_ATIVA["status"] == "comando_avulso":
@@ -1130,18 +1480,32 @@ def visualizador_cena():
             "dados": SESSAO_ATIVA["last_scene_data"]
         })
 
+    # A apresentação informa em cada consulta o quadro que está mostrando: se um
+    # /publicar_quadro se perdeu na rede, o servidor se corrige aqui sozinho.
+    try:
+        _definir_quadro_atual(int(request.args["cena_id"]), int(request.args["quadro"]))
+    except (KeyError, ValueError):
+        pass
+
     return jsonify({
         "status": "ativo",
         "session_id": SESSAO_ATIVA["session_id"],
         "dados": SESSAO_ATIVA["last_scene_data"],
-        "avanco_step": SESSAO_ATIVA.get("avanco_step", 0)
+        **_estado_quadros()
     })
 
 @app.route('/forcar_avanco', methods=['POST'])
 def forcar_avanco():
-    # Dashboard chamou esse endpoint
-    SESSAO_ATIVA["avanco_step"] = SESSAO_ATIVA.get("avanco_step", 0) + 1
-    return jsonify({"status": "ok", "avanco_step": SESSAO_ATIVA["avanco_step"]})
+    """
+    Botões de passar (dashboard e painel de decisão). Libera o quadro que está na tela.
+    Com {"cena_id", "quadro"} só vale para aquele quadro — um clique atrasado pela rede
+    não passa o quadro seguinte.
+    """
+    dados = request.get_json(silent=True) or {}
+    quadro = dados.get("quadro") if isinstance(dados.get("quadro"), int) else None
+    origem = dados.get("origem", "botão")
+    aceito = _liberar_quadro(dados.get("cena_id"), quadro, f"botão {origem}")
+    return jsonify({"status": "ok" if aceito else "ignorado", **_estado_quadros()})
 
 
 
@@ -1149,11 +1513,15 @@ def forcar_avanco():
 # QUIZ — GERAÇÃO E PERSISTÊNCIA
 # ============================================================
 
-def montar_prompt_quiz(student_name, historico):
+def montar_prompt_quiz(student_name, historico, marcos=None):
     """
-    Monta o prompt para a IA gerar 3 perguntas de múltipla escolha
-    baseadas no histórico narrativo da sessão.
+    Monta o prompt para a IA gerar 5 perguntas de múltipla escolha
+    baseadas no histórico narrativo da sessão (com pelo menos 1 por marco histórico).
     """
+    regra_marcos = ""
+    if marcos:
+        lista = "; ".join(f"{m['ano']} — {m['titulo']}" for m in marcos)
+        regra_marcos = f"\n10. Faça pelo menos 1 pergunta sobre CADA marco histórico da jornada: {lista}."
     resumo_historia = ""
     for h in historico:
         ato = h.get("ato", "?")
@@ -1182,7 +1550,7 @@ Com base nos acontecimentos da história descritos abaixo, gere EXATAMENTE 5 per
 6. As perguntas devem ser claras, curtas e adequadas para crianças (8-12 anos).
 7. Distribua as perguntas entre os diferentes momentos da história (começo, meio, fim).
 8. A opção correta deve estar SEMPRE no primeiro item (índice 0) do array "opcoes". O sistema vai embaralhar automaticamente depois.
-9. "Não me lembro." deve estar SEMPRE no índice 3.
+9. "Não me lembro." deve estar SEMPRE no índice 3.{regra_marcos}
 
 ### JSON SCHEMA ###
 Retorne APENAS um objeto JSON:
@@ -1263,7 +1631,8 @@ def finalizar_sessao():
 
         print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] - Aluno: {student_name}")
 
-        prompt_quiz = montar_prompt_quiz(student_name, historico)
+        marcos = [s["marco_historico"] for s in state["blueprint"]["steps"] if s.get("marco_historico")]
+        prompt_quiz = montar_prompt_quiz(student_name, historico, marcos)
         quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
         perguntas = quiz_raw.get("perguntas", [])
 

@@ -38,10 +38,8 @@ def _normalizar_personagem(nome: str) -> str:
         "turing": "alan_turing",
         "steve jobs": "steve_jobs",
         "jobs": "steve_jobs",
-        # Personagens da história_computacao fallback
-        "charles babbage": "alan_turing",
-        "ada lovelace": "alan_turing",
-        "j.c.r. licklider": "alan_turing",
+        # Personagens da história_computacao (Ada, Kleinrock, etc.) não têm fatos na base:
+        # sem mapeamento, o RAG não injeta nada — antes eles recebiam fatos do Turing.
     }
     return mapa.get(nome.lower().strip(), "")
 

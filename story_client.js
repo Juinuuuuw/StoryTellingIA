@@ -36,7 +36,9 @@ function prepararPasta(sessionId) {
 }
 
 function salvarImagem(base64, nomeArquivo) {
-    const filePath = path.join(PASTA_SESSAO, path.basename(nomeArquivo));
+    // nomeArquivo já vem como "sessao_<id>/cena_N_quadro_M.png": salva exatamente onde o frontend procura
+    const filePath = path.join(__dirname, "historias_geradas", nomeArquivo);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, Buffer.from(base64, "base64"));
     console.log(`      💾 Salvo: ${filePath}`);
 }
@@ -205,6 +207,13 @@ async function processarSessao(sessionId) {
             try {
                 const r = await axios.get(`${SERVIDOR_FLASK}/visualizador/cena_atual`, { timeout: 5000 });
                 const d = r.data;
+                // Outra sessão começou (esta foi abandonada): sai para o daemon pegar a nova da fila.
+                // Sem isso, as imagens da sessão nova iam parar na pasta desta.
+                if (d?.session_id && d.session_id !== sessionId) {
+                    console.log(`\n⚠️  Nova sessão (${d.session_id}) iniciada — encerrando ${sessionId}.`);
+                    temOpcoes = false;
+                    break;
+                }
                 if (d?.status === "ativo" && d.dados?.historia_original &&
                     d.dados.historia_original !== ultimaHistoria) {
                     proximaCena = d.dados;

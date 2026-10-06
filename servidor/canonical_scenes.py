@@ -20,7 +20,7 @@ CENAS_CANONICAS = {
     "alan_turing": [
         {
             "id": "bombe_noite",
-            "step_ideal": "enigma_bletchley",
+            "step_ideal": ["bombe_victory_preparacao", "enigma_naval_preparacao"],
             "instrucao_prompt": (
                 "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
                 "At some point in this scene, Alan Turing is found asleep slumped against the Bombe machine very late at night. "
@@ -32,7 +32,7 @@ CENAS_CANONICAS = {
         },
         {
             "id": "primeiro_codigo_enigma",
-            "step_ideal": "enigma_bletchley",
+            "step_ideal": "enigma_naval",
             "instrucao_prompt": (
                 "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
                 "The Bombe machine suddenly stops. A deafening silence falls over the room. "
@@ -72,7 +72,7 @@ CENAS_CANONICAS = {
     "katherine_johnson": [
         {
             "id": "banheiro_segregado",
-            "step_ideal": "west_computing",
+            "step_ideal": ["sputnik_corrida_preparacao", "primeira_autora_preparacao", "freedom7_preparacao"],
             "instrucao_prompt": (
                 "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
                 "At some point, Katherine needs to use the bathroom and must walk almost 800 meters to the 'Colored Restroom' in another building. "
@@ -86,7 +86,7 @@ CENAS_CANONICAS = {
         },
         {
             "id": "cafe_segregado",
-            "step_ideal": "west_computing",
+            "step_ideal": ["sputnik_corrida_preparacao", "primeira_autora_preparacao", "freedom7_preparacao"],
             "instrucao_prompt": (
                 "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
                 "During a break, the student notices there are two identical coffee machines in the break room. "
@@ -98,7 +98,7 @@ CENAS_CANONICAS = {
         },
         {
             "id": "glenn_pediu_por_ela",
-            "step_ideal": "john_glenn_request",
+            "step_ideal": "friendship7_preparacao",
             "instrucao_prompt": (
                 "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
                 "A phone rings. An engineer answers and goes pale. He announces: John Glenn will not board the rocket "
@@ -111,7 +111,7 @@ CENAS_CANONICAS = {
         },
         {
             "id": "apollo_13_corrida",
-            "step_ideal": "apollo_13_resgate",
+            "step_ideal": "apollo13_preparacao",
             "instrucao_prompt": (
                 "CANONICAL SCENE — MANDATORY (must be woven naturally into this chapter's narrative): "
                 "The room erupts into controlled chaos. 'Houston, we have a problem.' "
@@ -130,20 +130,32 @@ CENAS_CANONICAS = {
 # FUNÇÕES PÚBLICAS
 # ============================================================
 
-def sortear_cena_canonica(skill: str, session_id: str) -> dict | None:
+def _steps_ideais(cena: dict) -> list:
+    """step_ideal pode ser um id ou uma lista de ids."""
+    ideal = cena.get("step_ideal", [])
+    return [ideal] if isinstance(ideal, str) else list(ideal)
+
+
+def sortear_cena_canonica(skill: str, session_id: str, steps_sessao: list | None = None) -> dict | None:
     """
     Sorteia UMA cena canônica de forma determinística por sessão.
     O mesmo session_id sempre retorna a mesma cena para o mesmo personagem,
     mas sessões diferentes terão cenas diferentes.
 
+    Como os marcos de cada sessão são sorteados, só concorrem as cenas cujo
+    step ideal existe nesta sessão (senão a cena sorteada poderia nunca acontecer).
+
     Args:
-        skill:      Skill da história (ex: "katherine_johnson").
-        session_id: ID único da sessão.
+        skill:        Skill da história (ex: "katherine_johnson").
+        session_id:   ID único da sessão.
+        steps_sessao: IDs das cenas desta sessão, em ordem (opcional).
 
     Returns:
-        Dicionário da cena canônica, ou None se não houver cenas para a skill.
+        Dicionário da cena canônica, ou None se não houver cenas possíveis.
     """
     cenas = CENAS_CANONICAS.get(skill, [])
+    if steps_sessao is not None:
+        cenas = [c for c in cenas if set(_steps_ideais(c)) & set(steps_sessao)]
     if not cenas:
         return None
 
@@ -153,31 +165,35 @@ def sortear_cena_canonica(skill: str, session_id: str) -> dict | None:
     return cenas[idx]
 
 
-def obter_instrucao_canonica(skill: str, session_id: str, step_atual: str) -> str:
+def obter_instrucao_canonica(skill: str, session_id: str, step_atual: str, steps_sessao: list | None = None) -> str:
     """
     Retorna a instrução de prompt da cena canônica APENAS se o step atual
-    é o step ideal para aquela cena.
+    é o step ideal para aquela cena (o primeiro deles, se a sessão tiver vários).
 
     Args:
-        skill:       Skill da história.
-        session_id:  ID da sessão.
-        step_atual:  ID do step sendo processado agora.
+        skill:        Skill da história.
+        session_id:   ID da sessão.
+        step_atual:   ID do step sendo processado agora.
+        steps_sessao: IDs das cenas desta sessão, em ordem (opcional).
 
     Returns:
         String de instrução para injetar no prompt, ou string vazia.
     """
-    cena = sortear_cena_canonica(skill, session_id)
+    cena = sortear_cena_canonica(skill, session_id, steps_sessao)
     if not cena:
         return ""
 
-    if cena.get("step_ideal") == step_atual:
+    ideais = _steps_ideais(cena)
+    if steps_sessao is not None:
+        ideais = [s for s in steps_sessao if s in ideais][:1]   # acontece uma vez só
+    if step_atual in ideais:
         print(f"✨ Cena Canônica ATIVADA: [{cena['id']}] no step [{step_atual}]")
         return cena["instrucao_prompt"]
 
     return ""
 
 
-def obter_id_cena_sorteada(skill: str, session_id: str) -> str:
+def obter_id_cena_sorteada(skill: str, session_id: str, steps_sessao: list | None = None) -> str:
     """Retorna o ID da cena canônica sorteada (para logging)."""
-    cena = sortear_cena_canonica(skill, session_id)
+    cena = sortear_cena_canonica(skill, session_id, steps_sessao)
     return cena["id"] if cena else "nenhuma"

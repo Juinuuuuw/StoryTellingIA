@@ -6,6 +6,8 @@ import os
 import sys
 import subprocess
 import random
+import shlex
+import threading
 from naoguese import para_naoguese  # transliteração fonética PT-BR → NAOguês
 
 try:
@@ -24,6 +26,35 @@ SERVER_URL       = "http://127.0.0.1:5000/visualizador/cena_atual"
 SERVER_QUADRO    = "http://127.0.0.1:5000/visualizador/quadro_atual"
 NAO_IP     = "172.20.10.5"
 NAO_PORT   = 9559
+
+# Pausa depois de terminar a fala de um quadro, antes de liberar a troca de imagem
+PAUSA_APOS_FALA_QUADRO = 1.2
+# A configuração de atenção é reaplicada de tempos em tempos: a Vida Autônoma do NAO
+# pode restaurar o padrão (que reage a sons) quando muda de estado
+REAPLICAR_ATENCAO_A_CADA = 60
+
+# ============================================================
+# ATENÇÃO: olhar para a pessoa na frente, sem virar a cabeça por barulho
+# ============================================================
+# O padrão do NAO (ALBasicAwareness) vira a cabeça na direção de qualquer som ou
+# movimento — é o giro rápido "do nada". Aqui ele só segue PESSOAS e, ao engajar
+# com alguém (FullyEngaged), ignora os outros estímulos até perder essa pessoa.
+# (serviço, método, argumentos) — cada comando é independente: se um não existir
+# nesta versão do NAOqi, os outros continuam valendo.
+CONFIG_ATENCAO = [
+    ("ALAutonomousLife",  "setAutonomousAbilityEnabled", ["BackgroundMovement", False]),  # mexidas aleatórias
+    ("ALAutonomousLife",  "setAutonomousAbilityEnabled", ["ListeningMovement", False]),
+    ("ALAutonomousMoves", "setExpressiveListeningEnabled", [False]),
+    ("ALAutonomousMoves", "setBackgroundStrategy", ["none"]),
+    ("ALBasicAwareness",  "setStimulusDetectionEnabled", ["Sound", False]),
+    ("ALBasicAwareness",  "setStimulusDetectionEnabled", ["Movement", False]),
+    ("ALBasicAwareness",  "setStimulusDetectionEnabled", ["NavigationMotion", False]),
+    ("ALBasicAwareness",  "setStimulusDetectionEnabled", ["Touch", False]),
+    ("ALBasicAwareness",  "setStimulusDetectionEnabled", ["TabletTouch", False]),
+    ("ALBasicAwareness",  "setStimulusDetectionEnabled", ["People", True]),
+    ("ALBasicAwareness",  "setEngagementMode", ["FullyEngaged"]),
+    ("ALBasicAwareness",  "setTrackingMode", ["Head"]),      # só a cabeça acompanha, o corpo fica parado
+]
 
 # ============================================================
 # ANIMAÇÕES DISPONÍVEIS NO NAO (behavior names nativos)
@@ -138,28 +169,90 @@ def falar_fallback(texto_animado, texto_puro):
         print("Erro: A biblioteca 'paramiko' não está instalada e 'qi' não foi encontrado.")
         return
         
+    # Tempo máximo esperando a fala terminar: se a rede cair no meio, não trava para sempre
+    # (o NAO fala ~13 caracteres por segundo; a folga cobre gestos e conexão)
+    limite = 20 + len(texto_puro) * 0.12
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(NAO_IP, username="nao", password="nao", timeout=5)
-        
+
         # Define linguagem antes de falar
         ssh.exec_command('qicli call ALTextToSpeech.setLanguage "Brazilian"')
-        
-        # Executa ALAnimatedSpeech
+
+        # Executa ALAnimatedSpeech (espera terminar: é isso que marca o fim da fala do quadro)
         cmd = f'qicli call ALAnimatedSpeech.say "{texto_animado}"'
-        stdin, stdout, stderr = ssh.exec_command(cmd)
+        stdin, stdout, stderr = ssh.exec_command(cmd, timeout=limite)
         erro = stderr.read().decode().strip()
-        
+
         if erro or stdout.channel.recv_exit_status() != 0:
             print("SSH ALAnimatedSpeech falhou:", erro)
             print("Tentando TTS simples via SSH...")
             cmd_puro = f'qicli call ALTextToSpeech.say "{texto_puro}"'
-            ssh.exec_command(cmd_puro)
-        
+            _, out_puro, _ = ssh.exec_command(cmd_puro, timeout=limite)
+            out_puro.channel.recv_exit_status()   # espera a fala acabar antes de avisar o servidor
+
         ssh.close()
     except Exception as e:
         print("Erro ao tentar enviar comando via SSH para o NAO:", e)
+
+
+def _executar_ssh(comando, timeout=20):
+    """Roda um comando no NAO por SSH e devolve a saída (vazia se falhar)."""
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(NAO_IP, username="nao", password="nao", timeout=5)
+        _, stdout, _ = ssh.exec_command(comando, timeout=timeout)
+        saida = stdout.read().decode(errors="replace")
+        ssh.close()
+        return saida
+    except Exception as e:
+        print("Erro de SSH com o NAO:", e)
+        return ""
+
+
+def configurar_atencao(silencioso=False):
+    """Aplica CONFIG_ATENCAO no robô (pelo qi ou por SSH) e liga o rastreamento de pessoas."""
+    falhas = []
+    if QI_DISPONIVEL:
+        for servico, metodo, args in CONFIG_ATENCAO:
+            try:
+                getattr(session.service(servico), metodo)(*args)
+            except Exception:
+                falhas.append(f"{servico}.{metodo}{args}")
+        try:
+            aw = session.service("ALBasicAwareness")
+            try:
+                aw.setEnabled(True)            # NAOqi 2.5+
+            except Exception:
+                aw.startAwareness()            # NAOqi 2.1
+        except Exception:
+            falhas.append("ALBasicAwareness ligar")
+    elif PARAMIKO_DISPONIVEL:
+        # Um único SSH com todos os comandos; --json garante o tipo certo (bool/str) de cada argumento
+        linhas = []
+        for servico, metodo, args in CONFIG_ATENCAO:
+            argv = " ".join(shlex.quote(json.dumps(a)) for a in args)
+            nome = f"{servico}.{metodo}{args}"
+            linhas.append(f"qicli call --json {servico}.{metodo} {argv} >/dev/null 2>&1 || echo FALHOU:{shlex.quote(nome)}")
+        linhas.append("(qicli call --json ALBasicAwareness.setEnabled true >/dev/null 2>&1"
+                      " || qicli call ALBasicAwareness.startAwareness >/dev/null 2>&1) || echo FALHOU:ligar-ALBasicAwareness")
+        saida = _executar_ssh("; ".join(linhas))
+        falhas = [l[len("FALHOU:"):] for l in saida.splitlines() if l.startswith("FALHOU:")]
+    else:
+        return
+    if not silencioso:
+        print("Atenção configurada: o NAO segue pessoas e ignora sons/movimentos.")
+        for f in falhas:
+            print("  (aviso) não disponível nesta versão do NAOqi: " + f)
+
+
+def _manter_atencao():
+    """Reaplica a configuração periodicamente, em segundo plano (não atrasa as falas)."""
+    while True:
+        time.sleep(REAPLICAR_ATENCAO_A_CADA)
+        configurar_atencao(silencioso=True)
 
 if QI_DISPONIVEL:
     print("Conectando ao NAO nativamente (qi)...")
@@ -173,28 +266,12 @@ if QI_DISPONIVEL:
         tts.setLanguage("Brazilian")
         config = {"bodyLanguageMode": "contextual"}
         
-        # Garante que os motores da cabeça estão ligados para podermos movê-la no modo idle
+        # Garante que os motores da cabeça estão ligados para ela acompanhar a pessoa
         try:
             motion.setStiffnesses("Head", 1.0)
-            
-            # Desativa o "tracking" automático do NAO (que faz ele olhar loucamente pros lados)
-            try:
-                awareness = session.service("ALBasicAwareness")
-                if awareness.isAwarenessRunning():
-                    awareness.stopAwareness()
-            except Exception:
-                pass
-                
-            try:
-                autoMoves = session.service("ALAutonomousMoves")
-                autoMoves.setExpressiveListeningEnabled(False)
-                autoMoves.setBackgroundStrategy("none")
-            except Exception:
-                pass
-                
         except Exception as e:
             print("Aviso: Nao foi possivel ativar stiffness da cabeca:", e)
-            
+
         print("Conectado ao NAO!")
     except Exception as e:
         print("Erro ao conectar ao NAO: " + str(e))
@@ -207,36 +284,17 @@ else:
         print("Paramiko pronto para conectar ao NAO via SSH!")
 
 
-# NOVO: Função para movimentar a cabeça lentamente (idle look)
-def mover_cabeca_idle():
-    yaw = random.uniform(-0.15, 0.15)
-    pitch = random.uniform(-0.10, 0.10)
-    velocidade = random.uniform(0.02, 0.05)
-    
-    if QI_DISPONIVEL:
-        try:
-            motion.setAngles(["HeadYaw", "HeadPitch"], [yaw, pitch], velocidade)
-        except Exception:
-            pass
-    elif PARAMIKO_DISPONIVEL:
-        try:
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(NAO_IP, username="nao", password="nao", timeout=2)
-            cmd1 = f'qicli call ALMotion.setAngles "HeadYaw" {yaw} {velocidade}'
-            cmd2 = f'qicli call ALMotion.setAngles "HeadPitch" {pitch} {velocidade}'
-            ssh.exec_command(f"{cmd1} ; {cmd2}")
-            ssh.close()
-        except:
-            pass
+# A cabeça é guiada pela atenção do NAO (segue a pessoa da frente). O antigo movimento
+# ocioso aleatório foi removido: ele brigava com o rastreamento e girava a cabeça sozinho.
+configurar_atencao()
+threading.Thread(target=_manter_atencao, daemon=True).start()
 
 # ============================================================
 # LOOP PRINCIPAL — sincronizado por quadro
 # ============================================================
 ultimo_texto   = None
-ultimo_quadro  = -1   # rastreia o índice do quadro já falado
+ultimo_quadro  = None  # (cena_id, quadro_idx) do último quadro já falado
 tempo_ultima_fala = time.time()
-tempo_ultimo_movimento = time.time()
 
 print("Monitorando servidor... (CTRL+C para parar)")
 
@@ -264,9 +322,38 @@ def _sinalizar_fim_fala():
     except Exception:
         pass
 
-def falar(texto):
+def _avisar_fim_do_quadro(cena_id, quadro_idx):
+    """
+    Avisa o servidor que terminou de falar o quadro — é o gatilho de avanço da cena.
+    A rede é instável: reenvia em segundo plano até o servidor confirmar. O aviso é
+    absoluto ("quadro N da cena X"), então chegar repetido ou atrasado não pula quadro.
+    """
+    corpo = json.dumps({"cena_id": cena_id, "quadro_idx": quadro_idx}).encode()
+    url = SERVER_URL.replace("/visualizador/cena_atual", "/nao_terminou_fala")
+
+    def enviar():
+        for _ in range(120):   # até ~2 min tentando
+            try:
+                urllib.request.urlopen(
+                    urllib.request.Request(url, data=corpo, method="POST",
+                                           headers={"Content-Type": "application/json"}),
+                    timeout=3
+                )
+                return
+            except Exception:
+                time.sleep(1)
+        print(f"Aviso: não consegui avisar o fim do quadro {quadro_idx + 1} (cena {cena_id}).")
+
+    threading.Thread(target=enviar, daemon=True).start()
+
+
+def falar(texto, quadro=None):
     global tempo_ultima_fala
-    """Dispara a fala no NAO com gesto contextual."""
+    """
+    Dispara a fala no NAO com gesto contextual.
+    quadro=(cena_id, quadro_idx) quando a fala é de um quadro: ao terminar, avisa o
+    servidor para a cena avançar.
+    """
     if not texto:
         return
     texto = limpar_texto(texto)
@@ -294,7 +381,12 @@ def falar(texto):
         except Exception as e2:
             print("TTS também falhou: " + str(e2))
     finally:
-        _sinalizar_fim_fala()  # libera avanço de quadro — sempre executa, mesmo em erro
+        # Sempre executa, mesmo em erro
+        if quadro is not None:
+            time.sleep(PAUSA_APOS_FALA_QUADRO)   # respiro antes de trocar a imagem
+            _avisar_fim_do_quadro(*quadro)
+        else:
+            _sinalizar_fim_fala()
         tempo_ultima_fala = time.time()
 
 
@@ -311,7 +403,6 @@ while True:
             # Se for um novo texto de enrolação recebido do servidor, fala ele
             if texto_enrolacao and texto_enrolacao != ultimo_texto:
                 ultimo_texto = texto_enrolacao
-                ultimo_quadro = -1   # reseta para falar novamente na próxima cena
                 falar(texto_enrolacao)
             else:
                 # Se ainda estiver "pensando" e já se passaram 8 a 15 segundos desde a última fala, fala algo a mais
@@ -324,7 +415,6 @@ while True:
             texto_comando = cena_data.get("fala_robo", "")
             if texto_comando and texto_comando != ultimo_texto:
                 ultimo_texto = texto_comando
-                ultimo_quadro = -1
                 falar(texto_comando)
 
         elif cena_data.get("status") == "modal":
@@ -340,12 +430,13 @@ while True:
 
             texto_quadro = q_data.get("texto", "")
             quadro_idx   = q_data.get("quadro_idx", 0)
+            chave        = (q_data.get("cena_id"), quadro_idx)
 
-            # Fala apenas quando o quadro muda E há texto novo
-            if texto_quadro and quadro_idx != ultimo_quadro:
-                ultimo_quadro = quadro_idx
+            # Fala uma vez por quadro de cada cena (o cena_id evita confundir quadros de cenas diferentes)
+            if texto_quadro and quadro_idx >= 0 and chave != ultimo_quadro:
+                ultimo_quadro = chave
                 ultimo_texto  = texto_quadro
-                falar(texto_quadro)
+                falar(texto_quadro, quadro=chave)
 
     except KeyboardInterrupt:
         print("Encerrando.")
@@ -353,10 +444,4 @@ while True:
     except Exception as e:
         print("Erro: " + str(e))
         
-    # Aciona movimento de cabeça ocioso se não falou nada recentemente e já passou algum tempo
-    agora = time.time()
-    if agora - tempo_ultimo_movimento > random.uniform(3, 7):
-        mover_cabeca_idle()
-        tempo_ultimo_movimento = agora
-
     time.sleep(1)  # poll a cada 1s — rápido o suficiente para pegar a troca de quadro
