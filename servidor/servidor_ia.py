@@ -188,6 +188,40 @@ def _remover_genero_oposto(texto, genero):
     return re.sub(r"\s{2,}", " ", texto).strip(" ,")
 
 
+_TERMOS_ALUNO = {"student", "aluno", "aluna", "estudante", "you", "voce", "você", "player", "jogador"}
+
+
+def _tokens_nome(nome):
+    return {t for t in re.findall(r"\w+", (nome or "").lower()) if len(t) > 2}
+
+
+def _papel_do_nome(nome, student_name, npc_principal):
+    """
+    'student' / 'npc' / None para um nome vindo do LLM. O phi4-mini escreve "Turing" no lugar
+    de "Alan Turing" ou "the student" no lugar do nome do aluno; antes só o nome exato
+    era aceito e o resto virava quadro de cenário puro (história inteira sem nenhum humano).
+    """
+    tokens = _tokens_nome(nome)
+    if not tokens:
+        return None
+    if tokens & _tokens_nome(student_name) or tokens & _TERMOS_ALUNO:
+        return "student"
+    if tokens & _tokens_nome(npc_principal):
+        return "npc"
+    return None
+
+
+def _papel_pelo_texto(cena, student_name, npc_principal):
+    """Quem é citado na ação/cenário de uma microcena sem personagem válido."""
+    texto = " ".join(str(cena.get(k, "")) for k in ("action_english", "acao", "acao_ptbr", "scenery_english", "cenario"))
+    tokens = _tokens_nome(texto)
+    cita_npc = bool(tokens & _tokens_nome(npc_principal))
+    cita_aluno = bool(tokens & _tokens_nome(student_name))
+    if cita_npc != cita_aluno:
+        return "npc" if cita_npc else "student"
+    return None
+
+
 def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, npc_principal,
                             scenery_guideline="", student_genero="Masculino", npc_visual=""):
     """
@@ -222,13 +256,29 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
     student_prompt, student_negative = montar_visual_personagem(student_desc, student_genero)
     npc_prompt, npc_negative         = montar_visual_personagem(npc_desc, npc_genero)
 
-    # Garante que ao menos um quadro seja de cenário puro.
-    # Verifica se o LLM já deixou algum com 'personagens' vazio.
-    tem_cenario_puro = any(len(mc.get("personagens", [])) == 0 for mc in microcenas_raw[:4])
-    if not tem_cenario_puro:
-        # Força o quadro 3 (índice 2) a ser cenário puro
-        microcenas_raw[2] = dict(microcenas_raw[2])
-        microcenas_raw[2]["personagens"] = []
+    # Papel de cada quadro: 'student', 'npc' ou None (cenário puro). Máximo 1 personagem.
+    papeis = []
+    for cena in microcenas_raw[:4]:
+        pers = list(cena.get("personagens", []))
+        papeis.append(_papel_do_nome(pers[0], student_name, npc_principal) if pers else None)
+
+    # Garante que ao menos um quadro seja de cenário puro (força o quadro 3, índice 2).
+    if None not in papeis:
+        papeis[2] = None
+
+    # E no máximo 1 cenário puro quando o LLM ignora a regra (todas as microcenas sem
+    # personagem, ou com nomes que não reconhecemos): o 1º cenário fica, os demais ganham
+    # quem a microcena cita — senão alternamos NPC/aluno.
+    if papeis.count(None) > 2:
+        citados = [_papel_pelo_texto(c, student_name, npc_principal) for c in microcenas_raw[:4]]
+        vazios = [i for i, p in enumerate(papeis) if p is None]
+        cenario_fica = next((i for i in vazios if citados[i] is None), vazios[0])
+        anterior = "student"
+        for i in range(len(papeis)):
+            if papeis[i] is None and i != cenario_fica:
+                papeis[i] = citados[i] or ("npc" if anterior == "student" else "student")
+            if papeis[i]:
+                anterior = papeis[i]
 
     # Garante que não haja 2 quadros seguidos com o mesmo personagem
     # (alterna NPC → aluno → cenário → NPC etc.)
@@ -239,32 +289,21 @@ def montar_triptico_prompts(microcenas_raw, personagens_globais, student_name, n
     negatives = []   # ← negative_prompt específico por quadro
 
     for i, cena in enumerate(microcenas_raw[:4]):
-        pers = list(cena.get("personagens", []))
-
-        # Máximo 1 personagem
-        if len(pers) > 1:
-            pers = pers[:1]
-
         # Resolve o tipo de quadro e define negative correto
         char_prompt   = ""
         negative_quad = NEGATIVE_TOONYOU   # default: quadro com 1 pessoa
         genero_quad   = None               # gênero de quem aparece no quadro
 
-        if len(pers) == 0:
+        if papeis[i] is None:
             # Quadro de cenário puro — bloqueia qualquer humano
             char_prompt   = "no humans, no people, scenery only, environmental shot, empty scene"
             negative_quad = NEGATIVE_CENA_PURA
             ultimo_char   = None
         else:
-            p_nome = pers[0]
-            if p_nome.lower() == student_name.lower():
+            if papeis[i] == "student":
                 ultimo_char = "npc" if ultimo_char == "student" and i < 3 else "student"
-            elif p_nome.lower() == npc_principal.lower():
-                ultimo_char = "student" if ultimo_char == "npc" and i < 3 else "npc"
             else:
-                char_prompt   = "no humans, scenery only, empty scene"
-                negative_quad = NEGATIVE_CENA_PURA
-                ultimo_char   = None
+                ultimo_char = "student" if ultimo_char == "npc" and i < 3 else "npc"
 
             # Gênero e pele explícitos de quem aparece + negative com o oposto
             if ultimo_char == "student":
