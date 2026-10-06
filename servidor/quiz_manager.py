@@ -102,7 +102,8 @@ def init_db():
             expectativa_experiencia TEXT,
             status TEXT DEFAULT 'aguardando_historia',
             session_id TEXT,
-            tcle_aceito_em TEXT
+            tcle_aceito_em TEXT,
+            conhecimento_katherine_pre INTEGER
         );
 
         -- ── MÉTRICAS DE TEMPO POR FASE ────────────────────────────────
@@ -119,6 +120,10 @@ def init_db():
     colunas_pre = [c[1] for c in con.execute("PRAGMA table_info(pre_questionarios)")]
     if "tcle_aceito_em" not in colunas_pre:
         con.execute("ALTER TABLE pre_questionarios ADD COLUMN tcle_aceito_em TEXT")
+    # Migração: a pergunta "Alan Turing ou Katherine Johnson" virou duas; até então
+    # conhecimento_turing_pre guardava a resposta conjunta
+    if "conhecimento_katherine_pre" not in colunas_pre:
+        con.execute("ALTER TABLE pre_questionarios ADD COLUMN conhecimento_katherine_pre INTEGER")
     con.commit()
     con.close()
     print("[OK] Quiz DB inicializado.")
@@ -151,8 +156,9 @@ def salvar_pre_questionario(dados: dict) -> str:
                  idade, area_formacao, contato_robos, frequencia_ia,
                  conhecimento_historia_pre, ja_ouviu_marco_pre,
                  conhecimento_turing_pre, ja_ouviu_marco_historico,
-                 percepcao_nao, expectativa_experiencia, tcle_aceito_em, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'aguardando_historia')
+                 percepcao_nao, expectativa_experiencia, tcle_aceito_em,
+                 conhecimento_katherine_pre, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'aguardando_historia')
         """, (
             pre_id,
             datetime.now().isoformat(),
@@ -168,6 +174,7 @@ def salvar_pre_questionario(dados: dict) -> str:
             percepcao_json,
             dados.get("expectativa_experiencia"),
             dados.get("tcle_aceito_em"),
+            dados.get("conhecimento_katherine_pre"),
         ))
         con.commit()
         print(f"[OK] Pre-questionario salvo: {pre_id}")
@@ -205,7 +212,8 @@ def get_pre_questionario(pre_id: str):
                    idade, area_formacao, contato_robos, frequencia_ia,
                    conhecimento_historia_pre, ja_ouviu_marco_pre,
                    conhecimento_turing_pre, ja_ouviu_marco_historico,
-                   percepcao_nao, expectativa_experiencia, status, session_id
+                   percepcao_nao, expectativa_experiencia, status, session_id,
+                   conhecimento_katherine_pre
             FROM pre_questionarios WHERE pre_id=?
         """, (pre_id,)).fetchone()
         if not row:
@@ -223,7 +231,7 @@ def get_pre_questionario(pre_id: str):
             "ja_ouviu_marco_pre": row[8], "conhecimento_turing_pre": row[9],
             "ja_ouviu_marco_historico": row[10], "percepcao_nao": percepcao,
             "expectativa_experiencia": row[12], "status": row[13],
-            "session_id": row[14],
+            "session_id": row[14], "conhecimento_katherine_pre": row[15],
         }
     finally:
         con.close()
@@ -255,7 +263,8 @@ def get_todos_pre_questionarios():
                    idade, area_formacao, contato_robos, frequencia_ia,
                    conhecimento_historia_pre, ja_ouviu_marco_pre,
                    conhecimento_turing_pre, ja_ouviu_marco_historico,
-                   percepcao_nao, expectativa_experiencia, status, session_id
+                   percepcao_nao, expectativa_experiencia, status, session_id,
+                   conhecimento_katherine_pre
             FROM pre_questionarios ORDER BY data_hora ASC
         """).fetchall()
         result = []
@@ -273,7 +282,7 @@ def get_todos_pre_questionarios():
                 "ja_ouviu_marco_pre": row[8], "conhecimento_turing_pre": row[9],
                 "ja_ouviu_marco_historico": row[10], "percepcao_nao": percepcao,
                 "expectativa_experiencia": row[12], "status": row[13],
-                "session_id": row[14],
+                "session_id": row[14], "conhecimento_katherine_pre": row[15],
             })
         return result
     finally:
@@ -768,7 +777,8 @@ def exportar_excel_geral(caminho_arquivo):
             "Idade", "Area de Formacao/Atuacao",
             "Contato Anterior com Robos Sociais", "Frequencia uso IA Generativa",
             "Conhecimento Historia Comp. Pre (1-5)", "Ja ouviu falar de marco historico Pre",
-            "Conhecimento Alan Turing Pre (1-5)", "Ja ouviu falar de marco historico (2)",
+            "Conhecimento Alan Turing Pre (1-5)", "Conhecimento Katherine Johnson Pre (1-5)",
+            "Ja ouviu falar de marco historico (2)",
             # Percepção NAO — Antropomorfismo
             "NAO: Falso/Natural", "NAO: Mecanico/Humano", "NAO: Inconsciente/Consciente",
             "NAO: Artificial/Realista (Antrop)", "NAO: Move rigidez/fluidez",
@@ -794,7 +804,8 @@ def exportar_excel_geral(caminho_arquivo):
                    idade, area_formacao, contato_robos, frequencia_ia,
                    conhecimento_historia_pre, ja_ouviu_marco_pre,
                    conhecimento_turing_pre, ja_ouviu_marco_historico,
-                   percepcao_nao, expectativa_experiencia, status, session_id
+                   percepcao_nao, expectativa_experiencia, status, session_id,
+                   conhecimento_katherine_pre
             FROM pre_questionarios ORDER BY data_hora ASC
         """).fetchall()
 
@@ -816,7 +827,7 @@ def exportar_excel_geral(caminho_arquivo):
         for r in pre_rows:
             pre_id, dt, tempo, idade, area, contato, freq_ia, \
             conhec_hist, marco_pre, conhec_turing, marco_hist, \
-            percepcao_json, expectativa, status_p, sid = r
+            percepcao_json, expectativa, status_p, sid, conhec_katherine = r
 
             percepcao = {}
             try:
@@ -828,7 +839,7 @@ def exportar_excel_geral(caminho_arquivo):
 
             row_data = [
                 pre_id, dt, tempo, idade, area, contato, freq_ia,
-                conhec_hist, marco_pre, conhec_turing, marco_hist,
+                conhec_hist, marco_pre, conhec_turing, conhec_katherine, marco_hist,
                 *percepcao_vals,
                 expectativa, status_p, sid or ""
             ]
@@ -1154,7 +1165,7 @@ def exportar_excel_analista(filepath):
             'ID Absoluto (Pré)', 'Session ID (História)', 'Data Cadastro', 'Status',
             'Idade', 'Área de Formação', 'Contato com Robôs', 'Frequência de IA',
             'Conhec. História Computação (1-5)', 'Marco Citado (Pré)',
-            'Conhec. Alan Turing (1-5)', 'Marco Citado 2 (Pré)',
+            'Conhec. Alan Turing (1-5)', 'Conhec. Katherine Johnson (1-5)', 'Marco Citado 2 (Pré)',
             'Expectativa Experiência'
         ]
         
@@ -1222,6 +1233,7 @@ def exportar_excel_analista(filepath):
                 'Conhec. História Computação (1-5)': p['conhecimento_historia_pre'],
                 'Marco Citado (Pré)': p['ja_ouviu_marco_pre'],
                 'Conhec. Alan Turing (1-5)': p['conhecimento_turing_pre'],
+                'Conhec. Katherine Johnson (1-5)': p['conhecimento_katherine_pre'],
                 'Marco Citado 2 (Pré)': p['ja_ouviu_marco_historico'],
                 'Expectativa Experiência': p['expectativa_experiencia'],
                 

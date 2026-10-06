@@ -277,8 +277,8 @@
             <!-- STEP 1: Nome -->
             <div class="cadastro-step" id="step-nome">
                 <div class="step-indicator">Passo 1 de 3</div>
-                <label class="cadastro-label">Qual é o do seu personagem?</label>
-                <input id="input-nome" type="text" placeholder="Digite seu nome aqui..." maxlength="30"
+                <label class="cadastro-label">Qual é o nome do seu personagem?</label>
+                <input id="input-nome" type="text" placeholder="Digite o nome do personagem..." maxlength="30"
                     oninput="validarStepNome()" onkeydown="if(event.key==='Enter') avancarParaGenero()">
                 <button class="cadastro-btn" id="btn-nome" onclick="avancarParaGenero()" disabled>CONTINUAR →</button>
             </div>
@@ -286,7 +286,7 @@
             <!-- STEP 2: Gênero + Jornada -->
             <div class="cadastro-step" id="step-jornada">
                 <div class="step-indicator">Passo 2 de 3</div>
-                <label class="cadastro-label">Qual é gênero do seu personagem?</label>
+                <label class="cadastro-label">Qual é o gênero do seu personagem?</label>
                 <div class="card-grid cols-2" style="margin-bottom:32px;">
                     <div class="card-opcao" id="card-masculino" onclick="selecionarGenero('Masculino')">
                         <div class="card-icone" data-icone-busto="curto"></div>
@@ -469,7 +469,7 @@
         const PERGUNTAS_PERSONAGEM = [
             {
                 chave: 'comprimento',
-                pergunta: 'Qual o tamanho do seu cabelo?',
+                pergunta: 'Qual o tamanho do cabelo do seu personagem?',
                 cols: 4,
                 opcoes: [
                     { label: 'Curto', icone: iconeBusto('curto'), tag: 'short' },
@@ -480,7 +480,7 @@
             },
             {
                 chave: 'tipo',
-                pergunta: 'Como é o tipo do seu cabelo?',
+                pergunta: 'Qual é o tipo de cabelo do seu personagem?',
                 cols: 4,
                 opcoes: [
                     { label: 'Liso', icone: iconeFios('liso'), tag: 'straight' },
@@ -491,7 +491,7 @@
             },
             {
                 chave: 'cor_cabelo',
-                pergunta: 'Qual é a cor do seu cabelo?',
+                pergunta: 'Qual é a cor do cabelo do seu personagem?',
                 cols: 4,
                 opcoes: [
                     { label: 'Preto', icone: iconeMecha('#1c1c22', 'rgba(255,255,255,0.6)'), tag: 'black hair' },
@@ -502,7 +502,7 @@
             },
             {
                 chave: 'pele',
-                pergunta: 'Qual é a cor da sua pele?',
+                pergunta: 'Qual é a cor da pele do seu personagem?',
                 cols: 4,
                 opcoes: [
                     { label: 'Clara', icone: iconeRosto('#f5d6c0', '#b0705a'), tag: 'light skin' },
@@ -513,7 +513,7 @@
             },
             {
                 chave: 'olhos',
-                pergunta: 'E os seus olhos?',
+                pergunta: 'Qual é a cor dos olhos do seu personagem?',
                 cols: 4,
                 opcoes: [
                     { label: 'Castanhos', icone: iconeOlho('#7a4a1e'), tag: 'brown eyes' },

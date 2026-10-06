@@ -403,41 +403,41 @@
 
   <!-- SECAO 2 -->
   <div class="section-card" id="sec-2">
-    <div class="section-desc">Queremos entender o seu nível de familiaridade com o tema antes da sessão.</div>
+    <div class="section-desc">Queremos entender o seu nível de familiaridade com o tema.</div>
     
     <div class="question-block">
-      <div class="question-label">Antes desta sessão, quanto você considera que conhecia sobre a história da computação? <span class="req">*</span></div>
+      <div class="question-label">O quanto você conhece sobre a história da computação? <span class="req">*</span></div>
       <div class="likert-scale">
-        <span class="likert-label-text">Não conhecia<br>praticamente nada</span>
+        <span class="likert-label-text">Não conheço<br>praticamente nada</span>
         <div class="likert-buttons" id="btns-conhec-hist"></div>
-        <span class="likert-label-text right">Conhecia<br>bastante</span>
+        <span class="likert-label-text right">Conheço<br>bastante</span>
       </div>
     </div>
     
     <div class="question-block">
-      <div class="question-label">Antes desta sessão, você se lembra de já ter ouvido falar de algum marco ou acontecimento importante da história da computação? <span class="req">*</span></div>
-      <div class="options-list">
-        <div class="option-item" data-chave="ja_ouviu_marco_pre" data-valor="Sim."><div class="option-dot"></div><span class="option-text">Sim.</span></div>
-        <div class="option-item" data-chave="ja_ouviu_marco_pre" data-valor="Não."><div class="option-dot"></div><span class="option-text">Não.</span></div>
-        <div class="option-item" data-chave="ja_ouviu_marco_pre" data-valor="Não tenho certeza."><div class="option-dot"></div><span class="option-text">Não tenho certeza.</span></div>
-      </div>
-    </div>
-    
-    <div class="question-block">
-      <div class="question-label">Antes desta sessão, você já tinha ouvido falar de Alan Turing ou Katherine Johnson? <span class="req">*</span></div>
-      <div class="likert-scale">
-        <span class="likert-label-text">Não sabia<br>nada</span>
-        <div class="likert-buttons" id="btns-turing"></div>
-        <span class="likert-label-text right">Sabia<br>bastante</span>
-      </div>
-    </div>
-    
-    <div class="question-block">
-      <div class="question-label">Você se lembra de já ter ouvido falar de algum marco histórico da computação antes de hoje? <span class="req">*</span></div>
+      <div class="question-label">Você conhece algum marco histórico da computação? <span class="req">*</span></div>
       <div class="options-list">
         <div class="option-item" data-chave="ja_ouviu_marco_historico" data-valor="Sim."><div class="option-dot"></div><span class="option-text">Sim.</span></div>
         <div class="option-item" data-chave="ja_ouviu_marco_historico" data-valor="Não."><div class="option-dot"></div><span class="option-text">Não.</span></div>
         <div class="option-item" data-chave="ja_ouviu_marco_historico" data-valor="Não tenho certeza."><div class="option-dot"></div><span class="option-text">Não tenho certeza.</span></div>
+      </div>
+    </div>
+    
+    <div class="question-block">
+      <div class="question-label">O quanto você conhece sobre Alan Turing? <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Não conheço<br>nada</span>
+        <div class="likert-buttons" id="btns-turing"></div>
+        <span class="likert-label-text right">Conheço<br>bastante</span>
+      </div>
+    </div>
+    
+    <div class="question-block">
+      <div class="question-label">O quanto você conhece sobre Katherine Johnson? <span class="req">*</span></div>
+      <div class="likert-scale">
+        <span class="likert-label-text">Não conheço<br>nada</span>
+        <div class="likert-buttons" id="btns-katherine"></div>
+        <span class="likert-label-text right">Conheço<br>bastante</span>
       </div>
     </div>
     
@@ -632,8 +632,8 @@ function validarSecaoAtual() {
     document.getElementById('btn-sec1').disabled = !ok;
   } else if (secaoAtual === 2) {
     const ok = respostas['conhecimento_historia_pre']
-      && respostas['ja_ouviu_marco_pre']
       && respostas['conhecimento_turing_pre']
+      && respostas['conhecimento_katherine_pre']
       && respostas['ja_ouviu_marco_historico'];
     document.getElementById('btn-sec2').disabled = !ok;
   } else if (secaoAtual === 3) {
@@ -673,8 +673,8 @@ async function enviarFormulario() {
     contato_robos: respostas['contato_robos'] || null,
     frequencia_ia: respostas['frequencia_ia'] || null,
     conhecimento_historia_pre: respostas['conhecimento_historia_pre'] || null,
-    ja_ouviu_marco_pre: respostas['ja_ouviu_marco_pre'] || null,
     conhecimento_turing_pre: respostas['conhecimento_turing_pre'] || null,
+    conhecimento_katherine_pre: respostas['conhecimento_katherine_pre'] || null,
     ja_ouviu_marco_historico: respostas['ja_ouviu_marco_historico'] || null,
     percepcao_nao: percepcao_nao,
     expectativa_experiencia: expectativa || null,
@@ -709,6 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
   inicializarGrids();
   inicializarLikert('btns-conhec-hist', 'conhecimento_historia_pre');
   inicializarLikert('btns-turing', 'conhecimento_turing_pre');
+  inicializarLikert('btns-katherine', 'conhecimento_katherine_pre');
   inicializarOpcoes();
   validarSecaoAtual();
 });
