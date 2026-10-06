@@ -50,7 +50,8 @@
     .nao-grid { width: 100%; border-collapse: collapse; font-family: 'Montserrat', sans-serif; }
     .nao-grid th { color: var(--accent); font-size: 0.9rem; padding: 10px 8px; text-align: center; }
     .nao-grid td { padding: 12px 8px; text-align: center; color: #f4f4f4; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 0.95rem; }
-    .nao-grid td:first-child { text-align: left; padding-left: 0; }
+    .nao-grid td.grid-label-esq { text-align: right; padding-left: 0; width: 30%; }
+    .nao-grid td.grid-label-dir { text-align: left; padding-right: 0; width: 30%; }
     .grid-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); background: transparent; color: #fff; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; }
     .grid-btn:hover { border-color: var(--accent); color: var(--accent); }
     .grid-btn.selected { background: var(--accent); border-color: var(--accent); color: #000; }
@@ -333,19 +334,19 @@
     <div class="section-desc">Agora, considerando toda a experiência que você acabou de realizar com o NAO, indique sua impressão sobre ele.</div>
 
     <div class="nao-section-title">Antropomorfismo</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g0"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid_6_g0"></tbody></table></div>
 
     <div class="nao-section-title">Animacidade</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g1"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid_6_g1"></tbody></table></div>
 
     <div class="nao-section-title">Simpatia</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g2"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid_6_g2"></tbody></table></div>
 
     <div class="nao-section-title">Inteligência Percebida</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g3"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid_6_g3"></tbody></table></div>
 
     <div class="nao-section-title">Segurança Percebida</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid_6_g4"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid_6_g4"></tbody></table></div>
 
     <div class="nav-row">
       <button class="btn-ghost" onclick="irPara(6)">&larr; VOLTAR</button>
@@ -376,7 +377,7 @@
 <div id="tela-fim">
   <div class="fim-icon">⭐</div>
   <div class="fim-title">Obrigado pela participação!</div>
-  <div class="fim-desc">Suas respostas foram registradas com sucesso e o estudo foi concluído.</div>
+  <div class="fim-desc">Suas respostas foram registradas com sucesso e o estudo foi concluído. Avise o pesquisador responsável que você terminou.</div>
 </div>
 
 <div class="spinner-overlay" id="spinner">
@@ -515,10 +516,13 @@ function inicializarPerguntas() {
                     g.linhas.forEach((linha, lIdx) => {
                         const chave = `s${sIdx}_g${gIdx}_l${lIdx}`;
                         const tr = document.createElement('tr');
-                        let tds = `<td>${linha}</td>`;
+                        // Padrão "Texto 1 2 3 4 5 Texto": característica da esquerda, escala, característica da direita
+                        const [esq, dir] = linha.split(' / ');
+                        let tds = `<td class="grid-label-esq">${esq}</td>`;
                         for (let v=1; v<=5; v++) {
                             tds += `<td><button class="grid-btn" id="grid_${chave}_${v}" data-chave="${chave}" data-val="${v}">${v}</button></td>`;
                         }
+                        tds += `<td class="grid-label-dir">${dir}</td>`;
                         tr.innerHTML = tds;
                         tbody.appendChild(tr);
                     });

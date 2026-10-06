@@ -163,24 +163,16 @@
             text-shadow: var(--text-glow);
         }
 
-        .choice-btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: #fff;
-            padding: 20px;
-            border-radius: 12px;
+        .decisao-aviso {
             font-size: 1.4rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Montserrat', sans-serif;
             font-weight: 300;
+            color: var(--accent);
+            letter-spacing: 1px;
+            animation: pulse-texto 2s ease-in-out infinite;
         }
-
-        .choice-btn:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: var(--accent);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        @keyframes pulse-texto {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
         }
 
         /* ─── TELA INTRO ─── */
@@ -508,241 +500,9 @@
         #fim-screen .emoji { font-size: 5rem; margin-bottom: 20px; animation: pop 0.6s ease; }
         #fim-titulo { font-family: 'Playfair Display', serif; font-size: 3rem; color: var(--accent); margin-bottom: 16px; }
         #fim-subtitulo { font-family: 'Montserrat', sans-serif; font-size: 1.2rem; color: rgba(255,255,255,0.65); }
-        /* ─── TELA DE CADASTRO ─── */
-        #cadastro-screen {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow-y: auto;
-        }
-        .cadastro-box {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 60px 70px;
-            max-width: 800px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
-        }
-        .cadastro-titulo {
-            font-family: 'Playfair Display', serif;
-            font-size: 2.8rem;
-            color: var(--accent);
-            margin-bottom: 8px;
-        }
-        .cadastro-subtitulo {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 0.9rem;
-            letter-spacing: 3px;
-            color: rgba(255,255,255,0.4);
-            text-transform: uppercase;
-            margin-bottom: 48px;
-        }
-        .cadastro-label {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 0.85rem;
-            letter-spacing: 2px;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-            margin-bottom: 12px;
-            display: block;
-            text-align: left;
-        }
-        #input-nome {
-            width: 100%;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 12px;
-            padding: 18px 24px;
-            color: #fff;
-            font-family: 'Playfair Display', serif;
-            font-size: 1.6rem;
-            margin-bottom: 40px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        #input-nome:focus { border-color: var(--accent); }
-        #input-nome::placeholder { color: rgba(255,255,255,0.2); }
-        .card-grid {
-            display: grid;
-            gap: 16px;
-            margin-bottom: 40px;
-        }
-        .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
-        .card-grid.cols-2.jornadas { grid-template-columns: 1fr 1fr; }
-        .card-opcao {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 14px;
-            padding: 22px 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-        .card-opcao:hover { border-color: var(--accent); background: rgba(212,175,55,0.08); }
-        .card-opcao.selected { border-color: var(--accent); background: rgba(212,175,55,0.15); }
-        .card-opcao .card-emoji { font-size: 2rem; margin-bottom: 8px; }
-        .card-opcao .card-titulo {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.1rem;
-            color: #fff;
-            margin-bottom: 4px;
-        }
-        .card-opcao .card-desc {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.45);
-            letter-spacing: 1px;
-        }
-        .cadastro-btn {
-            background: transparent;
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            padding: 16px 60px;
-            font-size: 1rem;
-            font-family: 'Montserrat', sans-serif;
-            letter-spacing: 4px;
-            cursor: pointer;
-            border-radius: 30px;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-        }
-        .cadastro-btn:hover:not(:disabled) { background: var(--accent); color: #000; box-shadow: 0 0 24px var(--accent); }
-        .cadastro-btn:disabled { opacity: 0.3; cursor: default; }
-        .cadastro-step { display: none; }
-        .cadastro-step.ativo { display: block; }
-        .step-indicator {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 0.75rem;
-            letter-spacing: 3px;
-            color: rgba(255,255,255,0.3);
-            text-transform: uppercase;
-            margin-bottom: 32px;
-        }
     </style>
 </head>
 <body>
-
-    <!-- Tela de Cadastro (substitui o botão simples de intro) -->
-    <div id="cadastro-screen">
-        <div class="cadastro-box">
-            <div class="cadastro-titulo">Exploradores da História</div>
-            <div class="cadastro-subtitulo">NAO · Experiência Interativa</div>
-
-            <!-- STEP 0: Código do Pré-Questionário -->
-            <div class="cadastro-step ativo" id="step-preid">
-                <div class="step-indicator">Identificação</div>
-                <label class="cadastro-label" style="text-align:center;">Você respondeu o questionário antes de começar?</label>
-                <div style="font-size:0.85rem;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:32px;line-height:1.6;">
-                    Se sim, informe o código que recebeu ao final (ex: <strong style="color:var(--accent);">Q1</strong>).<br>
-                    Assim sua participação ficará vinculada no estudo.
-                </div>
-
-                <div id="lista-aguardando" style="margin-bottom: 24px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;">
-                </div>
-
-                <!-- Divisor -->
-                <div style="display:flex;align-items:center;gap:16px;margin:24px auto; max-width: 400px;">
-                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
-                    <span style="font-family:'Montserrat', sans-serif; font-size:.7rem;color:rgba(255,255,255,0.3);letter-spacing:2px;">OU</span>
-                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
-                </div>
-
-                <!-- Opção A: Tenho o código -->
-                <div id="preid-com-codigo" style="margin-bottom:24px;">
-                    <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1)"
-                        maxlength="10" autocomplete="off"
-                        style="width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 30px; padding: 18px 24px; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 1.2rem; font-weight: 600; text-align: center; outline: none; transition: border-color 0.3s; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px;"
-                        onfocus="this.style.borderColor='var(--accent)'"
-                        onblur="this.style.borderColor='rgba(255,255,255,0.2)'"
-                        oninput="this.value=this.value.toUpperCase();validarStepPreId()"
-                        onkeydown="if(event.key==='Enter') confirmarPreId()">
-                    
-                    <button class="cadastro-btn" id="btn-preid-confirmar" onclick="confirmarPreId()" disabled style="width: 100%; max-width: 400px;">
-                        CONFIRMAR CÓDIGO →
-                    </button>
-                </div>
-
-                <!-- Divisor -->
-                <div style="display:flex;align-items:center;gap:16px;margin:24px auto; max-width: 400px;">
-                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
-                    <span style="font-family:'Montserrat', sans-serif; font-size:.7rem;color:rgba(255,255,255,0.3);letter-spacing:2px;">OU</span>
-                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
-                </div>
-
-                <!-- Opção B: Sem código -->
-                <button class="cadastro-btn" onclick="prosseguirSemPreId()"
-                    style="width: 100%; max-width: 400px; background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:0.8rem;letter-spacing:2px;padding:16px;">
-                    JOGAR SEM PARTICIPAR
-                </button>
-
-                <!-- Badge de confirmação (oculto até confirmar) -->
-                <div id="preid-badge" style="display:none;margin-top:24px;text-align:center;">
-                    <div style="font-size:.78rem;color:rgba(255,255,255,0.5);margin-bottom:8px; text-transform: uppercase; letter-spacing: 2px;">Participante identificado</div>
-                    <div style="font-size:2.5rem;font-weight:700;letter-spacing:6px;color:var(--accent); font-family: 'Playfair Display', serif;" id="preid-badge-val"></div>
-                </div>
-            </div>
-
-            <!-- STEP 1: Nome -->
-            <div class="cadastro-step" id="step-nome">
-                <div class="step-indicator">Passo 1 de 3</div>
-                <label class="cadastro-label">Qual é o do seu personagem?</label>
-                <input id="input-nome" type="text" placeholder="Digite seu nome aqui..." maxlength="30"
-                    oninput="validarStepNome()" onkeydown="if(event.key==='Enter') avancarParaGenero()">
-                <button class="cadastro-btn" id="btn-nome" onclick="avancarParaGenero()" disabled>CONTINUAR →</button>
-            </div>
-
-            <!-- STEP 2: Gênero + Jornada -->
-            <div class="cadastro-step" id="step-jornada">
-                <div class="step-indicator">Passo 2 de 3</div>
-                <label class="cadastro-label">Qual é gênero do seu personagem?</label>
-                <div class="card-grid cols-2" style="margin-bottom:32px;">
-                    <div class="card-opcao" id="card-masculino" onclick="selecionarGenero('Masculino')">
-                        <div class="card-emoji"><i data-lucide="user" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
-                        <div class="card-titulo">Masculino</div>
-                    </div>
-                    <div class="card-opcao" id="card-feminino" onclick="selecionarGenero('Feminino')">
-                        <div class="card-emoji"><i data-lucide="user-round" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
-                        <div class="card-titulo">Feminino</div>
-                    </div>
-                </div>
-                <label class="cadastro-label" style="margin-top:8px;">Escolha sua jornada histórica</label>
-                <div class="card-grid jornadas">
-                    <div class="card-opcao" id="card-turing" onclick="selecionarJornada('alan_turing','Cambridge (1936)')">
-                        <div class="card-emoji"><i data-lucide="monitor" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
-                        <div class="card-titulo">Alan Turing</div>
-                        <div class="card-desc">Cambridge · 1936</div>
-                    </div>
-                    <div class="card-opcao" id="card-katherine" onclick="selecionarJornada('katherine_johnson','NASA (NASA Langley)')">
-                        <div class="card-emoji"><i data-lucide="rocket" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
-                        <div class="card-titulo">Katherine Johnson</div>
-                        <div class="card-desc">NASA Langley · Anos 50</div>
-                    </div>
-                </div>
-                <button class="cadastro-btn" id="btn-jornada" onclick="avancarParaPersonagem()" disabled style="margin-top:32px;">CONTINUAR →</button>
-            </div>
-
-            <!-- STEP 3: Personalização do personagem -->
-            <div class="cadastro-step" id="step-personagem">
-                <div class="step-indicator">Passo 3 de 3 — Monte seu personagem</div>
-                <div id="personagem-pergunta-titulo" class="cadastro-label" style="text-align:center;font-size:1rem;color:rgba(255,255,255,0.7);margin-bottom:24px;"></div>
-                <div id="personagem-opcoes-grid" class="card-grid"></div>
-                <button class="cadastro-btn" id="btn-personagem" onclick="avancarPersonagem()" disabled style="margin-top:32px;">CONFIRMAR →</button>
-            </div>
-
-            <!-- STEP 4: Aguardando -->
-            <div class="cadastro-step" id="step-aguardando">
-                <div class="spinner" style="margin:0 auto 24px;"></div>
-                <div style="font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--accent);margin-bottom:12px;">Abrindo o livro...</div>
-                <div style="font-family:'Montserrat',sans-serif;font-size:0.9rem;color:rgba(255,255,255,0.4);letter-spacing:2px;">Preparando sua jornada histórica</div>
-            </div>
-        </div>
-    </div>
 
     <!-- Loader -->
     <div id="loader">
@@ -771,7 +531,7 @@
     <div id="interaction-modal">
         <div class="modal-box">
             <h2 id="modal-question"></h2>
-            <div id="modal-options" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;"></div>
+            <div id="modal-options"></div>
         </div>
     </div>
 
@@ -815,52 +575,8 @@
         const API_URL = `http://${SERVER_IP}:5000`;
         const ROBOT_URL = "http://localhost:8080";
 
-        // Captura o pre_id da URL query string (?pre_id=Q1) — funciona como fallback/atalho
-        const _urlParams = new URLSearchParams(window.location.search);
-        let lastPreId = _urlParams.get('pre_id') || null;
-
-        // Se o pre_id já veio pela URL, pula o step de identificação automaticamente
-        if (lastPreId) {
-            document.addEventListener('DOMContentLoaded', () => {
-                mostrarStep('step-nome');
-            });
-        } else {
-            document.addEventListener('DOMContentLoaded', () => {
-                carregarFila();
-            });
-        }
-
-        async function carregarFila() {
-            try {
-                const res = await fetch(`${API_URL}/fila_participantes`);
-                if (!res.ok) return;
-                const fila = await res.json();
-                const listaDiv = document.getElementById('lista-aguardando');
-                const aguardando = fila.filter(p => p.status === 'aguardando_historia' || p.status === 'pre_respondido');
-                
-                if (aguardando.length === 0) {
-                    listaDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4); font-size: 0.9rem;">Nenhum participante aguardando jogar.</span>';
-                } else {
-                    listaDiv.innerHTML = '';
-                    aguardando.forEach(p => {
-                        const btn = document.createElement('button');
-                        btn.className = 'cadastro-btn';
-                        btn.style.width = '100%';
-                        btn.style.maxWidth = '400px';
-                        btn.style.padding = '12px';
-                        btn.style.fontSize = '0.9rem';
-                        btn.innerText = `${p.pre_id} - AGUARDANDO JOGAR`;
-                        btn.onclick = () => {
-                            document.getElementById('input-preid').value = p.pre_id;
-                            confirmarPreId();
-                        };
-                        listaDiv.appendChild(btn);
-                    });
-                }
-            } catch(e) { console.error('Erro fila:', e); }
-        }
-
         let lastSessionId = null;
+        let lastPreId = null; // o pre_id agora é informado em decisao.html
         let lastHistoryText = null;
         let currentSequenceId = 0;
         let isModalLocallyOpen = false;
@@ -980,273 +696,6 @@
 
             return chunks;
         }
-
-        // ─── CADASTRO / REGISTRO ─────────────────────────────────────────
-
-        let cadNome = '';
-        let cadGenero = '';
-        let cadSkill = '';
-        let cadTema = '';
-
-        const PERGUNTAS_PERSONAGEM = [
-            {
-                chave: 'comprimento',
-                pergunta: 'Qual o tamanho do seu cabelo?',
-                cols: 4,
-                opcoes: [
-                    { label: 'Curto', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'short' },
-                    { label: 'Médio', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'medium length' },
-                    { label: 'Longo', emoji: `<i data-lucide="waves" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'long' },
-                    { label: 'Preso', emoji: `<i data-lucide="gift" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'ponytail' }
-                ]
-            },
-            {
-                chave: 'tipo',
-                pergunta: 'Como é o tipo do seu cabelo?',
-                cols: 4,
-                opcoes: [
-                    { label: 'Liso', emoji: `<i data-lucide="minus" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'straight' },
-                    { label: 'Ondulado', emoji: `<i data-lucide="activity" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'wavy' },
-                    { label: 'Cacheado', emoji: `<i data-lucide="hurricane" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'curly' },
-                    { label: 'Crespo', emoji: `<i data-lucide="circle-dot" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'coily' }
-                ]
-            },
-            {
-                chave: 'cor_cabelo',
-                pergunta: 'Qual é a cor do seu cabelo?',
-                cols: 4,
-                opcoes: [
-                    { label: 'Preto', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'black hair' },
-                    { label: 'Castanho', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#744210; fill:#744210;"></i>`, tag: 'brown hair' },
-                    { label: 'Loiro', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#ecc94b; fill:#ecc94b;"></i>`, tag: 'blonde hair' },
-                    { label: 'Ruivo', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#e53e3e; fill:#e53e3e;"></i>`, tag: 'red hair' }
-                ]
-            },
-            {
-                chave: 'pele',
-                pergunta: 'Qual é a cor da sua pele?',
-                cols: 4,
-                opcoes: [
-                    { label: 'Clara', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fff5f5; fill:#fff5f5;"></i>`, tag: 'light skin' },
-                    { label: 'Morena', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'tanned skin' },
-                    { label: 'Negra', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'dark skin' },
-                    { label: 'Amarelada', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fefcbf; fill:#fefcbf;"></i>`, tag: 'pale skin' }
-                ]
-            },
-            {
-                chave: 'olhos',
-                pergunta: 'E os seus olhos?',
-                cols: 4,
-                opcoes: [
-                    { label: 'Castanhos', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'brown eyes' },
-                    { label: 'Verdes', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#48bb78; fill:#48bb78;"></i>`, tag: 'green eyes' },
-                    { label: 'Azuis', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#4299e1; fill:#4299e1;"></i>`, tag: 'blue eyes' },
-                    { label: 'Escuros', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#1a202c; fill:#1a202c;"></i>`, tag: 'dark eyes' }
-                ]
-            }
-        ];
-
-        let perguntaPersonagemAtual = 0;
-        const respostasPersonagem = {};
-
-        function mostrarStep(id) {
-            document.querySelectorAll('.cadastro-step').forEach(s => s.classList.remove('ativo'));
-            document.getElementById(id).classList.add('ativo');
-            gsap.fromTo('.cadastro-box', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' });
-        }
-
-        function validarStepNome() {
-            cadNome = document.getElementById('input-nome').value.trim();
-            document.getElementById('btn-nome').disabled = cadNome.length < 2;
-        }
-
-        // ─── STEP PRÉ-ID ────────────────────────────────────────────────
-
-        function validarStepPreId() {
-            const val = document.getElementById('input-preid').value.trim();
-            // Aceita formato Qn (ex: Q1, Q12)
-            const ok = /^Q\d+$/i.test(val);
-            document.getElementById('btn-preid-confirmar').disabled = !ok;
-        }
-
-        async function confirmarPreId() {
-            const val = document.getElementById('input-preid').value.trim().toUpperCase();
-            if (!/^Q\d+$/.test(val)) return;
-
-            // Consulta o servidor para verificar se o ID existe
-            try {
-                const resp = await fetch(`${API_URL}/pre_questionario_dados?pre_id=${val}`);
-                if (resp.ok) {
-                    const dados = await resp.json();
-                    lastPreId = val;
-                    // Mostra badge de confirmação
-                    document.getElementById('preid-badge-val').textContent = val;
-                    document.getElementById('preid-badge').style.display = 'block';
-                    document.getElementById('btn-preid-confirmar').textContent = '✓ CONFIRMADO — CONTINUAR →';
-                    document.getElementById('btn-preid-confirmar').onclick = () => mostrarStep('step-nome');
-                    document.getElementById('btn-preid-confirmar').disabled = false;
-                    document.getElementById('btn-preid-confirmar').style.background = 'linear-gradient(135deg, #059669, #10B981)';
-                } else {
-                    // ID não encontrado
-                    document.getElementById('input-preid').style.border = '2px solid #EF4444';
-                    document.getElementById('input-preid').placeholder = 'Código não encontrado. Tente novamente.';
-                    document.getElementById('input-preid').value = '';
-                    document.getElementById('btn-preid-confirmar').disabled = true;
-                    setTimeout(() => {
-                        document.getElementById('input-preid').style.border = '';
-                        document.getElementById('input-preid').placeholder = 'Digite seu código (ex: Q1)';
-                    }, 2500);
-                }
-            } catch(e) {
-                // Se o servidor não responder, aceita o código informado sem validar
-                lastPreId = val;
-                document.getElementById('preid-badge-val').textContent = val;
-                document.getElementById('preid-badge').style.display = 'block';
-                document.getElementById('btn-preid-confirmar').textContent = '✓ CONTINUAR →';
-                document.getElementById('btn-preid-confirmar').onclick = () => mostrarStep('step-nome');
-                document.getElementById('btn-preid-confirmar').disabled = false;
-            }
-        }
-
-        function prosseguirSemPreId() {
-            lastPreId = null;
-            mostrarStep('step-nome');
-        }
-
-        function avancarParaGenero() {
-            cadNome = document.getElementById('input-nome').value.trim();
-            if (cadNome.length < 2) return;
-            mostrarStep('step-jornada');
-        }
-
-        function selecionarGenero(genero) {
-            cadGenero = genero;
-            document.getElementById('card-masculino').classList.toggle('selected', genero === 'Masculino');
-            document.getElementById('card-feminino').classList.toggle('selected', genero === 'Feminino');
-            validarStepJornada();
-        }
-
-        function selecionarJornada(skill, tema) {
-            cadSkill = skill;
-            cadTema = tema;
-            document.getElementById('card-turing').classList.toggle('selected', skill === 'alan_turing');
-            document.getElementById('card-katherine').classList.toggle('selected', skill === 'katherine_johnson');
-            validarStepJornada();
-        }
-
-        function validarStepJornada() {
-            document.getElementById('btn-jornada').disabled = !(cadGenero && cadSkill);
-        }
-
-        function avancarParaPersonagem() {
-            if (!cadGenero || !cadSkill) return;
-            perguntaPersonagemAtual = 0;
-            mostrarStep('step-personagem');
-            renderizarPerguntaPersonagem();
-        }
-
-        function renderizarPerguntaPersonagem() {
-            const p = PERGUNTAS_PERSONAGEM[perguntaPersonagemAtual];
-            document.getElementById('personagem-pergunta-titulo').innerText = p.pergunta;
-            document.getElementById('btn-personagem').disabled = true;
-
-            const isLast = perguntaPersonagemAtual === PERGUNTAS_PERSONAGEM.length - 1;
-            document.getElementById('btn-personagem').innerHTML = isLast ? 'INICIAR JORNADA ✨' : 'CONFIRMAR →';
-
-            const grid = document.getElementById('personagem-opcoes-grid');
-            grid.innerHTML = '';
-            grid.style.gridTemplateColumns = `repeat(${p.cols}, 1fr)`;
-
-            p.opcoes.forEach((op, idx) => {
-                const card = document.createElement('div');
-                card.className = 'card-opcao';
-                card.innerHTML = `<div class="card-emoji">${op.emoji}</div><div class="card-titulo">${op.label}</div>`;
-                const jaRespondido = respostasPersonagem[p.chave];
-                if (jaRespondido && jaRespondido.tag === op.tag) card.classList.add('selected');
-                card.onclick = () => {
-                    respostasPersonagem[p.chave] = op;
-                    grid.querySelectorAll('.card-opcao').forEach(c => c.classList.remove('selected'));
-                    card.classList.add('selected');
-                    document.getElementById('btn-personagem').disabled = false;
-                };
-                grid.appendChild(card);
-            });
-
-            gsap.fromTo('.cadastro-box', { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' });
-        }
-
-        function avancarPersonagem() {
-            if (!respostasPersonagem[PERGUNTAS_PERSONAGEM[perguntaPersonagemAtual].chave]) return;
-            perguntaPersonagemAtual++;
-            if (perguntaPersonagemAtual < PERGUNTAS_PERSONAGEM.length) {
-                renderizarPerguntaPersonagem();
-            } else {
-                iniciarHistoria();
-            }
-        }
-
-        async function iniciarHistoria() {
-            mostrarStep('step-aguardando');
-
-            // Monta a string de visual do personagem
-            const r = respostasPersonagem;
-            const generoIngles = cadGenero === 'Feminino' ? '1woman' : '1man';
-            let roupaTag = 'period-appropriate clothing';
-            if (cadSkill === 'alan_turing') roupaTag = 'casual 1930s clothes, vintage sweater and trousers';
-            else if (cadSkill === 'katherine_johnson') roupaTag = cadGenero === 'Feminino' ? 'formal 1960s suit, elegant vintage dress' : 'formal 1960s suit, elegant vintage suit';
-
-            const visualFixo = `${generoIngles}, ${r.comprimento.tag} ${r.tipo.tag} ${r.cor_cabelo.tag}, ${r.pele.tag}, ${r.olhos.tag}, ${roupaTag}`;
-
-            try {
-                const resp = await fetch(`${API_URL}/iniciar_historia`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nome: cadNome,
-                        tema: cadTema,
-                        skill: cadSkill,
-                        genero: cadGenero,
-                        visual_fixo: visualFixo
-                    })
-                });
-                const dados = await resp.json();
-                if (dados.status === 'sucesso') {
-                    lastSessionId = dados.session_id;
-
-                    // ─── Vincula pre_id ao session_id (se veio do pré-questionário) ───
-                    if (lastPreId) {
-                        fetch(`${API_URL}/atualizar_status_pre`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                pre_id: lastPreId,
-                                status: 'em_historia',
-                                session_id: lastSessionId
-                            })
-                        }).catch(() => {});
-                    }
-
-                    // Sinaliza ao story_client (daemon) para iniciar a geração de imagens
-                    fetch(`${API_URL}/iniciar_daemon`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ session_id: dados.session_id })
-                    }).catch(() => {});
-                    
-                    // Esconde o cadastro e inicia o polling
-                    document.getElementById('cadastro-screen').style.display = 'none';
-                    document.getElementById('story-panel').style.display = 'block';
-                    pollStatus();
-                } else {
-                    alert('Erro ao iniciar a história. Tente novamente.');
-                    mostrarStep('step-nome');
-                }
-            } catch (e) {
-                alert('Não foi possível conectar ao servidor. Verifique se ele está rodando.');
-                mostrarStep('step-aguardando');
-            }
-        }
-
 
         async function waitForImage(filename) {
             let currentFilename = filename;
@@ -1387,56 +836,31 @@
             }
         }
 
+        // A decisão agora acontece em uma página separada (decisao.html).
+        // Aqui apenas abrimos a decisão no servidor e mostramos um aviso;
+        // quando o aluno escolher lá, o polling (status "pensando" → nova cena) segue a história.
         function showModal(data) {
             isModalLocallyOpen = true;
             const modalEl = document.getElementById('interaction-modal');
             const modalBox = modalEl.querySelector('.modal-box');
-            
+
             modalEl.style.display = 'flex';
             document.getElementById('modal-question').innerText = data.pergunta;
-            
+
             gsap.fromTo(modalBox, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "power3.out" });
-            
+
             const optsContainer = document.getElementById('modal-options');
             optsContainer.innerHTML = '';
-            optsContainer.style.pointerEvents = 'auto'; // RESET POINTER EVENTS HERE
-            
-            if (data.opcoes) {
-                data.opcoes.forEach((opt, idx) => {
-                    const btn = document.createElement('div');
-                    btn.className = 'choice-btn';
-                    btn.innerText = opt;
-                    btn.onclick = async () => {
-                        optsContainer.style.pointerEvents = 'none';
-                        btn.style.background = 'var(--accent)';
-                        btn.style.color = '#000';
-                        
-                        try {
-                            await fetch(`${API_URL}/definir_pensando`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ frase: "Processando sua escolha..." })
-                            });
-                            hideModal();
-                            const loader = document.getElementById('loader');
-                            loader.style.display = 'flex';
-                            loader.querySelector('div:last-child').innerText = "GERANDO PRÓXIMA CENA...";
-                            
-                            const resp = await fetch(`${API_URL}/escolher`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ session_id: lastSessionId, escolha_idx: idx, escolha_texto: opt })
-                            });
-                            const dados = await resp.json();
-                            // O daemon já está no loop while(temOpcoes) aguardando a próxima cena.
-                            
-                        } catch(e) {
-                            console.error(e);
-                        }
-                    };
-                    optsContainer.appendChild(btn);
-                });
-            }
+            const aviso = document.createElement('div');
+            aviso.className = 'decisao-aviso';
+            aviso.innerText = 'Faça sua escolha na tela de decisão';
+            optsContainer.appendChild(aviso);
+
+            fetch(`${API_URL}/decisao/abrir`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: lastSessionId, pergunta: data.pergunta, opcoes: data.opcoes || [] })
+            }).catch(e => console.error('Erro ao abrir decisão:', e));
         }
 
         function hideModal() {
@@ -1535,8 +959,10 @@
                     }
                     document.getElementById('loader').style.display = 'flex';
                     if (!isModalLocallyOpen && data.status === "aguardando") {
-                        document.getElementById('loader').querySelector('div:last-child').innerText = "AGUARDANDO O NAO...";
+                        document.getElementById('loader').querySelector('div:last-child').innerText =
+                            lastSessionId ? "AGUARDANDO O NAO..." : "AGUARDANDO INÍCIO NA TELA DE DECISÃO...";
                     } else if (data.status === "pensando") {
+                        hideModal(); // escolha feita na página de decisão
                         document.getElementById('loader').querySelector('div:last-child').innerText = "CRIANDO PRÓXIMA CENA...";
                     }
                     return;
@@ -1584,13 +1010,21 @@
                         
                         document.getElementById('quiz-fim-badge').innerHTML = `✨`;
                         document.getElementById('quiz-fim-titulo').innerText = "Obrigado por ouvir a história!";
-                        document.getElementById('quiz-fim-subtitulo').innerText = "A história terminou. Você pode fechar esta tela e o seu pesquisador te guiará para a próxima etapa.";
+                        document.getElementById('quiz-fim-subtitulo').innerText = "A história terminou! Chame o pesquisador responsável para seguir para a próxima etapa.";
                     }
                     return;
                 }
 
-                // Status ATIVO
+                // Status ATIVO (ignora qualquer outro status, ex.: comando_avulso)
+                if (data.status !== "ativo") return;
                 const sceneData = data.dados || data;
+
+                // Nova história iniciada na tela de decisão depois de uma que terminou
+                if (window.historiaFinalizada && data.session_id !== lastSessionId) {
+                    window.historiaFinalizada = false;
+                    document.getElementById('quiz-fim-screen').style.display = 'none';
+                }
+                document.getElementById('story-panel').style.display = 'block';
                 
                 // ATUALIZA A VARIÁVEL DE AVANÇO MANUAL
                 window.currentAvancoStep = data.avanco_step || 0;
@@ -1963,9 +1397,15 @@
         }
 
 
+        // O cadastro (código, nome, jornada, personagem) acontece em decisao.html.
+        // A apresentação só acompanha o servidor e começa quando a história é iniciada lá.
         function pollStatus() {
             setInterval(checkActiveSession, 500);
         }
+        document.addEventListener('DOMContentLoaded', () => {
+            pollStatus();
+            checkActiveSession();
+        });
 
     </script>
 

@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Decisão - NAO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(15, 15, 20, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-glow: 0 0 10px rgba(255,255,255,0.3);
+            --accent: #d4af37;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body, html {
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #15151c 0%, #000 80%);
+            font-family: 'Montserrat', sans-serif;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .tela {
+            position: fixed;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            text-align: center;
+        }
+        .tela.ativa { display: flex; }
+
+        .modal-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 50px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        #pergunta {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            margin-bottom: 40px;
+            text-shadow: var(--text-glow);
+        }
+
+        #opcoes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .choice-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 1.4rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 300;
+        }
+        .choice-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+        .choice-btn.escolhido {
+            background: var(--accent);
+            color: #000;
+        }
+        #opcoes.bloqueado { pointer-events: none; }
+
+        .spinner {
+            width: 50px; height: 50px;
+            border: 3px solid rgba(212, 175, 55, 0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .mensagem {
+            color: var(--accent);
+            letter-spacing: 3px;
+            font-size: 1rem;
+            text-transform: uppercase;
+        }
+        /* ─── TELA DE CADASTRO ─── */
+        #cadastro-screen {
+            justify-content: flex-start;
+            overflow-y: auto;
+        }
+        #cadastro-screen .cadastro-box { margin: auto 0; }
+        .cadastro-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 60px 70px;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+        }
+        .cadastro-titulo {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.8rem;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        .cadastro-subtitulo {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.9rem;
+            letter-spacing: 3px;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            margin-bottom: 48px;
+        }
+        .cadastro-label {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: block;
+            text-align: left;
+        }
+        #input-nome {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 18px 24px;
+            color: #fff;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            margin-bottom: 40px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        #input-nome:focus { border-color: var(--accent); }
+        #input-nome::placeholder { color: rgba(255,255,255,0.2); }
+        .card-grid {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .card-grid.cols-2.jornadas { grid-template-columns: 1fr 1fr; }
+        .card-opcao {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 14px;
+            padding: 22px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .card-opcao:hover { border-color: var(--accent); background: rgba(212,175,55,0.08); }
+        .card-opcao.selected { border-color: var(--accent); background: rgba(212,175,55,0.15); }
+        .card-opcao .card-emoji { font-size: 2rem; margin-bottom: 8px; }
+        .card-opcao .card-titulo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .card-opcao .card-desc {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.45);
+            letter-spacing: 1px;
+        }
+        .cadastro-btn {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 16px 60px;
+            font-size: 1rem;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 4px;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        .cadastro-btn:hover:not(:disabled) { background: var(--accent); color: #000; box-shadow: 0 0 24px var(--accent); }
+        .cadastro-btn:disabled { opacity: 0.3; cursor: default; }
+        .cadastro-step { display: none; }
+        .cadastro-step.ativo { display: block; }
+        .step-indicator {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Tela de Cadastro (substitui o botão simples de intro) -->
+    <div class="tela" id="cadastro-screen">
+        <div class="cadastro-box">
+            <div class="cadastro-titulo">Exploradores da História</div>
+            <div class="cadastro-subtitulo">NAO · Experiência Interativa</div>
+
+            <!-- STEP 0: Código do Pré-Questionário -->
+            <div class="cadastro-step ativo" id="step-preid">
+                <div class="step-indicator">Identificação</div>
+                <label class="cadastro-label" style="text-align:center;">Você respondeu o questionário antes de começar?</label>
+                <div style="font-size:0.85rem;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:32px;line-height:1.6;">
+                    Se sim, informe o código que recebeu ao final (ex: <strong style="color:var(--accent);">Q1</strong>).<br>
+                    Assim sua participação ficará vinculada no estudo.
+                </div>
+
+                <div id="lista-aguardando" style="margin-bottom: 24px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                </div>
+
+                <!-- Divisor -->
+                <div style="display:flex;align-items:center;gap:16px;margin:24px auto; max-width: 400px;">
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                    <span style="font-family:'Montserrat', sans-serif; font-size:.7rem;color:rgba(255,255,255,0.3);letter-spacing:2px;">OU</span>
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                </div>
+
+                <!-- Opção A: Tenho o código -->
+                <div id="preid-com-codigo" style="margin-bottom:24px;">
+                    <input id="input-preid" type="text" placeholder="Digite seu código (ex: Q1)"
+                        maxlength="10" autocomplete="off"
+                        style="width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 30px; padding: 18px 24px; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 1.2rem; font-weight: 600; text-align: center; outline: none; transition: border-color 0.3s; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px;"
+                        onfocus="this.style.borderColor='var(--accent)'"
+                        onblur="this.style.borderColor='rgba(255,255,255,0.2)'"
+                        oninput="this.value=this.value.toUpperCase();validarStepPreId()"
+                        onkeydown="if(event.key==='Enter') confirmarPreId()">
+                    
+                    <button class="cadastro-btn" id="btn-preid-confirmar" onclick="confirmarPreId()" disabled style="width: 100%; max-width: 400px;">
+                        CONFIRMAR CÓDIGO →
+                    </button>
+                </div>
+
+                <!-- Divisor -->
+                <div style="display:flex;align-items:center;gap:16px;margin:24px auto; max-width: 400px;">
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                    <span style="font-family:'Montserrat', sans-serif; font-size:.7rem;color:rgba(255,255,255,0.3);letter-spacing:2px;">OU</span>
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+                </div>
+
+                <!-- Opção B: Sem código -->
+                <button class="cadastro-btn" onclick="prosseguirSemPreId()"
+                    style="width: 100%; max-width: 400px; background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:0.8rem;letter-spacing:2px;padding:16px;">
+                    JOGAR SEM PARTICIPAR
+                </button>
+
+                <!-- Badge de confirmação (oculto até confirmar) -->
+                <div id="preid-badge" style="display:none;margin-top:24px;text-align:center;">
+                    <div style="font-size:.78rem;color:rgba(255,255,255,0.5);margin-bottom:8px; text-transform: uppercase; letter-spacing: 2px;">Participante identificado</div>
+                    <div style="font-size:2.5rem;font-weight:700;letter-spacing:6px;color:var(--accent); font-family: 'Playfair Display', serif;" id="preid-badge-val"></div>
+                </div>
+            </div>
+
+            <!-- STEP 1: Nome -->
+            <div class="cadastro-step" id="step-nome">
+                <div class="step-indicator">Passo 1 de 3</div>
+                <label class="cadastro-label">Qual é o do seu personagem?</label>
+                <input id="input-nome" type="text" placeholder="Digite seu nome aqui..." maxlength="30"
+                    oninput="validarStepNome()" onkeydown="if(event.key==='Enter') avancarParaGenero()">
+                <button class="cadastro-btn" id="btn-nome" onclick="avancarParaGenero()" disabled>CONTINUAR →</button>
+            </div>
+
+            <!-- STEP 2: Gênero + Jornada -->
+            <div class="cadastro-step" id="step-jornada">
+                <div class="step-indicator">Passo 2 de 3</div>
+                <label class="cadastro-label">Qual é gênero do seu personagem?</label>
+                <div class="card-grid cols-2" style="margin-bottom:32px;">
+                    <div class="card-opcao" id="card-masculino" onclick="selecionarGenero('Masculino')">
+                        <div class="card-emoji"><i data-lucide="user" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
+                        <div class="card-titulo">Masculino</div>
+                    </div>
+                    <div class="card-opcao" id="card-feminino" onclick="selecionarGenero('Feminino')">
+                        <div class="card-emoji"><i data-lucide="user-round" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
+                        <div class="card-titulo">Feminino</div>
+                    </div>
+                </div>
+                <label class="cadastro-label" style="margin-top:8px;">Escolha sua jornada histórica</label>
+                <div class="card-grid jornadas">
+                    <div class="card-opcao" id="card-turing" onclick="selecionarJornada('alan_turing','Cambridge (1936)')">
+                        <div class="card-emoji"><i data-lucide="monitor" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
+                        <div class="card-titulo">Alan Turing</div>
+                        <div class="card-desc">Cambridge · 1936</div>
+                    </div>
+                    <div class="card-opcao" id="card-katherine" onclick="selecionarJornada('katherine_johnson','NASA (NASA Langley)')">
+                        <div class="card-emoji"><i data-lucide="rocket" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i></div>
+                        <div class="card-titulo">Katherine Johnson</div>
+                        <div class="card-desc">NASA Langley · Anos 50</div>
+                    </div>
+                </div>
+                <button class="cadastro-btn" id="btn-jornada" onclick="avancarParaPersonagem()" disabled style="margin-top:32px;">CONTINUAR →</button>
+            </div>
+
+            <!-- STEP 3: Personalização do personagem -->
+            <div class="cadastro-step" id="step-personagem">
+                <div class="step-indicator">Passo 3 de 3 — Monte seu personagem</div>
+                <div id="personagem-pergunta-titulo" class="cadastro-label" style="text-align:center;font-size:1rem;color:rgba(255,255,255,0.7);margin-bottom:24px;"></div>
+                <div id="personagem-opcoes-grid" class="card-grid"></div>
+                <button class="cadastro-btn" id="btn-personagem" onclick="avancarPersonagem()" disabled style="margin-top:32px;">CONFIRMAR →</button>
+            </div>
+
+            <!-- STEP 4: Aguardando -->
+            <div class="cadastro-step" id="step-aguardando">
+                <div class="spinner" style="margin:0 auto 24px;"></div>
+                <div style="font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--accent);margin-bottom:12px;">Abrindo o livro...</div>
+                <div style="font-family:'Montserrat',sans-serif;font-size:0.9rem;color:rgba(255,255,255,0.4);letter-spacing:2px;">Preparando sua jornada histórica</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Esperando a apresentação chegar a um ponto de decisão -->
+    <div class="tela" id="tela-espera">
+        <div class="spinner"></div>
+        <div class="mensagem" id="mensagem-espera">Acompanhe a história na apresentação...</div>
+        <button class="cadastro-btn" id="btn-nova-historia" onclick="novaHistoria()" style="display:none; margin-top:32px;">NOVA HISTÓRIA</button>
+    </div>
+
+    <!-- Ponto de decisão -->
+    <div class="tela" id="tela-decisao">
+        <div class="modal-box">
+            <h2 id="pergunta"></h2>
+            <div id="opcoes"></div>
+        </div>
+    </div>
+
+    <script>
+        const SERVER_IP = window.location.hostname || "127.0.0.1";
+        const API_URL = `http://${SERVER_IP}:5000`;
+
+        // Captura o pre_id da URL query string (?pre_id=Q1) — funciona como fallback/atalho
+        const _urlParams = new URLSearchParams(window.location.search);
+        let lastPreId = _urlParams.get('pre_id') || null;
+
+        let lastSessionId = null;
+
+        async function carregarFila() {
+            try {
+                const res = await fetch(`${API_URL}/fila_participantes`);
+                if (!res.ok) return;
+                const fila = await res.json();
+                const listaDiv = document.getElementById('lista-aguardando');
+                const aguardando = fila.filter(p => p.status === 'aguardando_historia' || p.status === 'pre_respondido');
+                
+                if (aguardando.length === 0) {
+                    listaDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4); font-size: 0.9rem;">Nenhum participante aguardando jogar.</span>';
+                } else {
+                    listaDiv.innerHTML = '';
+                    aguardando.forEach(p => {
+                        const btn = document.createElement('button');
+                        btn.className = 'cadastro-btn';
+                        btn.style.width = '100%';
+                        btn.style.maxWidth = '400px';
+                        btn.style.padding = '12px';
+                        btn.style.fontSize = '0.9rem';
+                        btn.innerText = `${p.pre_id} - AGUARDANDO JOGAR`;
+                        btn.onclick = () => {
+                            document.getElementById('input-preid').value = p.pre_id;
+                            confirmarPreId();
+                        };
+                        listaDiv.appendChild(btn);
+                    });
+                }
+            } catch(e) { console.error('Erro fila:', e); }
+        }
+
+        // ─── CADASTRO / REGISTRO ─────────────────────────────────────────
+
+        let cadNome = '';
+        let cadGenero = '';
+        let cadSkill = '';
+        let cadTema = '';
+
+        const PERGUNTAS_PERSONAGEM = [
+            {
+                chave: 'comprimento',
+                pergunta: 'Qual o tamanho do seu cabelo?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Curto', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'short' },
+                    { label: 'Médio', emoji: `<i data-lucide="scissors" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'medium length' },
+                    { label: 'Longo', emoji: `<i data-lucide="waves" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'long' },
+                    { label: 'Preso', emoji: `<i data-lucide="gift" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'ponytail' }
+                ]
+            },
+            {
+                chave: 'tipo',
+                pergunta: 'Como é o tipo do seu cabelo?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Liso', emoji: `<i data-lucide="minus" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'straight' },
+                    { label: 'Ondulado', emoji: `<i data-lucide="activity" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'wavy' },
+                    { label: 'Cacheado', emoji: `<i data-lucide="hurricane" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'curly' },
+                    { label: 'Crespo', emoji: `<i data-lucide="circle-dot" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px;"></i>`, tag: 'coily' }
+                ]
+            },
+            {
+                chave: 'cor_cabelo',
+                pergunta: 'Qual é a cor do seu cabelo?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Preto', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'black hair' },
+                    { label: 'Castanho', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#744210; fill:#744210;"></i>`, tag: 'brown hair' },
+                    { label: 'Loiro', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#ecc94b; fill:#ecc94b;"></i>`, tag: 'blonde hair' },
+                    { label: 'Ruivo', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#e53e3e; fill:#e53e3e;"></i>`, tag: 'red hair' }
+                ]
+            },
+            {
+                chave: 'pele',
+                pergunta: 'Qual é a cor da sua pele?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Clara', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fff5f5; fill:#fff5f5;"></i>`, tag: 'light skin' },
+                    { label: 'Morena', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'tanned skin' },
+                    { label: 'Negra', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#2d3748; fill:#2d3748;"></i>`, tag: 'dark skin' },
+                    { label: 'Amarelada', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#fefcbf; fill:#fefcbf;"></i>`, tag: 'pale skin' }
+                ]
+            },
+            {
+                chave: 'olhos',
+                pergunta: 'E os seus olhos?',
+                cols: 4,
+                opcoes: [
+                    { label: 'Castanhos', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#975a16; fill:#975a16;"></i>`, tag: 'brown eyes' },
+                    { label: 'Verdes', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#48bb78; fill:#48bb78;"></i>`, tag: 'green eyes' },
+                    { label: 'Azuis', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#4299e1; fill:#4299e1;"></i>`, tag: 'blue eyes' },
+                    { label: 'Escuros', emoji: `<i data-lucide="circle" style="width:1.2em; height:1.2em; display:inline-block; vertical-align:-0.2em; margin-right:4px; color:#1a202c; fill:#1a202c;"></i>`, tag: 'dark eyes' }
+                ]
+            }
+        ];
+
+        let perguntaPersonagemAtual = 0;
+        const respostasPersonagem = {};
+
+        function mostrarStep(id) {
+            document.querySelectorAll('.cadastro-step').forEach(s => s.classList.remove('ativo'));
+            document.getElementById(id).classList.add('ativo');
+            gsap.fromTo('.cadastro-box', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' });
+        }
+
+        function validarStepNome() {
+            cadNome = document.getElementById('input-nome').value.trim();
+            document.getElementById('btn-nome').disabled = cadNome.length < 2;
+        }
+
+        // ─── STEP PRÉ-ID ────────────────────────────────────────────────
+
+        function validarStepPreId() {
+            const val = document.getElementById('input-preid').value.trim();
+            // Aceita formato Qn (ex: Q1, Q12)
+            const ok = /^Q\d+$/i.test(val);
+            document.getElementById('btn-preid-confirmar').disabled = !ok;
+        }
+
+        async function confirmarPreId() {
+            const val = document.getElementById('input-preid').value.trim().toUpperCase();
+            if (!/^Q\d+$/.test(val)) return;
+
+            // Consulta o servidor para verificar se o ID existe
+            try {
+                const resp = await fetch(`${API_URL}/pre_questionario_dados?pre_id=${val}`);
+                if (resp.ok) {
+                    const dados = await resp.json();
+                    lastPreId = val;
+                    // Mostra badge de confirmação
+                    document.getElementById('preid-badge-val').textContent = val;
+                    document.getElementById('preid-badge').style.display = 'block';
+                    document.getElementById('btn-preid-confirmar').textContent = '✓ CONFIRMADO — CONTINUAR →';
+                    document.getElementById('btn-preid-confirmar').onclick = () => mostrarStep('step-nome');
+                    document.getElementById('btn-preid-confirmar').disabled = false;
+                    document.getElementById('btn-preid-confirmar').style.background = 'linear-gradient(135deg, #059669, #10B981)';
+                } else {
+                    // ID não encontrado
+                    document.getElementById('input-preid').style.border = '2px solid #EF4444';
+                    document.getElementById('input-preid').placeholder = 'Código não encontrado. Tente novamente.';
+                    document.getElementById('input-preid').value = '';
+                    document.getElementById('btn-preid-confirmar').disabled = true;
+                    setTimeout(() => {
+                        document.getElementById('input-preid').style.border = '';
+                        document.getElementById('input-preid').placeholder = 'Digite seu código (ex: Q1)';
+                    }, 2500);
+                }
+            } catch(e) {
+                // Se o servidor não responder, aceita o código informado sem validar
+                lastPreId = val;
+                document.getElementById('preid-badge-val').textContent = val;
+                document.getElementById('preid-badge').style.display = 'block';
+                document.getElementById('btn-preid-confirmar').textContent = '✓ CONTINUAR →';
+                document.getElementById('btn-preid-confirmar').onclick = () => mostrarStep('step-nome');
+                document.getElementById('btn-preid-confirmar').disabled = false;
+            }
+        }
+
+        function prosseguirSemPreId() {
+            lastPreId = null;
+            mostrarStep('step-nome');
+        }
+
+        function avancarParaGenero() {
+            cadNome = document.getElementById('input-nome').value.trim();
+            if (cadNome.length < 2) return;
+            mostrarStep('step-jornada');
+        }
+
+        function selecionarGenero(genero) {
+            cadGenero = genero;
+            document.getElementById('card-masculino').classList.toggle('selected', genero === 'Masculino');
+            document.getElementById('card-feminino').classList.toggle('selected', genero === 'Feminino');
+            validarStepJornada();
+        }
+
+        function selecionarJornada(skill, tema) {
+            cadSkill = skill;
+            cadTema = tema;
+            document.getElementById('card-turing').classList.toggle('selected', skill === 'alan_turing');
+            document.getElementById('card-katherine').classList.toggle('selected', skill === 'katherine_johnson');
+            validarStepJornada();
+        }
+
+        function validarStepJornada() {
+            document.getElementById('btn-jornada').disabled = !(cadGenero && cadSkill);
+        }
+
+        function avancarParaPersonagem() {
+            if (!cadGenero || !cadSkill) return;
+            perguntaPersonagemAtual = 0;
+            mostrarStep('step-personagem');
+            renderizarPerguntaPersonagem();
+        }
+
+        function renderizarPerguntaPersonagem() {
+            const p = PERGUNTAS_PERSONAGEM[perguntaPersonagemAtual];
+            document.getElementById('personagem-pergunta-titulo').innerText = p.pergunta;
+            document.getElementById('btn-personagem').disabled = true;
+
+            const isLast = perguntaPersonagemAtual === PERGUNTAS_PERSONAGEM.length - 1;
+            document.getElementById('btn-personagem').innerHTML = isLast ? 'INICIAR JORNADA ✨' : 'CONFIRMAR →';
+
+            const grid = document.getElementById('personagem-opcoes-grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${p.cols}, 1fr)`;
+
+            p.opcoes.forEach((op, idx) => {
+                const card = document.createElement('div');
+                card.className = 'card-opcao';
+                card.innerHTML = `<div class="card-emoji">${op.emoji}</div><div class="card-titulo">${op.label}</div>`;
+                const jaRespondido = respostasPersonagem[p.chave];
+                if (jaRespondido && jaRespondido.tag === op.tag) card.classList.add('selected');
+                card.onclick = () => {
+                    respostasPersonagem[p.chave] = op;
+                    grid.querySelectorAll('.card-opcao').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    document.getElementById('btn-personagem').disabled = false;
+                };
+                grid.appendChild(card);
+            });
+
+            gsap.fromTo('.cadastro-box', { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' });
+        }
+
+        function avancarPersonagem() {
+            if (!respostasPersonagem[PERGUNTAS_PERSONAGEM[perguntaPersonagemAtual].chave]) return;
+            perguntaPersonagemAtual++;
+            if (perguntaPersonagemAtual < PERGUNTAS_PERSONAGEM.length) {
+                renderizarPerguntaPersonagem();
+            } else {
+                iniciarHistoria();
+            }
+        }
+
+        async function iniciarHistoria() {
+            mostrarStep('step-aguardando');
+
+            // Monta a string de visual do personagem
+            const r = respostasPersonagem;
+            const generoIngles = cadGenero === 'Feminino' ? '1woman' : '1man';
+            let roupaTag = 'period-appropriate clothing';
+            if (cadSkill === 'alan_turing') roupaTag = 'casual 1930s clothes, vintage sweater and trousers';
+            else if (cadSkill === 'katherine_johnson') roupaTag = cadGenero === 'Feminino' ? 'formal 1960s suit, elegant vintage dress' : 'formal 1960s suit, elegant vintage suit';
+
+            const visualFixo = `${generoIngles}, ${r.comprimento.tag} ${r.tipo.tag} ${r.cor_cabelo.tag}, ${r.pele.tag}, ${r.olhos.tag}, ${roupaTag}`;
+
+            try {
+                const resp = await fetch(`${API_URL}/iniciar_historia`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nome: cadNome,
+                        tema: cadTema,
+                        skill: cadSkill,
+                        genero: cadGenero,
+                        visual_fixo: visualFixo
+                    })
+                });
+                const dados = await resp.json();
+                if (dados.status === 'sucesso') {
+                    lastSessionId = dados.session_id;
+
+                    // ─── Vincula pre_id ao session_id (se veio do pré-questionário) ───
+                    if (lastPreId) {
+                        fetch(`${API_URL}/atualizar_status_pre`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                pre_id: lastPreId,
+                                status: 'em_historia',
+                                session_id: lastSessionId
+                            })
+                        }).catch(() => {});
+                    }
+
+                    // Sinaliza ao story_client (daemon) para iniciar a geração de imagens
+                    fetch(`${API_URL}/iniciar_daemon`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: dados.session_id })
+                    }).catch(() => {});
+                    
+                    // Cadastro concluído: a apresentação começa sozinha (polling do servidor)
+                    emCadastro = false;
+                    mostrarEspera('Acompanhe a história na apresentação...');
+                } else {
+                    alert('Erro ao iniciar a história. Tente novamente.');
+                    mostrarStep('step-nome');
+                }
+            } catch (e) {
+                alert('Não foi possível conectar ao servidor. Verifique se ele está rodando.');
+                mostrarStep('step-aguardando');
+            }
+        }
+
+
+        let decisaoExibidaId = null;  // id da decisão atualmente na tela
+        let enviando = false;
+        let emCadastro = false;       // enquanto true, o polling não troca de tela
+
+        // Status em que não há história rodando → mostra o cadastro
+        const STATUS_SEM_HISTORIA = ['aguardando', 'comando_avulso', 'historia_fim', 'quiz_fim'];
+
+        function abrirCadastro() {
+            emCadastro = true;
+            decisaoExibidaId = null;
+            mostrarTela('cadastro-screen');
+            if (lastPreId) {
+                // pre_id veio pela URL (?pre_id=Q1): pula a identificação
+                mostrarStep('step-nome');
+            } else {
+                mostrarStep('step-preid');
+                carregarFila();
+            }
+        }
+
+        function novaHistoria() {
+            // Recarrega limpo (sem pre_id do participante anterior)
+            window.location.href = window.location.pathname;
+        }
+
+        function mostrarTela(id) {
+            document.querySelectorAll('.tela').forEach(t => t.classList.toggle('ativa', t.id === id));
+        }
+
+        function mostrarEspera(texto) {
+            decisaoExibidaId = null;
+            document.getElementById('mensagem-espera').textContent = texto;
+            mostrarTela('tela-espera');
+        }
+
+        function mostrarDecisao(decisao) {
+            decisaoExibidaId = decisao.id;
+            document.getElementById('pergunta').innerText = decisao.pergunta;
+
+            const opcoesEl = document.getElementById('opcoes');
+            opcoesEl.innerHTML = '';
+            opcoesEl.classList.remove('bloqueado');
+
+            decisao.opcoes.forEach((opt, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'choice-btn';
+                btn.innerText = opt;
+                btn.onclick = () => escolher(decisao.id, idx, opt, btn);
+                opcoesEl.appendChild(btn);
+            });
+
+            mostrarTela('tela-decisao');
+            gsap.fromTo('#tela-decisao .modal-box', { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "power3.out" });
+        }
+
+        async function escolher(decisaoId, idx, opt, btn) {
+            if (enviando) return;
+            enviando = true;
+            document.getElementById('opcoes').classList.add('bloqueado');
+            btn.classList.add('escolhido');
+
+            try {
+                // Reserva a resposta (garante que só um clique avança a história)
+                const r = await fetch(`${API_URL}/decisao/responder`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ decisao_id: decisaoId, frase: "Processando sua escolha..." })
+                });
+                const reserva = await r.json();
+                if (reserva.status !== 'ok') {
+                    mostrarEspera('Esta decisão já foi respondida.');
+                    return;
+                }
+
+                mostrarEspera('Gerando próxima cena...');
+
+                // Gera a próxima cena; a apresentação detecta a nova cena pelo polling
+                await fetch(`${API_URL}/escolher`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: reserva.session_id, escolha_idx: idx, escolha_texto: opt })
+                });
+            } catch (e) {
+                console.error(e);
+                mostrarEspera('Erro ao enviar a escolha. Verifique o servidor.');
+            } finally {
+                enviando = false;
+            }
+        }
+
+        async function verificarDecisao() {
+            if (enviando || emCadastro) return;
+            try {
+                const r = await fetch(`${API_URL}/decisao/atual`, { cache: 'no-store' });
+                const d = await r.json();
+
+                if (d.aberta && d.opcoes && d.opcoes.length > 0) {
+                    if (d.id !== decisaoExibidaId) mostrarDecisao(d);
+                    return;
+                }
+
+                const fim = d.status_sessao === 'historia_fim' || d.status_sessao === 'quiz_fim';
+                let texto = 'Acompanhe a história na apresentação...';
+                if (d.status_sessao === 'pensando') texto = 'Gerando próxima cena...';
+                else if (fim) texto = 'A história terminou. Obrigado! Chame o pesquisador responsável para seguir para a próxima etapa.';
+
+                if (decisaoExibidaId !== null || document.getElementById('mensagem-espera').textContent !== texto) {
+                    mostrarEspera(texto);
+                }
+                document.getElementById('btn-nova-historia').style.display = fim ? 'inline-block' : 'none';
+            } catch (e) {
+                mostrarEspera('Sem conexão com o servidor...');
+            }
+        }
+
+        // Ao abrir: se não há história rodando, começa pelo cadastro;
+        // senão, entra direto acompanhando a história em andamento.
+        async function inicializar() {
+            try {
+                const r = await fetch(`${API_URL}/decisao/atual`, { cache: 'no-store' });
+                const d = await r.json();
+                if (STATUS_SEM_HISTORIA.includes(d.status_sessao)) abrirCadastro();
+                else verificarDecisao();
+            } catch (e) {
+                abrirCadastro();
+            }
+            setInterval(verificarDecisao, 700);
+        }
+        inicializar();
+    </script>
+  <script src="lucide.js"></script>
+  <script>
+    if (window.lucide) {
+      lucide.createIcons();
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        lucide.createIcons();
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  </script>
+</body>
+</html>

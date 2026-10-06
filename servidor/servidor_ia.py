@@ -800,6 +800,61 @@ def publicar_modal():
     SESSAO_ATIVA["last_scene_data"] = dados
     return jsonify({"status": "ok"})
 
+# ============================================================
+# PONTO DE DECISÃO (página separada: apresentacao/decisao.html)
+# ============================================================
+# A apresentação (index.html) abre a decisão quando a cena termina;
+# a página de decisão consulta /decisao/atual e responde via /decisao/responder.
+DECISAO_ATUAL = {
+    "id": 0,              # incrementa a cada nova decisão (evita responder decisão antiga)
+    "aberta": False,
+    "session_id": None,
+    "pergunta": "",
+    "opcoes": [],
+}
+_decisao_lock = threading.Lock()
+
+def fechar_decisao():
+    with _decisao_lock:
+        DECISAO_ATUAL["aberta"] = False
+
+@app.route('/decisao/abrir', methods=['POST'])
+def decisao_abrir():
+    dados = request.json or {}
+    with _decisao_lock:
+        # Mesma decisão já aberta (ex.: apresentação recarregada) → mantém o id
+        if (DECISAO_ATUAL["aberta"]
+                and DECISAO_ATUAL["session_id"] == dados.get("session_id")
+                and DECISAO_ATUAL["opcoes"] == dados.get("opcoes", [])):
+            return jsonify({"status": "ok", "id": DECISAO_ATUAL["id"]})
+        DECISAO_ATUAL["id"] += 1
+        DECISAO_ATUAL["aberta"] = True
+        DECISAO_ATUAL["session_id"] = dados.get("session_id")
+        DECISAO_ATUAL["pergunta"] = dados.get("pergunta", "QUAL É A SUA DECISÃO?")
+        DECISAO_ATUAL["opcoes"] = dados.get("opcoes", [])
+        return jsonify({"status": "ok", "id": DECISAO_ATUAL["id"]})
+
+@app.route('/decisao/atual', methods=['GET'])
+def decisao_atual():
+    with _decisao_lock:
+        resp = dict(DECISAO_ATUAL)
+    resp["status_sessao"] = SESSAO_ATIVA.get("status", "aguardando")
+    return jsonify(resp)
+
+@app.route('/decisao/responder', methods=['POST'])
+def decisao_responder():
+    """Reserva a resposta da decisão aberta. Só o primeiro clique vence."""
+    dados = request.json or {}
+    with _decisao_lock:
+        if not DECISAO_ATUAL["aberta"] or dados.get("decisao_id") != DECISAO_ATUAL["id"]:
+            return jsonify({"status": "erro", "msg": "Decisão já respondida ou expirada"}), 409
+        DECISAO_ATUAL["aberta"] = False
+        session_id = DECISAO_ATUAL["session_id"]
+    SESSAO_ATIVA["status"] = "pensando"
+    SESSAO_ATIVA["fala_enrolacao"] = dados.get("frase", "Processando sua escolha...")
+    SESSAO_ATIVA["nao_falando"] = True
+    return jsonify({"status": "ok", "session_id": session_id})
+
 @app.route('/iniciar_historia', methods=['POST'])
 def iniciar():
     dados = request.json
@@ -809,6 +864,7 @@ def iniciar():
     genero = dados.get('genero', 'Masculino')
     visual_fixo = dados.get('visual_fixo', '')
 
+    fechar_decisao()
     sid = manager.create_session(nome, skill, tema)
     ctx = manager.get_current_context(sid)
 
@@ -1181,6 +1237,7 @@ def finalizar_sessao():
     if not state:
         return jsonify({"status": "erro", "msg": "Sessão não encontrada"}), 404
 
+    fechar_decisao()
     # Sinaliza ao frontend que a história terminou, sem iniciar o quiz na tela
     SESSAO_ATIVA["status"] = "historia_fim"
     SESSAO_ATIVA["session_id"] = sid

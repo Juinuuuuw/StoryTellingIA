@@ -202,7 +202,8 @@
     .nao-grid { width: 100%; border-collapse: collapse; font-family: 'Montserrat', sans-serif; }
     .nao-grid th { color: var(--accent); font-size: 0.9rem; padding: 10px 8px; text-align: center; }
     .nao-grid td { padding: 12px 8px; text-align: center; color: #f4f4f4; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 0.95rem; }
-    .nao-grid td:first-child { text-align: left; padding-left: 0; }
+    .nao-grid td.grid-label-esq { text-align: right; padding-left: 0; width: 30%; }
+    .nao-grid td.grid-label-dir { text-align: left; padding-right: 0; width: 30%; }
     .grid-btn {
       width: 36px; height: 36px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.25);
@@ -239,6 +240,42 @@
     }
     .btn-ghost:hover { color: #fff; }
 
+    /* TCLE */
+    .tcle-titulo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem; color: var(--accent);
+      text-align: center; margin-bottom: 8px;
+    }
+    .tcle-subtitulo {
+      font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 28px;
+    }
+    .tcle-texto {
+      max-height: 50vh; overflow-y: auto;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 24px 28px;
+      font-size: 0.92rem; line-height: 1.7;
+      color: rgba(255,255,255,0.8);
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) rgba(255,255,255,0.05);
+    }
+    .tcle-texto h3 {
+      font-family: 'Montserrat', sans-serif; font-size: 0.85rem;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--accent); margin: 22px 0 8px;
+    }
+    .tcle-texto h3:first-child { margin-top: 0; }
+    .tcle-texto p { margin-bottom: 10px; }
+    .tcle-aviso-rolagem {
+      font-size: 0.75rem; color: rgba(255,255,255,0.4);
+      text-align: center; margin-top: 10px; letter-spacing: 1px;
+    }
+    .tcle-opcoes { margin-top: 28px; }
+    .tcle-opcoes .option-text { line-height: 1.5; }
+    .tcle-opcoes.desabilitado { opacity: 0.4; pointer-events: none; }
+
     /* TELA FIM (Matching fim-screen from index.html) */
     #tela-fim {
       display: none; flex-direction: column; align-items: center; text-align: center;
@@ -274,13 +311,59 @@
     <p>Estudo com Robô Social NAO</p>
   </div>
 
-  <div class="progress-wrap">
+  <div class="progress-wrap" id="progress-wrap" style="display:none;">
     <div class="progress-label" id="prog-label">Seção 1 de 4</div>
     <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:25%"></div></div>
   </div>
 
+  <!-- SECAO 0: TCLE -->
+  <div class="section-card active" id="sec-0">
+    <div class="tcle-titulo">Termo de Consentimento Livre e Esclarecido</div>
+    <div class="tcle-subtitulo">Leia com atenção antes de participar</div>
+
+    <div class="tcle-texto" id="tcle-texto">
+      <p>Você está sendo convidado(a) a participar, como voluntário(a), da pesquisa <strong>“Histórias que Decidem: Storytelling Interativo com o Robô Social NAO e Inteligência Artificial Generativa no Ensino da História da Computação”</strong>, conduzida por Eduardo Milhomes Barbosa de Medeiros e José Júnior de Medeiros Andrade, vinculada à Universidade do Estado do Rio Grande do Norte (UERN) / TECINCLUIR.</p>
+
+      <h3>Objetivo</h3>
+      <p>Investigar como histórias interativas sobre a história da computação, narradas pelo robô social NAO com apoio de inteligência artificial, influenciam a experiência, a percepção sobre o robô e a memorização do conteúdo pelos participantes.</p>
+
+      <h3>Procedimentos</h3>
+      <p>Sua participação consiste em: (1) responder a este pré-questionário; (2) ouvir uma história interativa narrada pelo robô NAO, tomando decisões ao longo dela; e (3) responder a um pós-questionário. A duração total estimada é de 15 minutos.</p>
+
+      <h3>Dados coletados</h3>
+      <p>Serão registradas suas respostas aos questionários (incluindo idade e área de formação), as escolhas feitas durante a história, o nome e as características escolhidos para o personagem e o tempo gasto em cada etapa. Você será identificado(a) apenas por um código (ex.: Q1); suas respostas e seu nome não serão divulgados.</p>
+      <p>Durante a atividade, poderão ser feitas <strong>fotos e filmagens</strong> da interação com o robô, que poderão ser utilizadas para fins de <strong>divulgação científica e institucional</strong> do projeto (por exemplo, em artigos, apresentações, eventos e redes sociais da UERN / TECINCLUIR). Essas imagens não serão associadas às suas respostas nos questionários. Caso não deseje ser fotografado(a) ou filmado(a), informe aos pesquisadores antes do início da atividade.</p>
+
+      <h3>Riscos e desconfortos</h3>
+      <p>Os riscos são mínimos, podendo envolver cansaço ou leve desconforto ao responder às perguntas. Você pode pausar ou interromper a atividade a qualquer momento.</p>
+
+      <h3>Benefícios</h3>
+      <p>Não há benefício direto garantido. Indiretamente, sua participação contribui para o avanço do conhecimento sobre o uso de robôs sociais e inteligência artificial em contextos educacionais.</p>
+
+      <h3>Sigilo e uso dos dados</h3>
+      <p>Os dados serão tratados de forma confidencial e utilizados exclusivamente para fins acadêmicos, podendo ser apresentados em trabalhos e publicações científicas apenas de forma agregada ou anonimizada, conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).</p>
+
+      <h3>Participação voluntária</h3>
+      <p>Sua participação é voluntária e não envolve custos nem remuneração. Você pode se recusar a participar ou desistir a qualquer momento, sem qualquer prejuízo, e pode solicitar a exclusão dos seus dados informando seu código ao pesquisador.</p>
+
+      <h3>Contato</h3>
+      <p>Em caso de dúvidas, entre em contato com a equipe de pesquisa pelo e-mail <strong>eb.medeiros@gmail.com</strong>.</p>
+    </div>
+    <div class="tcle-aviso-rolagem" id="tcle-aviso-rolagem">Role o texto até o final para habilitar as opções</div>
+
+    <div class="options-list tcle-opcoes desabilitado" id="tcle-opcoes">
+      <div class="option-item" id="tcle-opt-aceito" onclick="selecionarTcle(true)"><div class="option-dot"></div><span class="option-text"><strong>Declaro que li e aceito</strong> participar desta pesquisa, de forma livre e voluntária.</span></div>
+      <div class="option-item" id="tcle-opt-recuso" onclick="selecionarTcle(false)"><div class="option-dot"></div><span class="option-text"><strong>Declaro que li e não aceito</strong> participar desta pesquisa.</span></div>
+    </div>
+
+    <div class="nav-row">
+      <div></div>
+      <button class="btn-primary" id="btn-tcle" onclick="confirmarTcle()" disabled>CONTINUAR &rarr;</button>
+    </div>
+  </div>
+
   <!-- SECAO 1 -->
-  <div class="section-card active" id="sec-1">
+  <div class="section-card" id="sec-1">
     <div class="section-desc">Responda as perguntas abaixo antes da experiência com o robô NAO. Suas respostas são confidenciais e serão usadas apenas para fins de pesquisa.</div>
     
     <div class="question-block">
@@ -341,7 +424,7 @@
     </div>
     
     <div class="question-block">
-      <div class="question-label">Antes desta sessão, você já tinha ouvido falar de Alan Turing? <span class="req">*</span></div>
+      <div class="question-label">Antes desta sessão, você já tinha ouvido falar de Alan Turing ou Katherine Johnson? <span class="req">*</span></div>
       <div class="likert-scale">
         <span class="likert-label-text">Não sabia<br>nada</span>
         <div class="likert-buttons" id="btns-turing"></div>
@@ -369,19 +452,19 @@
     <div class="section-desc">Observe o robô e indique sua impressão sobre ele. Em cada linha, existem duas características opostas. Marque um valor entre 1 e 5. Não existem respostas certas ou erradas.</div>
     
     <div class="nao-section-title">Antropomorfismo</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-antrop"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid-antrop"></tbody></table></div>
     
     <div class="nao-section-title">Animacidade</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-anim"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid-anim"></tbody></table></div>
     
     <div class="nao-section-title">Simpatia</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-simp"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid-simp"></tbody></table></div>
     
     <div class="nao-section-title">Inteligência Percebida</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-intel"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid-intel"></tbody></table></div>
     
     <div class="nao-section-title">Segurança Percebida</div>
-    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th>Par de características</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="grid-seg"></tbody></table></div>
+    <div class="nao-grid-wrapper"><table class="nao-grid"><thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th></th></tr></thead><tbody id="grid-seg"></tbody></table></div>
     
     <div class="nav-row">
       <button class="btn-ghost" onclick="irPara(2)">&larr; VOLTAR</button>
@@ -410,7 +493,13 @@
   <div class="fim-title">Pré-questionário Concluído!</div>
   <div class="fim-desc">Obrigado por responder. Guarde o seu ID de participante abaixo &mdash; ele será necessário para vincular suas respostas ao longo do estudo.</div>
   <div class="id-badge" id="fim-id">&mdash;</div>
-  <div class="fim-desc" style="font-size:0.85rem;margin-top:10px;">Informe este ID ao pesquisador quando for iniciar a sessão com o NAO.</div>
+  <div class="fim-desc" style="font-size:0.85rem;margin-top:10px;">Agora, <strong>chame o pesquisador responsável</strong> e informe este ID para iniciar a sessão com o NAO.</div>
+</div>
+
+<div id="tela-recusa" style="display:none; flex-direction:column; align-items:center; text-align:center; padding:60px 40px; max-width:600px; margin:80px auto;">
+  <div class="fim-title">Tudo bem!</div>
+  <div class="fim-desc">Você optou por não participar da pesquisa. Nenhuma resposta foi registrada. Obrigado pelo seu tempo.</div>
+  <button class="btn-ghost" onclick="window.location.reload()">&larr; VOLTAR AO TERMO</button>
 </div>
 
 <div class="spinner-overlay" id="spinner">
@@ -421,8 +510,44 @@
 <script>
 const API = (window.location.protocol === 'file:') ? 'http://127.0.0.1:5000' : window.location.origin;
 const respostas = {};
-let secaoAtual = 1;
-const tempoInicio = Date.now();
+let secaoAtual = 0; // 0 = TCLE
+let tempoInicio = Date.now();
+let tcleAceitoEm = null;
+
+let tcleAceito = null; // true = aceito, false = não aceito, null = nada escolhido
+
+// As opções só são liberadas depois de rolar o termo até o final
+function verificarRolagemTcle() {
+  const t = document.getElementById('tcle-texto');
+  if (t.scrollTop + t.clientHeight >= t.scrollHeight - 10) {
+    document.getElementById('tcle-opcoes').classList.remove('desabilitado');
+    document.getElementById('tcle-aviso-rolagem').style.visibility = 'hidden';
+  }
+}
+
+function selecionarTcle(aceito) {
+  tcleAceito = aceito;
+  document.getElementById('tcle-opt-aceito').classList.toggle('selected', aceito);
+  document.getElementById('tcle-opt-recuso').classList.toggle('selected', !aceito);
+  document.getElementById('btn-tcle').disabled = false;
+}
+
+function confirmarTcle() {
+  if (tcleAceito === true) aceitarTcle();
+  else if (tcleAceito === false) recusarTcle();
+}
+
+function aceitarTcle() {
+  tcleAceitoEm = new Date().toISOString();
+  tempoInicio = Date.now(); // tempo de resposta conta a partir do aceite
+  document.getElementById('progress-wrap').style.display = '';
+  irPara(1);
+}
+
+function recusarTcle() {
+  document.getElementById('form-container').style.display = 'none';
+  document.getElementById('tela-recusa').style.display = 'flex';
+}
 
 const NAO_GRIDS = [
   {tbodyId:"grid-antrop",gk:"g0",linhas:["Falso / Natural","Com aspecto mecânico / Sem aspecto mecânico","Inconsciente / Consciente","Artificial / Realista","Move-se com rigidez / Move-se com fluidez"]},
@@ -438,10 +563,13 @@ function inicializarGrids() {
     g.linhas.forEach((linha, lIdx) => {
       const chave = 's0_' + g.gk + '_l' + lIdx;
       const tr = document.createElement('tr');
-      let tds = '<td>' + linha + '</td>';
+      // Padrão "Texto 1 2 3 4 5 Texto": característica da esquerda, escala, característica da direita
+      const [esq, dir] = linha.split(' / ');
+      let tds = '<td class="grid-label-esq">' + esq + '</td>';
       for (let v = 1; v <= 5; v++) {
         tds += '<td><button class="grid-btn" id="grid_' + chave + '_' + v + '" data-chave="' + chave + '" data-val="' + v + '">' + v + '</button></td>';
       }
+      tds += '<td class="grid-label-dir">' + dir + '</td>';
       tr.innerHTML = tds;
       tbody.appendChild(tr);
     });
@@ -549,7 +677,8 @@ async function enviarFormulario() {
     conhecimento_turing_pre: respostas['conhecimento_turing_pre'] || null,
     ja_ouviu_marco_historico: respostas['ja_ouviu_marco_historico'] || null,
     percepcao_nao: percepcao_nao,
-    expectativa_experiencia: expectativa || null
+    expectativa_experiencia: expectativa || null,
+    tcle_aceito_em: tcleAceitoEm
   };
   document.getElementById('spinner').classList.add('active');
   try {
@@ -574,6 +703,9 @@ async function enviarFormulario() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const tcleTexto = document.getElementById('tcle-texto');
+  tcleTexto.addEventListener('scroll', verificarRolagemTcle);
+  verificarRolagemTcle(); // telas grandes em que o termo cabe inteiro
   inicializarGrids();
   inicializarLikert('btns-conhec-hist', 'conhecimento_historia_pre');
   inicializarLikert('btns-turing', 'conhecimento_turing_pre');

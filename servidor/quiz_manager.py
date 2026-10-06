@@ -101,7 +101,8 @@ def init_db():
             percepcao_nao TEXT,
             expectativa_experiencia TEXT,
             status TEXT DEFAULT 'aguardando_historia',
-            session_id TEXT
+            session_id TEXT,
+            tcle_aceito_em TEXT
         );
 
         -- ── MÉTRICAS DE TEMPO POR FASE ────────────────────────────────
@@ -114,6 +115,10 @@ def init_db():
             duracao_seg INTEGER
         );
     """)
+    # Migração: bancos criados antes do TCLE não têm a coluna tcle_aceito_em
+    colunas_pre = [c[1] for c in con.execute("PRAGMA table_info(pre_questionarios)")]
+    if "tcle_aceito_em" not in colunas_pre:
+        con.execute("ALTER TABLE pre_questionarios ADD COLUMN tcle_aceito_em TEXT")
     con.commit()
     con.close()
     print("[OK] Quiz DB inicializado.")
@@ -146,8 +151,8 @@ def salvar_pre_questionario(dados: dict) -> str:
                  idade, area_formacao, contato_robos, frequencia_ia,
                  conhecimento_historia_pre, ja_ouviu_marco_pre,
                  conhecimento_turing_pre, ja_ouviu_marco_historico,
-                 percepcao_nao, expectativa_experiencia, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'aguardando_historia')
+                 percepcao_nao, expectativa_experiencia, tcle_aceito_em, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'aguardando_historia')
         """, (
             pre_id,
             datetime.now().isoformat(),
@@ -162,6 +167,7 @@ def salvar_pre_questionario(dados: dict) -> str:
             dados.get("ja_ouviu_marco_historico"),
             percepcao_json,
             dados.get("expectativa_experiencia"),
+            dados.get("tcle_aceito_em"),
         ))
         con.commit()
         print(f"[OK] Pre-questionario salvo: {pre_id}")
