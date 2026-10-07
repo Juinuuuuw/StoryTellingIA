@@ -67,6 +67,11 @@
             display: none; /* hidden until story starts */
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
+
+        /* Legenda ocultada manualmente (Shift+E) - !important pois o JS define display:block */
+        #story-panel.legenda-oculta {
+            display: none !important;
+        }
         
         .panel-header {
             display: flex;
@@ -586,9 +591,8 @@
     </div>
 
     <script>
-        const SERVER_IP = window.location.hostname || "127.0.0.1";
+        const SERVER_IP = "192.168.16.191";
         const API_URL = `http://${SERVER_IP}:5000`;
-        const ROBOT_URL = "http://localhost:8080";
 
         let lastSessionId = null;
         let lastPreId = null; // o pre_id agora é informado em decisao.html
@@ -596,6 +600,16 @@
         let currentSequenceId = 0;
         let isModalLocallyOpen = false;
         let typeWriterTimeout = null;
+
+        // Shift+E: alterna (esconde/mostra) a legenda da história
+        document.addEventListener('keydown', (e) => {
+            if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.code === 'KeyE') {
+                const tag = (e.target && e.target.tagName || '').toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) return;
+                e.preventDefault();
+                document.getElementById('story-panel').classList.toggle('legenda-oculta');
+            }
+        });
 
         // ─── Sincronização de quadros (a rede é instável) ─────────────────
         // O servidor guarda estado absoluto — cena X, quadro N — então reenviar é seguro.

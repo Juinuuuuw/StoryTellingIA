@@ -1631,6 +1631,138 @@ def publicar_proxima_pergunta_quiz():
         print(f"❓ Quiz: Publicando pergunta {idx + 1}/{len(perguntas)}")
 
 
+def gerar_quiz_json(prompt, max_tentativas=3):
+    """
+    O gerador de cenas (gerar_json_seguro) descarta qualquer JSON sem "historia" — o do quiz
+    só tem "perguntas", então todas as tentativas eram jogadas fora e o quiz nunca era salvo.
+    Se nenhuma tentativa trouxer as 5 perguntas, devolve a que trouxe mais.
+    """
+    melhor = []
+    for tentativa in range(max_tentativas):
+        try:
+            resposta = ollama.chat(
+                model=MODELO,
+                messages=[{'role': 'user', 'content': prompt}],
+                format='json',
+                options={'temperature': max(0.3, 0.5 - 0.1 * tentativa), 'num_predict': 1600, 'num_ctx': 8192},
+                keep_alive=0
+            )
+            conteudo = resposta.message.content.strip()
+            print(f"\n=== QUIZ JSON (Tentativa {tentativa+1}) ===\n{conteudo}\n=====================\n")
+            dados = json.loads(conteudo)
+            perguntas = [p for p in (dados.get("perguntas") or [])
+                         if isinstance(p, dict) and isinstance(p.get("pergunta"), str) and p["pergunta"].strip()
+                         and isinstance(p.get("opcoes"), list)
+                         and len([o for o in p["opcoes"] if isinstance(o, str) and o.strip()]) >= 2]
+            for p in perguntas:
+                p["opcoes"] = [o.strip() for o in p["opcoes"] if isinstance(o, str) and o.strip()]
+            if len(perguntas) > len(melhor):
+                melhor = perguntas
+            if len(melhor) >= 5:
+                return melhor[:5]
+            print(f"⚠️ Quiz com {len(perguntas)} pergunta(s) válida(s) (Tentativa {tentativa+1}). Refazendo...")
+        except Exception as e:
+            print(f"❌ Erro no JSON do quiz (Tentativa {tentativa+1}): {e}")
+    return melhor
+
+
+_QUIZ_EM_GERACAO = set()
+_QUIZ_LOCK = threading.Lock()
+
+
+def iniciar_geracao_quiz(sid):
+    """Gera o quiz da sessão em background. Ignora se já está sendo gerado ou já existe."""
+    with _QUIZ_LOCK:
+        if sid in _QUIZ_EM_GERACAO:
+            return False
+        _QUIZ_EM_GERACAO.add(sid)
+    threading.Thread(target=_gerar_quiz_sessao, args=(sid,), daemon=True).start()
+    return True
+
+
+def _gerar_quiz_sessao(sid):
+    try:
+        import sqlite3
+        con = sqlite3.connect(quiz_manager.DB_PATH)
+        con.row_factory = sqlite3.Row
+        pre_record = con.execute("SELECT pre_id FROM pre_questionarios WHERE session_id = ?", (sid,)).fetchone()
+        ja_tem = con.execute("SELECT COUNT(*) FROM perguntas_quiz WHERE session_id = ?", (sid,)).fetchone()[0]
+        con.close()
+
+        if not pre_record:
+            print(f"🚫 Sessão {sid} não possui código (pre_id). O quiz não será gerado.")
+            return
+        if ja_tem:
+            return
+
+        state = manager.load_state(sid)
+        if not state:
+            print(f"🚫 Estado da sessão {sid} não encontrado. O quiz não será gerado.")
+            return
+
+        historico = state.get("history", [])
+        student_name = state["student"]["name"]
+        tema = state["student"].get("theme", "")
+        skill = state["student"].get("focus_skill", "")
+
+        print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] - Aluno: {student_name}")
+
+        marcos = [s["marco_historico"] for s in state.get("blueprint", {}).get("steps", []) if s.get("marco_historico")]
+        prompt_quiz = montar_prompt_quiz(student_name, historico, marcos)
+        perguntas = gerar_quiz_json(prompt_quiz)
+
+        if not perguntas:
+            print("❌ Falha ao gerar perguntas do quiz.")
+            return
+
+        # Garante que "Não me lembro." está sempre na posição 3 e embaralha as outras
+        import random
+        for p in perguntas:
+            opcoes = p.get("opcoes", [])
+        
+            # Pega o texto da resposta correta (deve ser o índice 0 pelo novo prompt, mas tenta ler do índice fornecido pela IA por segurança)
+            # O phi4-mini às vezes devolve o TEXTO da resposta em vez do índice
+            idx_correta_ia = p.get("resposta_correta", 0)
+            if isinstance(idx_correta_ia, str):
+                alvo = idx_correta_ia.strip().lower()
+                idx_correta_ia = next((i for i, o in enumerate(opcoes) if o.strip().lower() == alvo),
+                                      int(alvo) if alvo.isdigit() else 0)
+            if not isinstance(idx_correta_ia, int) or not 0 <= idx_correta_ia < len(opcoes):
+                idx_correta_ia = 0
+            texto_correto = opcoes[idx_correta_ia] if opcoes else ""
+        
+            # Remove "Não me lembro." se estiver em posição errada
+            opcoes_sem_nao = [o for o in opcoes if o.strip().lower() != "não me lembro."]
+            # Garante exatamente 3 distractors
+            while len(opcoes_sem_nao) < 3:
+                opcoes_sem_nao.append("Não disponível")
+            opcoes_shuffled = opcoes_sem_nao[:3]
+        
+            # Embaralha apenas as 3 opções!
+            random.shuffle(opcoes_shuffled)
+        
+            # Descobre o novo índice da resposta correta
+            novo_idx_correto = 0
+            if texto_correto in opcoes_shuffled:
+                novo_idx_correto = opcoes_shuffled.index(texto_correto)
+            
+            p["opcoes"] = opcoes_shuffled + ["Não me lembro."]
+            p["resposta_correta"] = novo_idx_correto
+
+        # Persiste no banco SQLite
+        quiz_manager.criar_sessao_quiz(sid, student_name, tema, skill)
+        quiz_manager.salvar_perguntas(sid, perguntas)
+    
+        print(f"✅ Quiz gerado e salvo em background para a sessão {sid}")
+    except Exception as e:
+        import traceback
+        print(f"❌ Erro ao gerar quiz da sessão {sid}: {e}")
+        traceback.print_exc()
+    finally:
+        with _QUIZ_LOCK:
+            _QUIZ_EM_GERACAO.discard(sid)
+
+
 @app.route('/finalizar_sessao', methods=['POST'])
 def finalizar_sessao():
     """
@@ -1652,69 +1784,7 @@ def finalizar_sessao():
     SESSAO_ATIVA["quiz_ids"] = []
     SESSAO_ATIVA["quiz_idx_atual"] = 0
 
-    def gerar_silencioso():
-        import sqlite3
-        con = sqlite3.connect(quiz_manager.DB_PATH)
-        con.row_factory = sqlite3.Row
-        pre_record = con.execute("SELECT pre_id FROM pre_questionarios WHERE session_id = ?", (sid,)).fetchone()
-        con.close()
-        
-        if not pre_record:
-            print(f"🚫 Sessão {sid} não possui código (pre_id). O quiz não será gerado.")
-            return
-
-        historico = state.get("history", [])
-        student_name = state["student"]["name"]
-        tema = state["student"].get("theme", "")
-        skill = state["student"].get("focus_skill", "")
-
-        print(f"\n🧠 Gerando quiz silencioso para Pós-Questionário [{sid}] - Aluno: {student_name}")
-
-        marcos = [s["marco_historico"] for s in state["blueprint"]["steps"] if s.get("marco_historico")]
-        prompt_quiz = montar_prompt_quiz(student_name, historico, marcos)
-        quiz_raw = gerar_json_seguro(prompt_quiz, temperatura=0.5)
-        perguntas = quiz_raw.get("perguntas", [])
-
-        if not perguntas:
-            print("❌ Falha ao gerar perguntas do quiz.")
-            return
-
-        # Garante que "Não me lembro." está sempre na posição 3 e embaralha as outras
-        import random
-        for p in perguntas:
-            opcoes = p.get("opcoes", [])
-            
-            # Pega o texto da resposta correta (deve ser o índice 0 pelo novo prompt, mas tenta ler do índice fornecido pela IA por segurança)
-            idx_correta_ia = p.get("resposta_correta", 0)
-            if not isinstance(idx_correta_ia, int) or idx_correta_ia >= len(opcoes):
-                idx_correta_ia = 0
-            texto_correto = opcoes[idx_correta_ia] if opcoes else ""
-            
-            # Remove "Não me lembro." se estiver em posição errada
-            opcoes_sem_nao = [o for o in opcoes if o.strip().lower() != "não me lembro."]
-            # Garante exatamente 3 distractors
-            while len(opcoes_sem_nao) < 3:
-                opcoes_sem_nao.append("Não disponível")
-            opcoes_shuffled = opcoes_sem_nao[:3]
-            
-            # Embaralha apenas as 3 opções!
-            random.shuffle(opcoes_shuffled)
-            
-            # Descobre o novo índice da resposta correta
-            novo_idx_correto = 0
-            if texto_correto in opcoes_shuffled:
-                novo_idx_correto = opcoes_shuffled.index(texto_correto)
-                
-            p["opcoes"] = opcoes_shuffled + ["Não me lembro."]
-            p["resposta_correta"] = novo_idx_correto
-
-        # Persiste no banco SQLite
-        quiz_manager.criar_sessao_quiz(sid, student_name, tema, skill)
-        quiz_manager.salvar_perguntas(sid, perguntas)
-        
-        print(f"✅ Quiz gerado e salvo em background para a sessão {sid}")
-
-    threading.Thread(target=gerar_silencioso).start()
+    iniciar_geracao_quiz(sid)
 
     return jsonify({"status": "ok", "msg": "História encerrada. Quiz gerado no backend silenciosamente."})
 
@@ -1824,7 +1894,7 @@ def salvar_likert_route():
                     p_db = con.execute("SELECT resposta_correta FROM perguntas_quiz WHERE id = ?", (pergunta_id,)).fetchone()
                     if p_db:
                         correta = 1 if resp_idx == p_db['resposta_correta'] else 0
-                        quiz_manager.salvar_resposta(session_id, pergunta_id, resp_idx, correta, False)
+                        quiz_manager.salvar_resposta(session_id, pergunta_id, resp_idx, correta, resp_idx == 3)  # 3 = "Não me lembro."
             finally:
                 con.close()
         
@@ -1955,6 +2025,8 @@ def obter_quiz_pos():
         perguntas = con.execute("SELECT id, pergunta, opcoes FROM perguntas_quiz WHERE session_id = ? ORDER BY ordem ASC", (session_id,)).fetchall()
         
         if not perguntas:
+            # Se a geração do fim da história falhou (ou nunca rodou), tenta de novo agora
+            iniciar_geracao_quiz(session_id)
             return jsonify({"status": "pendente", "session_id": session_id})
             
         perguntas_lista = []

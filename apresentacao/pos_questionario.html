@@ -386,7 +386,7 @@
 </div>
 
 <script>
-const API = (window.location.protocol === 'file:') ? 'http://127.0.0.1:5000' : window.location.origin;
+const API = 'http://192.168.16.191:5000';
 const respostas = {};
 let secaoAtual = 0;
 const totalSecoes = 9;
@@ -410,7 +410,8 @@ async function validarEIniciar() {
             document.getElementById('spinner-text').innerText = "Carregando Perguntas...";
             let quizPronto = false;
             let retries = 0;
-            while (!quizPronto && retries < 10) {
+            // A IA gera o quiz em background (carrega o modelo a cada vez) — pode levar 1-2 min
+            while (!quizPronto && retries < 90) {
                 const rQuiz = await fetch(`${API}/obter_quiz_pos?pre_id=${preId}`);
                 if (rQuiz.ok) {
                     const dataQuiz = await rQuiz.json();
@@ -421,6 +422,7 @@ async function validarEIniciar() {
                         renderizarQuiz();
                     } else if (dataQuiz.status === 'pendente') {
                         sessionId = dataQuiz.session_id;
+                        document.getElementById('spinner-text').innerText = "Gerando perguntas sobre a sua história...";
                         retries++;
                         await new Promise(res => setTimeout(res, 2000));
                     } else {
@@ -430,7 +432,8 @@ async function validarEIniciar() {
                     quizPronto = true;
                 }
             }
-            
+            if (!window.quizPerguntas) renderizarQuiz(); // mostra o aviso de "sem perguntas"
+
             // Inicializa timer e status
             try {
                 await fetch(API + '/atualizar_status_pre', {
@@ -462,7 +465,10 @@ async function validarEIniciar() {
 function renderizarQuiz() {
     const container = document.getElementById('quiz-container');
     if (!container) return;
-    if (!window.quizPerguntas || window.quizPerguntas.length === 0) return;
+    if (!window.quizPerguntas || window.quizPerguntas.length === 0) {
+        container.innerHTML = '<div class="section-desc">Não há perguntas sobre a história para esta sessão. Clique em continuar.</div>';
+        return;
+    }
     
     let html = '';
     window.quizPerguntas.forEach((q, i) => {
@@ -488,9 +494,9 @@ function renderizarQuiz() {
 }
 
 function verificarPreenchimento() {
-    if (!window.quizPerguntas) return;
+    // Sem quiz (geração falhou ou pós avulso) a seção 0 não pode travar o questionário
     let ok = true;
-    window.quizPerguntas.forEach(q => {
+    (window.quizPerguntas || []).forEach(q => {
         const selected = document.querySelector(`input[name="quiz_${q.id}"]:checked`);
         if (selected) {
             respostas[`quiz_${q.id}`] = parseInt(selected.value);
@@ -610,11 +616,10 @@ function irPara(n) {
 }
 
 async function enviarFormulario() {
+  // sessionId global vem de /obter_quiz_pos; sem ele as respostas do quiz eram descartadas no servidor
   const urlParams = new URLSearchParams(window.location.search);
-  const sessionId = urlParams.get('session_id') || 'pos_avulso';
-  
   const payload = {
-    session_id: sessionId,
+    session_id: sessionId || urlParams.get('session_id') || 'pos_avulso',
     pre_id: preId,
     secoes: LIKERT_SECOES_DEF,
     respostas: respostas
@@ -651,6 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('step-identificacao').style.display = 'none';
         document.getElementById('form-container').style.display = 'block';
         document.getElementById('lbl-part-id').innerText = 'Avulso';
+        renderizarQuiz();
         atualizarUI();
         inicializarPerguntas();
         return;
