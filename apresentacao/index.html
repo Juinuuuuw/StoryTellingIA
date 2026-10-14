@@ -591,7 +591,8 @@
     </div>
 
     <script>
-        const SERVER_IP = "192.168.16.191";
+        // IP do servidor = host de onde a página foi aberta (o IP muda via DHCP)
+        const SERVER_IP = (window.location.protocol === 'file:' || !window.location.hostname) ? '127.0.0.1' : window.location.hostname;
         const API_URL = `http://${SERVER_IP}:5000`;
 
         let lastSessionId = null;
@@ -828,10 +829,24 @@
             const seqId = currentSequenceId;
             const cenaId = cenaAtualId;
 
-            // Avisa o servidor (e o NAO) qual quadro está na tela — com reenvio
+            // Solicita a fala só depois de carregar a imagem — com reenvio.
             const publicarQuadro = (idx) => {
                 quadroExibido = idx;
-                postarComConfirmacao('/publicar_quadro', { cena_id: cenaId, quadro_idx: idx }, cenaId);
+                return postarComConfirmacao('/publicar_quadro', { cena_id: cenaId, quadro_idx: idx }, cenaId);
+            };
+
+            const esperarAudioPronto = async (idx) => {
+                while (seqId === currentSequenceId) {
+                    try {
+                        const res = await fetch(`${API_URL}/visualizador/audio_pronto`, { cache: 'no-store' });
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const estado = await res.json();
+                        if (estado.cena_id !== cenaId) return false;
+                        if (estado.quadro_audio_pronto >= idx || estado.quadro_liberado >= idx) return true;
+                    } catch (e) { console.warn('Aguardando áudio do NAO:', e); }
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                return false;
             };
 
             const imgEl = document.getElementById('scene-image');
@@ -843,16 +858,6 @@
             const playFrame = async (idx) => {
                 const filename = images[idx];
 
-                // Para os quadros seguintes (2, 3 e 4), exibe o texto imediatamente
-                // enquanto a imagem termina de ser gerada em background
-                if (idx > 0) {
-                    if (textChunks && textChunks[idx]) {
-                        typeWriterEffect(textChunks[idx], storyTextEl);
-                    }
-                    // Notifica o servidor para o NAO já ir falando
-                    publicarQuadro(idx);
-                }
-
                 const finalFilename = await waitForImage(filename);
                 if (seqId !== currentSequenceId) return false;
                 
@@ -861,13 +866,17 @@
                     const img = new Image();
                     await new Promise(res => { img.onload = res; img.onerror = res; img.src = url; });
                     
-                    if (idx === 0) {
-                        loader.style.display = 'none';
-                        // Para o primeiro quadro, exibe o texto apenas DEPOIS da imagem pronta
-                        if (textChunks && textChunks[idx]) {
-                            typeWriterEffect(textChunks[idx], storyTextEl);
-                        }
-                        publicarQuadro(idx);
+                    if (seqId !== currentSequenceId) return false;
+                    await publicarQuadro(idx);
+                    if (seqId !== currentSequenceId) return false;
+                    // Mantém o quadro anterior (ou o loader) durante a síntese.
+                    // Textos vazios não têm áudio para aguardar.
+                    if (textChunks && textChunks[idx] && !await esperarAudioPronto(idx)) return false;
+                    if (seqId !== currentSequenceId) return false;
+                    loader.style.display = 'none';
+                    storyTextEl.textContent = '';
+                    if (textChunks && textChunks[idx]) {
+                        typeWriterEffect(textChunks[idx], storyTextEl);
                     }
 
                     imgEl.src = url;

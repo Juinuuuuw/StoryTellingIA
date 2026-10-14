@@ -945,6 +945,7 @@ SESSAO_ATIVA = {
     "quadro_liberado": -1,   # maior quadro já liberado para avançar (NAO, dashboard, painel ou tempo-limite)
     "text_chunks": [],       # lista de strings: texto correspondente a cada quadro
     "nao_falando": False,    # True enquanto o NAO está falando; False quando terminou
+    "quadro_audio_pronto": -1, # áudio carregado no NAO, pronto para reprodução
     # --- Quiz ---
     "quiz_perguntas": [],    # lista de dicts com pergunta, opcoes, resposta_correta
     "quiz_ids": [],          # IDs das perguntas no banco SQLite
@@ -968,6 +969,7 @@ def _nova_cena_ativa():
         SESSAO_ATIVA["quadro_atual"] = -1
         SESSAO_ATIVA["quadro_desde"] = time.time()
         SESSAO_ATIVA["quadro_liberado"] = -1
+        SESSAO_ATIVA["quadro_audio_pronto"] = -1
 
 
 def _cena_confere(cena_id):
@@ -1028,6 +1030,7 @@ def _estado_quadros():
         "cena_id": SESSAO_ATIVA["cena_id"],
         "quadro_atual": atual,
         "quadro_liberado": SESSAO_ATIVA["quadro_liberado"],
+        "quadro_audio_pronto": SESSAO_ATIVA["quadro_audio_pronto"],
         "segundos_no_quadro": round(segundos, 1),
         "pode_passar": (SESSAO_ATIVA.get("status") == "ativo" and atual >= 0
                         and SESSAO_ATIVA["quadro_liberado"] < atual
@@ -1080,6 +1083,30 @@ def nao_terminou_fala():
     if isinstance(dados.get("quadro_idx"), int):
         _liberar_quadro(dados.get("cena_id"), dados["quadro_idx"], "NAO terminou de falar")
     return jsonify({"status": "ok", "cena_id": SESSAO_ATIVA["cena_id"]})
+
+
+@app.route('/nao_audio_pronto', methods=['POST'])
+def nao_audio_pronto():
+    """Libera a exibição somente depois de carregar o áudio no robô."""
+    dados = request.get_json(silent=True) or {}
+    idx = dados.get('quadro_idx')
+    with _quadro_lock:
+        if (dados.get('cena_id') != SESSAO_ATIVA['cena_id']
+                or type(idx) is not int or idx < 0
+                or idx != SESSAO_ATIVA['quadro_atual']
+                or SESSAO_ATIVA.get('status') != 'ativo'):
+            return jsonify({'status': 'ignorado'}), 409
+        if idx > SESSAO_ATIVA['quadro_audio_pronto']:
+            SESSAO_ATIVA['quadro_audio_pronto'] = idx
+            # O tempo da fala começa agora, sem contar síntese/transferência.
+            SESSAO_ATIVA['quadro_desde'] = time.time()
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/visualizador/audio_pronto')
+def visualizador_audio_pronto():
+    # Consulta leve: evita reenviar todos os prompts/imagens a cada 100 ms.
+    return jsonify(_estado_quadros())
 
 @app.route('/nao_terminou', methods=['GET'])
 def nao_terminou():
@@ -1150,7 +1177,8 @@ def visualizador_quadro():
         "texto": texto,
         "quadro_idx": idx,
         "cena_id": SESSAO_ATIVA["cena_id"],
-        "total_quadros": len(chunks)
+        "total_quadros": len(chunks),
+        "text_chunks": list(chunks)
     })
 
 @app.route('/registrar_chunks', methods=['POST'])
@@ -1777,6 +1805,10 @@ def finalizar_sessao():
         return jsonify({"status": "erro", "msg": "Sessão não encontrada"}), 404
 
     fechar_decisao()
+    try:
+        quiz_manager.finalizar_tempo_historia(sid)
+    except Exception as e:
+        print(f"❌ Erro ao registrar tempo da história: {e}")
     # Sinaliza ao frontend que a história terminou, sem iniciar o quiz na tela
     SESSAO_ATIVA["status"] = "historia_fim"
     SESSAO_ATIVA["session_id"] = sid
@@ -2130,4 +2162,3 @@ def estatisticas_participacao():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
-

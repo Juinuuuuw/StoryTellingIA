@@ -353,6 +353,23 @@ def registrar_metrica_tempo(pre_id: str, fase: str, inicio: str, fim: str = None
         con.close()
 
 
+def finalizar_tempo_historia(session_id: str):
+    """Fecha a métrica de tempo da fase 'historia' do participante ligado a esta sessão."""
+    from datetime import datetime
+    con = sqlite3.connect(DB_PATH)
+    try:
+        row = con.execute(
+            """SELECT m.pre_id FROM metricas_tempo m
+               JOIN pre_questionarios p ON p.pre_id = m.pre_id
+               WHERE p.session_id = ? AND m.fase = 'historia' AND m.fim IS NULL""",
+            (session_id,)
+        ).fetchone()
+    finally:
+        con.close()
+    if row:
+        registrar_metrica_tempo(row[0], "historia", None, datetime.now().isoformat())
+
+
 def criar_sessao_quiz(session_id, nome_aluno, tema, skill):
     """Cria um registro de sessão de quiz no banco."""
     con = sqlite3.connect(DB_PATH)
@@ -1267,7 +1284,7 @@ def exportar_excel_analista(filepath):
             # Métricas de tempo adicionais
             tempos = con.execute("SELECT fase, duracao_seg FROM metricas_tempo WHERE pre_id = ?", (pre_id,)).fetchall()
             for t in tempos:
-                if t['fase'] == 'historia_interativa':
+                if t['fase'] == 'historia' and t['duracao_seg'] is not None:
                     row_data['Tempo História (s)'] = t['duracao_seg']
                 elif t['fase'] == 'pos_questionario':
                     row_data['Tempo Pós-Questionário (s)'] = t['duracao_seg']
