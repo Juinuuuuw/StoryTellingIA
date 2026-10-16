@@ -8,3 +8,6 @@ venv/
   
  *.db
 *.db
+
+# Backups locais
+*.backup-*
